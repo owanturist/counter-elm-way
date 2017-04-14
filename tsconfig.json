@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "sourceRoot": "./src/",
+    "outFile": "./dist/index.js",
+    "module": "amd",
+    "target": "es2015",
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false,
+    "noImplicitAny": true,
+    "noUnusedParameters": true,
+    "noUnusedLocals": true
+  },
+  "include": [
+    "./src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "typings/main",
+    "typings/main.d.ts"
+  ]
+}
