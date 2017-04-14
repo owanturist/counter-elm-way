@@ -1,23 +1,25 @@
 import {
-    FIRST_COUNTER_ACTION,
-    SECOND_COUNTER_ACTION,
-    firstCounterAction,
-    secondCounterAction
+    Effect
+} from './Loop';
+import {
+    Msg,
+    Model,
+    firstCounterMsg,
+    secondCounterMsg
 } from './Types';
-
 import {
     initialModel as CounterInitialModel,
     update as CoutnerModelUpdate
 } from './Counter/State';
 
-export const initialModel = {
+export const initialModel: Model = {
     firstCounter: CounterInitialModel,
     secondCounter: CounterInitialModel
 };
 
-export const update = (msg, model) => {
+export const update = (msg: Msg, model: Model): [ Model, Effect<Msg>[]]  => {
     switch (msg.type) {
-        case FIRST_COUNTER_ACTION: {
+        case 'FIRST_COUNTER_MSG': {
             const [
                 nextFirstCounter,
                 counterCmd
@@ -29,12 +31,12 @@ export const update = (msg, model) => {
                     firstCounter: nextFirstCounter
                 },
                 counterCmd.map(
-                    (eff) => eff.map(firstCounterAction)
+                    (eff) => eff.map(firstCounterMsg)
                 )
             ];
         }
 
-        case SECOND_COUNTER_ACTION: {
+        case 'SECOND_COUNTER_MSG': {
             const [
                 nextSecondCounter,
                 counterCmd
@@ -46,7 +48,7 @@ export const update = (msg, model) => {
                     secondCounter: nextSecondCounter
                 },
                 counterCmd.map(
-                    (eff) => eff.map(secondCounterAction)
+                    (eff) => eff.map(secondCounterMsg)
                 )
             ];
         }

@@ -8,6 +8,10 @@ import {
     createLoopStore
 } from './Loop';
 import {
+    Msg,
+    Model
+} from './Types';
+import {
     initialModel,
     update
 } from './State';
@@ -15,7 +19,7 @@ import {
     View as AppView
 } from './View';
 
-const store = createLoopStore((state, action) => {
+const store = createLoopStore<Model, Msg>((state, action: Msg) => {
     const [ model, cmds ] = update(action, state);
 
     return {

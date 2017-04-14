@@ -1,13 +1,44 @@
-export const FIRST_COUNTER_ACTION = 'FIRST_COUNTER_ACTION';
+import {
+    Msg as CounterMsg,
+    Model as CounterModel
+} from './Counter/Types';
 
-export const firstCounterAction = (action) => ({
-    type: FIRST_COUNTER_ACTION,
+/**
+ * --- MESSAGES ---
+ */
+
+export type Msg
+    = FirstCounterMsg
+    | SecondCounterMsg
+    ;
+
+type FIRST_COUNTER_MSG = 'FIRST_COUNTER_MSG';
+type FirstCounterMsg = {
+    type: FIRST_COUNTER_MSG,
+    payload: CounterMsg
+};
+
+export const firstCounterMsg = (action: CounterMsg): FirstCounterMsg => ({
+    type: 'FIRST_COUNTER_MSG',
     payload: action
 });
 
-export const SECOND_COUNTER_ACTION = 'SECOND_COUNTER_ACTION';
+type SECOND_COUNTER_MSG = 'SECOND_COUNTER_MSG';
+type SecondCounterMsg = {
+    type: SECOND_COUNTER_MSG,
+    payload: CounterMsg
+};
 
-export const secondCounterAction = (action) => ({
-    type: SECOND_COUNTER_ACTION,
+export const secondCounterMsg = (action: CounterMsg): SecondCounterMsg => ({
+    type: 'SECOND_COUNTER_MSG',
     payload: action
 });
+
+/**
+ * --- MODEL --
+ */
+
+export type Model = {
+    firstCounter: CounterModel,
+    secondCounter: CounterModel
+};

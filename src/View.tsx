@@ -1,23 +1,30 @@
 import Inferno from 'inferno';
 
 import {
-    firstCounterAction,
-    secondCounterAction
+    Msg,
+    Model,
+    firstCounterMsg,
+    secondCounterMsg
 } from './Types';
 import {
     View as CounterView
 } from './Counter/View';
 
-export const View = ({ dispatch, model }) => (
+export type View = {
+    model: Model,
+    dispatch(m: Msg): void
+};
+
+export const View = ({ dispatch, model }): View => (
     <div>
         <CounterView
             model={model.firstCounter}
-            dispatch={(action) => dispatch(firstCounterAction(action))}
+            dispatch={(action) => dispatch(firstCounterMsg(action))}
             delay={3000}
         />
         <CounterView
             model={model.secondCounter}
-            dispatch={(action) => dispatch(secondCounterAction(action))}
+            dispatch={(action) => dispatch(secondCounterMsg(action))}
             delay={1000}
         />
     </div>

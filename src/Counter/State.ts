@@ -1,14 +1,14 @@
 import {
-    Model,
-    Msg
+    Effect,
+    effect
+} from '../Loop';
+import {
+    Msg,
+    Model
 } from './Types';
 import {
     delayedIncrement
 } from './Cmd';
-import {
-    Effect,
-    effect
-} from '../Loop';
 
 export const initialModel: Model = 0;
 
