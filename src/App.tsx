@@ -11,7 +11,9 @@ import {
     initialModel,
     update
 } from './State';
-import * as AppView from './View';
+import {
+    View as AppView
+} from './View';
 
 const store = createLoopStore((state, action) => {
     const [ model, cmds ] = update(action, state);
@@ -25,7 +27,7 @@ const store = createLoopStore((state, action) => {
     effects: []
 });
 
-const App = connect((model) => ({ model }))(AppView.View);
+const App = connect((model) => ({ model }))(AppView);
 
 Inferno.render(
     (

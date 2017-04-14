@@ -5,11 +5,14 @@ import {
     secondCounterAction
 } from './Types';
 
-import * as CounterState from './Counter/State';
+import {
+    initialModel as CounterInitialModel,
+    update as CoutnerModelUpdate
+} from './Counter/State';
 
 export const initialModel = {
-    firstCounter: CounterState.initialModel,
-    secondCounter: CounterState.initialModel
+    firstCounter: CounterInitialModel,
+    secondCounter: CounterInitialModel
 };
 
 export const update = (msg, model) => {
@@ -18,7 +21,7 @@ export const update = (msg, model) => {
             const [
                 nextFirstCounter,
                 counterCmd
-            ] = CounterState.update(msg.payload, model.firstCounter);
+            ] = CoutnerModelUpdate(msg.payload, model.firstCounter);
 
             return [
                 {
@@ -35,7 +38,7 @@ export const update = (msg, model) => {
             const [
                 nextSecondCounter,
                 counterCmd
-            ] = CounterState.update(msg.payload, model.secondCounter);
+            ] = CoutnerModelUpdate(msg.payload, model.secondCounter);
 
             return [
                 {
