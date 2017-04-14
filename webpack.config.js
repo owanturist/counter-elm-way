@@ -5,7 +5,7 @@ const {
 
 
 module.exports = {
-    entry: path.resolve('./src/index.tsx'),
+    entry: path.resolve('./src/App.tsx'),
     output: {
         path: path.resolve('./build'),
         filename: 'bundle.js'

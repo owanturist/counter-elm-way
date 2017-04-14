@@ -1,7 +1,14 @@
 import Inferno from 'inferno';
 
-export const View = () => (
+import {
+    increment,
+    decrement
+} from './Types';
+
+export const View = ({ dispatch, model }) => (
     <div>
-        hello
+        <button onClick={() => dispatch(decrement())}>-</button>
+        {model}
+        <button onClick={() => dispatch(increment())}>+</button>
     </div>
 );
