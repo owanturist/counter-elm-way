@@ -5,7 +5,7 @@ const {
 
 
 module.exports = {
-    entry: path.resolve('./src/index.ts'),
+    entry: path.resolve('./src/index.tsx'),
     output: {
         path: path.resolve('./build'),
         filename: 'bundle.js'
@@ -14,6 +14,7 @@ module.exports = {
     // Currently we need to add '.ts' to the resolve.extensions array.
     resolve: {
         extensions: [
+            '.js',
             '.ts',
             '.tsx'
         ]
@@ -27,7 +28,10 @@ module.exports = {
         loaders: [
             {
                 test: /\.tsx?$/,
-                loader: 'awesome-typescript-loader'
+                use: [
+                    'babel-loader',
+                    'awesome-typescript-loader'
+                ]
             }
         ]
     },

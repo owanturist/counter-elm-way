@@ -1,26 +1,31 @@
 {
   "compilerOptions": {
-    "rootDir": "./src/",
-    "sourceRoot": "./src/",
-    "outFile": "./dist/index.js",
-    "module": "amd",
-    "target": "es2015",
+    "target": "es6",
+    "module": "es6",
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
     "removeComments": true,
     "preserveConstEnums": true,
     "sourceMap": true,
-    "inlineSourceMap": false,
-    "inlineSources": false,
-    "noImplicitAny": true,
     "noUnusedParameters": true,
-    "noUnusedLocals": true
+    "noUnusedLocals": true,
+    "jsx": "preserve",
+    "strictNullChecks": true,
+    "reactNamespace": "Inferno",
+    "moduleResolution": "node",
+    "lib": [
+      "es6",
+      "es7",
+      "dom"
+    ],
+    "types": [
+      "inferno"
+    ]
   },
   "include": [
     "./src/**/*"
   ],
   "exclude": [
-    "node_modules",
-    "build",
-    "typings/main",
-    "typings/main.d.ts"
+    "node_modules"
   ]
 }
