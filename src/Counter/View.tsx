@@ -1,11 +1,19 @@
 import Inferno from 'inferno';
 
 import {
+    Msg,
+    Model,
     decrement,
     scheduleIncrement
 } from './Types';
 
-export const View = ({ dispatch, model, delay }) => (
+export type View = {
+    model: Model,
+    delay: number,
+    dispatch(m: Msg): void
+};
+
+export const View = ({ dispatch, model, delay }: View) => (
     <div>
         <button onClick={() => dispatch(decrement())}>-</button>
         {model}

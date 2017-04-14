@@ -1,28 +1,28 @@
 import {
-    INCREMENT,
-    DECREMENT,
-    SCHEDULE_INCREMENT
+    Model,
+    Msg
 } from './Types';
 import {
     delayedIncrement
 } from './Cmd';
 import {
+    Effect,
     effect
 } from '../Store';
 
-export const initialModel = 0;
+export const initialModel: Model = 0;
 
-export const update = (msg, model) => {
+export const update = (msg: Msg, model: Model): [ Model, Effect<Msg>[] ] => {
     switch (msg.type) {
-        case INCREMENT: {
+        case 'INCREMENT': {
             return [ model + 1, []];
         }
 
-        case DECREMENT: {
+        case 'DECREMENT': {
             return [ model - 1, []];
         }
 
-        case SCHEDULE_INCREMENT: {
+        case 'SCHEDULE_INCREMENT': {
             return [
                 model,
                 [
