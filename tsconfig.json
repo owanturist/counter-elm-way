@@ -9,17 +9,13 @@
     "sourceMap": true,
     "noUnusedParameters": true,
     "noUnusedLocals": true,
-    "jsx": "preserve",
+    "jsx": "react",
     "strictNullChecks": true,
-    "reactNamespace": "Inferno",
     "moduleResolution": "node",
     "lib": [
       "es6",
       "es7",
       "dom"
-    ],
-    "types": [
-      "inferno"
     ]
   },
   "include": [

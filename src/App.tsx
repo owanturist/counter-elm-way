@@ -1,8 +1,14 @@
-import Inferno from 'inferno';
+import React from 'react';
+import {
+    render
+} from 'react-dom';
+import {
+    Store
+} from 'redux';
 import {
     Provider,
     connect
-} from 'inferno-redux';
+} from 'react-redux';
 
 import {
     createLoopStore
@@ -29,11 +35,11 @@ const store = createLoopStore<Model, Msg>((state, action: Msg) => {
 }, {
     state: initialModel,
     effects: []
-});
+}) as Store<any>;
 
 const App = connect((model) => ({ model }))(AppView);
 
-Inferno.render(
+render(
     (
         <Provider store={store}>
             <App />

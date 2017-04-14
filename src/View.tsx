@@ -1,4 +1,4 @@
-import Inferno from 'inferno';
+import React from 'react';
 
 import {
     Msg,
@@ -15,7 +15,7 @@ export type View = {
     dispatch(m: Msg): void
 };
 
-export const View = ({ dispatch, model }): View => (
+export const View = ({ dispatch, model }: View) => (
     <div>
         <CounterView
             model={model.firstCounter}

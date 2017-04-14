@@ -9,6 +9,10 @@
   "author": "Anton Ovechkin <owanturist@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@types/react": "^15.0.21",
+    "@types/react-dom": "^0.14.23",
+    "@types/react-redux": "^4.4.38",
+    "@types/redux": "^3.6.0",
     "awesome-typescript-loader": "^3.1.2",
     "babel-core": "^6.24.1",
     "babel-loader": "^6.4.1",
@@ -22,9 +26,9 @@
     "webpack": "^2.3.3"
   },
   "dependencies": {
-    "@types/redux": "^3.6.0",
-    "inferno": "^3.0.4",
-    "inferno-redux": "^3.0.4",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "react-redux": "^5.0.4",
     "redux": "^3.6.0"
   }
 }
