@@ -1,14 +1,14 @@
 import Inferno from 'inferno';
 
 import {
-    increment,
-    decrement
+    decrement,
+    scheduleIncrement
 } from './Types';
 
-export const View = ({ dispatch, model }) => (
+export const View = ({ dispatch, model, delay }) => (
     <div>
         <button onClick={() => dispatch(decrement())}>-</button>
         {model}
-        <button onClick={() => dispatch(increment())}>+</button>
+        <button onClick={() => dispatch(scheduleIncrement(delay))}>+</button>
     </div>
 );

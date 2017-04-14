@@ -11,10 +11,12 @@ export const View = ({ dispatch, model }) => (
         <CounterView.View
             model={model.firstCounter}
             dispatch={(action) => dispatch(firstCounterAction(action))}
+            delay={3000}
         />
         <CounterView.View
             model={model.secondCounter}
             dispatch={(action) => dispatch(secondCounterAction(action))}
+            delay={1000}
         />
     </div>
 );

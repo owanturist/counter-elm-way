@@ -1,7 +1,14 @@
 import {
     INCREMENT,
-    DECREMENT
+    DECREMENT,
+    SCHEDULE_INCREMENT
 } from './Types';
+import {
+    delayedIncrement
+} from './Cmd';
+import {
+    effect
+} from '../Store';
 
 export const initialModel = 0;
 
@@ -13,6 +20,15 @@ export const update = (msg, model) => {
 
         case DECREMENT: {
             return [ model - 1, []];
+        }
+
+        case SCHEDULE_INCREMENT: {
+            return [
+                model,
+                [
+                    effect(delayedIncrement, msg.payload)
+                ]
+            ];
         }
 
         default: {

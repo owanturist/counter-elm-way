@@ -1,6 +1,8 @@
 import {
     FIRST_COUNTER_ACTION,
-    SECOND_COUNTER_ACTION
+    SECOND_COUNTER_ACTION,
+    firstCounterAction,
+    secondCounterAction
 } from './Types';
 
 import * as CounterState from './Counter/State';
@@ -23,7 +25,9 @@ export const update = (msg, model) => {
                     ...model,
                     firstCounter: nextFirstCounter
                 },
-                counterCmd
+                counterCmd.map(
+                    (eff) => eff.map(firstCounterAction)
+                )
             ];
         }
 
@@ -38,7 +42,9 @@ export const update = (msg, model) => {
                     ...model,
                     secondCounter: nextSecondCounter
                 },
-                counterCmd
+                counterCmd.map(
+                    (eff) => eff.map(secondCounterAction)
+                )
             ];
         }
 
