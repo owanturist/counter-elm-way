@@ -8,7 +8,7 @@ import {
 import {
     Effect,
     effect
-} from '../Store';
+} from '../Loop';
 
 export const initialModel: Model = 0;
 

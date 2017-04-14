@@ -6,7 +6,7 @@ import {
 
 import {
     createLoopStore
-} from './Store';
+} from './Loop';
 import {
     initialModel,
     update
