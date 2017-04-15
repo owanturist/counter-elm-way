@@ -17,12 +17,19 @@ module.exports = {
             '.js',
             '.ts',
             '.tsx'
+        ],
+        modules: [
+            path.resolve('./src'),
+            path.resolve('./node_modules')
         ]
     },
 
     devtool: 'source-map',
 
     module: {
+        noParse: [
+            /react\.min.js/
+        ],
         loaders: [
             {
                 test: /\.tsx?$/,

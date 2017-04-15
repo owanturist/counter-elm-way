@@ -1,7 +1,7 @@
 import {
     Effect,
     effect
-} from '../Loop';
+} from 'Loop';
 import {
     Msg,
     Model
