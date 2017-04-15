@@ -1,9 +1,6 @@
 {
   "extends": "tslint:recommended",
   "rules": {
-    "array-type": [
-      false
-    ],
     "forin": false,
     "indent": [ true, "space" ],
     "ban-types": true,

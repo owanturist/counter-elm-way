@@ -17,7 +17,7 @@ export const initialModel: Model = {
     secondCounter: CounterInitialModel
 };
 
-export const update = (msg: Msg, model: Model): [ Model, Effect<Msg>[]]  => {
+export const update = (msg: Msg, model: Model): [ Model, Array<Effect<Msg>>]  => {
     switch (msg.type) {
         case 'FIRST_COUNTER_MSG': {
             const [

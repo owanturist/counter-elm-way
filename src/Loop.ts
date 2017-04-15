@@ -4,16 +4,16 @@ import * as Redux from 'redux';
 
 export type Loop<Model, Msg> = [
     Model,
-    Effect<Msg>[]
+    Array<Effect<Msg>>
 ];
 
 export type Update<Model> = <Msg extends Redux.Action>(msg: Msg, model: Model) => Loop<Model, Msg>;
 
-export type Store<State> = {
-    dispatch: Redux.Dispatch<State>,
-    getState(): State,
+export type Store<Model> = {
+    dispatch: Redux.Dispatch<Model>,
+    getState(): Model,
     subscribe(listener: () => void): Redux.Unsubscribe,
-    replaceReducer(nextReducer: Update<State>): void
+    replaceReducer(nextReducer: Update<Model>): void
 };
 
 export function createLoopStore<Model, Msg extends Redux.Action>(
@@ -22,7 +22,7 @@ export function createLoopStore<Model, Msg extends Redux.Action>(
     enhancer?: Redux.StoreEnhancer<Model>
     ): Store<Model> {
 
-    let queue: Effect<Msg>[] = [];
+    let queue: Array<Effect<Msg>> = [];
 
     const liftReducer = (updater: Update<Model>): Redux.Reducer<Model> => (model: Model, msg: Msg): Model => {
         const [ state, cmd ] = updater(msg, model);
@@ -38,7 +38,7 @@ export function createLoopStore<Model, Msg extends Redux.Action>(
         enhancer
     );
 
-    function executeEffects(callback: (msg: Msg) => void, effects: Effect<Msg>[]): Promise<any>[] {
+    function executeEffects(callback: (msg: Msg) => void, effects: Array<Effect<Msg>>): Array<Promise<any>> {
         return effects.map((effect) =>
             effect
                 .toPromise()
