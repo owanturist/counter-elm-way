@@ -6,12 +6,12 @@ const {
 
 module.exports = {
     entry: path.resolve('./src/App.tsx'),
+
     output: {
         path: path.resolve('./build'),
         filename: 'bundle.js'
     },
 
-    // Currently we need to add '.ts' to the resolve.extensions array.
     resolve: {
         extensions: [
             '.js',
@@ -20,18 +20,13 @@ module.exports = {
         ]
     },
 
-    // Source maps support ('inline-source-map' also works)
     devtool: 'source-map',
 
-    // Add the loader for .ts files.
     module: {
         loaders: [
             {
                 test: /\.tsx?$/,
-                use: [
-                    'babel-loader',
-                    'awesome-typescript-loader'
-                ]
+                loader: 'awesome-typescript-loader'
             }
         ]
     },
