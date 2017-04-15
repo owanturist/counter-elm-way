@@ -1,30 +1,38 @@
 // COPY FROM https://github.com/redux-loop/redux-loop
 
-import * as Redux from 'redux';
+import {
+    Action,
+    Reducer,
+    Dispatch,
+    Unsubscribe,
+    StoreEnhancer,
+    createStore,
+    compose
+} from 'redux';
 
 export type Loop<Model, Msg> = [
     Model,
     Array<Effect<Msg>>
 ];
 
-export type Update<Model> = <Msg extends Redux.Action>(msg: Msg, model: Model) => Loop<Model, Msg>;
+export type Update<Model> = <Msg extends Action>(msg: Msg, model: Model) => Loop<Model, Msg>;
 
 export type Store<Model> = {
-    dispatch: Redux.Dispatch<Model>,
+    dispatch: Dispatch<Model>,
     getState(): Model,
-    subscribe(listener: () => void): Redux.Unsubscribe,
+    subscribe(listener: () => void): Unsubscribe,
     replaceReducer(nextReducer: Update<Model>): void
 };
 
-export function createLoopStore<Model, Msg extends Redux.Action>(
+export function createLoopStore<Model, Msg extends Action>(
     update: Update<Model>,
     [ initialModel, initialCmds ]: Loop<Model, Msg>,
-    enhancer?: Redux.StoreEnhancer<Model>
+    enhancer?: StoreEnhancer<Model>
     ): Store<Model> {
 
     let queue: Array<Effect<Msg>> = [];
 
-    const liftReducer = (updater: Update<Model>): Redux.Reducer<Model> => (model: Model, msg: Msg): Model => {
+    const liftReducer = (updater: Update<Model>): Reducer<Model> => (model: Model, msg: Msg): Model => {
         const [ state, cmd ] = updater(msg, model);
 
         cmd.forEach((effect) => queue.push(effect));
@@ -32,7 +40,7 @@ export function createLoopStore<Model, Msg extends Redux.Action>(
         return state;
     };
 
-    const store = Redux.createStore(
+    const store = createStore(
         liftReducer(update),
         initialModel,
         enhancer
@@ -67,7 +75,7 @@ export function createLoopStore<Model, Msg extends Redux.Action>(
         getState: store.getState,
         subscribe: store.subscribe,
         dispatch: enhancedDispatch,
-        replaceReducer: Redux.compose(store.replaceReducer, liftReducer)
+        replaceReducer: compose(store.replaceReducer, liftReducer)
     };
 }
 
