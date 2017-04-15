@@ -2,76 +2,75 @@
 
 import * as Redux from 'redux';
 
-export interface Loop<State, Action> {
-  state: State;
-  effects: Effect<Action>[];
-}
+export type Loop<S, A> = {
+    state: S,
+    effects: Effect<A>[]
+};
 
-export type Reducer<State> = <Action extends Redux.Action>(state: State, action: Action) => Loop<State, Action>;
+export type Reducer<S> = <A extends Redux.Action>(state: S, action: A) => Loop<S, A>;
 
-export interface Store<S> {
-  getState: () => S;
-  subscribe: (fn: Function) => void;
-  replaceReducer: (reducer: Reducer<S>) => void;
-  dispatch: (action: Redux.Action) => any;
-}
+export type Store<S> = {
+    dispatch: Redux.Dispatch<S>,
+    getState(): S,
+    subscribe(listener: () => void): Redux.Unsubscribe,
+    replaceReducer(nextReducer: Reducer<S>): void
+};
 
-export function createLoopStore<S, A extends Redux.Action>(rootReducer: Reducer<S>, initialModel: Loop<S, A>, enhancer?: Redux.StoreEnhancer<S>): Store<S> {
-  return (function() {
+export function createLoopStore<S, A extends Redux.Action>(
+    reducer: Reducer<S>,
+    initialModel: Loop<S, A>,
+    enhancer?: Redux.StoreEnhancer<S>
+    ): Store<S> {
+
     let queue = [] as Effect<A>[];
 
-    function liftReducer(reducer: Reducer<S>): Redux.Reducer<S> {
-      return (state: S, action: A): S => {
-        const ret = reducer(state, action);
+    function liftReducer(loopReducer: Reducer<S>): Redux.Reducer<S> {
+        return (state: S, action: A): S => {
+            const ret = loopReducer(state, action);
 
-        ret.effects.forEach((effect) => queue.push(effect));
+            ret.effects.forEach((effect) => queue.push(effect));
 
-        return ret.state;
-      };
+            return ret.state;
+        };
     }
 
     const store = Redux.createStore(
-      liftReducer(rootReducer),
-      initialModel.state,
-      enhancer
+        liftReducer(reducer),
+        initialModel.state,
+        enhancer
     );
 
     function executeEffects(callback: (action: A) => void, effects: Effect<A>[]): Promise<any>[] {
-      return effects.map((effect) =>
-        effect
-          .toPromise()
-          .then(callback)
-          .catch((err: Error) => {
-            console.error(err);
-            throw new Error('Process catch!');
-          })
-      );
+        return effects.map((effect) =>
+            effect
+                .toPromise()
+                .then(callback)
+                .catch((err: Error) => {
+                    console.error(err);
+                    throw new Error('Process catch!');
+                })
+        );
     }
 
     function enhancedDispatch(action: A): Promise<any> {
-      store.dispatch(action);
+        store.dispatch(action);
 
-      const currentQueue = queue;
-      queue = [];
+        const currentQueue = queue;
+        queue = [];
 
-      return Promise.all(
-        executeEffects(enhancedDispatch, currentQueue)
-      );
+        return Promise.all(
+            executeEffects(enhancedDispatch, currentQueue)
+        );
     }
 
     executeEffects(enhancedDispatch, initialModel.effects);
 
-    const enhancedReplaceReducer = (reducer: Reducer<S>) => {
-      return store.replaceReducer(liftReducer(reducer));
-    };
-
     return {
-      getState: store.getState,
-      subscribe: store.subscribe,
-      dispatch: enhancedDispatch,
-      replaceReducer: enhancedReplaceReducer
+        getState: store.getState,
+        subscribe: store.subscribe,
+        dispatch: enhancedDispatch,
+        replaceReducer: Redux.compose(store.replaceReducer, liftReducer)
     };
-  })();
 }
 
 export interface Effect<A> {
