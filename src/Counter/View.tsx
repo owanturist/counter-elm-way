@@ -10,7 +10,7 @@ import {
 export type View = {
     model: Model,
     delay: number,
-    dispatch(m: Msg): void
+    dispatch(msg: Msg): void
 };
 
 export const View = ({ dispatch, model, delay }: View) => (

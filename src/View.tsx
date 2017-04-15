@@ -1,4 +1,7 @@
 import React from 'react';
+import {
+    compose
+} from 'redux';
 
 import {
     Msg,
@@ -12,19 +15,19 @@ import {
 
 export type View = {
     model: Model,
-    dispatch(m: Msg): void
+    dispatch(msg: Msg): void
 };
 
 export const View = ({ dispatch, model }: View) => (
     <div>
         <CounterView
             model={model.firstCounter}
-            dispatch={(action) => dispatch(firstCounterMsg(action))}
+            dispatch={compose(dispatch, firstCounterMsg)}
             delay={3000}
         />
         <CounterView
             model={model.secondCounter}
-            dispatch={(action) => dispatch(secondCounterMsg(action))}
+            dispatch={compose(dispatch, secondCounterMsg)}
             delay={1000}
         />
     </div>
