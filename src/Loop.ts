@@ -2,45 +2,43 @@
 
 import * as Redux from 'redux';
 
-export type Loop<S, A> = {
-    state: S,
-    effects: Effect<A>[]
-};
+export type Loop<Model, Msg> = [
+    Model,
+    Effect<Msg>[]
+];
 
-export type Reducer<S> = <A extends Redux.Action>(state: S, action: A) => Loop<S, A>;
+export type Update<Model> = <Msg extends Redux.Action>(msg: Msg, model: Model) => Loop<Model, Msg>;
 
-export type Store<S> = {
-    dispatch: Redux.Dispatch<S>,
-    getState(): S,
+export type Store<State> = {
+    dispatch: Redux.Dispatch<State>,
+    getState(): State,
     subscribe(listener: () => void): Redux.Unsubscribe,
-    replaceReducer(nextReducer: Reducer<S>): void
+    replaceReducer(nextReducer: Update<State>): void
 };
 
-export function createLoopStore<S, A extends Redux.Action>(
-    reducer: Reducer<S>,
-    initialModel: Loop<S, A>,
-    enhancer?: Redux.StoreEnhancer<S>
-    ): Store<S> {
+export function createLoopStore<Model, Msg extends Redux.Action>(
+    update: Update<Model>,
+    [ initialModel, initialCmds ]: Loop<Model, Msg>,
+    enhancer?: Redux.StoreEnhancer<Model>
+    ): Store<Model> {
 
-    let queue = [] as Effect<A>[];
+    let queue: Effect<Msg>[] = [];
 
-    function liftReducer(loopReducer: Reducer<S>): Redux.Reducer<S> {
-        return (state: S, action: A): S => {
-            const ret = loopReducer(state, action);
+    const liftReducer = (updater: Update<Model>): Redux.Reducer<Model> => (model: Model, msg: Msg): Model => {
+        const [ state, cmd ] = updater(msg, model);
 
-            ret.effects.forEach((effect) => queue.push(effect));
+        cmd.forEach((effect) => queue.push(effect));
 
-            return ret.state;
-        };
-    }
+        return state;
+    };
 
     const store = Redux.createStore(
-        liftReducer(reducer),
-        initialModel.state,
+        liftReducer(update),
+        initialModel,
         enhancer
     );
 
-    function executeEffects(callback: (action: A) => void, effects: Effect<A>[]): Promise<any>[] {
+    function executeEffects(callback: (msg: Msg) => void, effects: Effect<Msg>[]): Promise<any>[] {
         return effects.map((effect) =>
             effect
                 .toPromise()
@@ -52,8 +50,8 @@ export function createLoopStore<S, A extends Redux.Action>(
         );
     }
 
-    function enhancedDispatch(action: A): Promise<any> {
-        store.dispatch(action);
+    function enhancedDispatch(msg: Msg): Promise<any> {
+        store.dispatch(msg);
 
         const currentQueue = queue;
         queue = [];
@@ -63,7 +61,7 @@ export function createLoopStore<S, A extends Redux.Action>(
         );
     }
 
-    executeEffects(enhancedDispatch, initialModel.effects);
+    executeEffects(enhancedDispatch, initialCmds);
 
     return {
         getState: store.getState,

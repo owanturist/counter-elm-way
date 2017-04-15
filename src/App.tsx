@@ -3,9 +3,6 @@ import {
     render
 } from 'react-dom';
 import {
-    Store
-} from 'redux';
-import {
     Provider,
     connect
 } from 'react-redux';
@@ -25,17 +22,7 @@ import {
     View as AppView
 } from './View';
 
-const store = createLoopStore<Model, Msg>((state, action: Msg) => {
-    const [ model, cmds ] = update(action, state);
-
-    return {
-        state: model,
-        effects: cmds
-    };
-}, {
-    state: initialModel,
-    effects: []
-}) as Store<any>;
+const store = createLoopStore<Model, Msg>(update, [ initialModel, []]);
 
 const App = connect((model) => ({ model }))(AppView);
 
