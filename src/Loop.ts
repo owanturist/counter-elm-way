@@ -12,7 +12,7 @@ import {
 
 export type Loop<Model, Msg> = [
     Model,
-    Array<Effect<Msg>>
+    Array<Cmd<Msg>>
 ];
 
 export type Update<Model> = <Msg extends Action>(msg: Msg, model: Model) => Loop<Model, Msg>;
@@ -30,7 +30,7 @@ export function createLoopStore<Model, Msg extends Action>(
     enhancer?: StoreEnhancer<Model>
     ): Store<Model> {
 
-    let queue: Array<Effect<Msg>> = [];
+    let queue: Array<Cmd<Msg>> = [];
 
     const liftReducer = (updater: Update<Model>): Reducer<Model> => (model: Model, msg: Msg): Model => {
         const [ state, cmd ] = updater(msg, model);
@@ -46,15 +46,10 @@ export function createLoopStore<Model, Msg extends Action>(
         enhancer
     );
 
-    function executeEffects(callback: (msg: Msg) => void, effects: Array<Effect<Msg>>): Array<Promise<any>> {
+    function executeEffects(callback: (msg: Msg) => void, effects: Array<Cmd<Msg>>): Array<Promise<any>> {
         return effects.map((effect) =>
-            effect
-                .toPromise()
+            effect.execute()
                 .then(callback)
-                .catch((err: Error) => {
-                    console.error(err);
-                    throw new Error('Process catch!');
-                })
         );
     }
 
@@ -79,88 +74,18 @@ export function createLoopStore<Model, Msg extends Action>(
     };
 }
 
-export interface Effect<A> {
-  map<T>(fn: (action: A) => T): Effect<T>;
-  catch<E, T>(fn: (error: E) => T): Effect<T>;
-  equals(other: Effect<A>): boolean;
-  toPromise(): Promise<A>;
-}
-
-export function effect<A>(promiseCreator: (...args: any[]) => Promise<A>, ...args: any[]): Effect<A> {
-  return new DefaultEffect(promiseCreator, args);
-}
-
-class MapEffect<A> implements Effect<A> {
-  protected readonly _inner: Effect<any>;
-  protected readonly _tagger: (action: any) => A;
-
-  constructor(readonly innerEffect: Effect<any>, tagger: (action: any) => A) {
-    this._inner = innerEffect;
-    this._tagger = tagger;
-  }
-
-  public catch = <E, T>(fn: (error: E) => T): Effect<T> => {
-    return new CatchEffect(this, fn);
-  }
-
-  public map = <T>(fn: (action: A) => T): Effect<T> => {
-    return new MapEffect(this, fn);
-  }
-
-  public equals = (other: Effect<A>): boolean => {
-    if (other instanceof MapEffect) {
-      return this._tagger === other._tagger
-        && this._inner.equals(other._inner);
+export class Cmd<T> {
+    public static of<T>(promiseCall: () => Promise<T>): Cmd<T> {
+        return new Cmd(promiseCall);
     }
 
-    return false;
-  }
+    constructor(private readonly promiseCall: () => Promise<T>) {}
 
-  public toPromise = (): Promise<A> => {
-    return this._inner.toPromise().then(this._tagger);
-  }
-}
-
-class CatchEffect<A> extends MapEffect<A> {
-  public toPromise = (): Promise<A> => {
-    return this._inner
-      .toPromise()
-      .catch((e) => Promise.resolve(this._tagger(e)));
-  }
-}
-
-class DefaultEffect<A> implements Effect<A> {
-  private readonly _promiseCreator: (...args: any[]) => Promise<A>;
-  private readonly _args: any[];
-  constructor(readonly promiseCreator: (...args: any[]) => Promise<A>, readonly args: any[]) {
-    this._promiseCreator = promiseCreator;
-    this._args = args;
-  }
-
-  public catch = <E, T>(fn: (error: E) => T): Effect<T> => {
-    return new CatchEffect(this, fn);
-  }
-
-  public map = <T>(fn: (action: A) => T): Effect<T> => {
-    return new MapEffect(this, fn);
-  }
-
-  public equals = (other: Effect<A>): boolean => {
-    if (other instanceof DefaultEffect) {
-      return this._promiseCreator === other._promiseCreator
-        && this._args.every((a, i) => a === other._args[i]);
+    public map<R>(f: (a: T) => R): Cmd<R> {
+        return Cmd.of(() => this.execute().then(f));
     }
 
-    return false;
-  }
-
-  public toPromise = (): Promise<A> => {
-    const promise = this._promiseCreator(...this._args);
-
-    if (promise instanceof Promise) {
-      return promise;
+    public execute(): Promise<T> {
+        return this.promiseCall();
     }
-
-    throw new Error();
-  }
 }

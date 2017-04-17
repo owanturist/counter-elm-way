@@ -1,6 +1,5 @@
 import {
-    Effect,
-    effect
+    Cmd
 } from 'Loop';
 import {
     Msg,
@@ -12,7 +11,7 @@ import {
 
 export const initialModel: Model = 0;
 
-export const update = (msg: Msg, model: Model): [ Model, Array<Effect<Msg>> ] => {
+export const update = (msg: Msg, model: Model): [ Model, Array<Cmd<Msg>> ] => {
     switch (msg.type) {
         case 'INCREMENT': {
             return [ model + 1, []];
@@ -26,7 +25,7 @@ export const update = (msg: Msg, model: Model): [ Model, Array<Effect<Msg>> ] =>
             return [
                 model,
                 [
-                    effect(delayedIncrement, msg.payload)
+                    delayedIncrement(msg.payload)
                 ]
             ];
         }

@@ -1,5 +1,5 @@
 import {
-    Effect
+    Cmd
 } from './Loop';
 import {
     Msg,
@@ -17,12 +17,12 @@ export const initialModel: Model = {
     secondCounter: CounterInitialModel
 };
 
-export const update = (msg: Msg, model: Model): [ Model, Array<Effect<Msg>>]  => {
+export const update = (msg: Msg, model: Model): [ Model, Array<Cmd<Msg>>]  => {
     switch (msg.type) {
         case 'FIRST_COUNTER_MSG': {
             const [
                 nextFirstCounter,
-                counterCmd
+                counterCmds
             ] = CoutnerModelUpdate(msg.payload, model.firstCounter);
 
             return [
@@ -30,8 +30,8 @@ export const update = (msg: Msg, model: Model): [ Model, Array<Effect<Msg>>]  =>
                     ...model,
                     firstCounter: nextFirstCounter
                 },
-                counterCmd.map(
-                    (eff) => eff.map(firstCounterMsg)
+                counterCmds.map(
+                    (cmd) => cmd.map(firstCounterMsg)
                 )
             ];
         }
@@ -39,7 +39,7 @@ export const update = (msg: Msg, model: Model): [ Model, Array<Effect<Msg>>]  =>
         case 'SECOND_COUNTER_MSG': {
             const [
                 nextSecondCounter,
-                counterCmd
+                counterCmds
             ] = CoutnerModelUpdate(msg.payload, model.secondCounter);
 
             return [
@@ -47,8 +47,8 @@ export const update = (msg: Msg, model: Model): [ Model, Array<Effect<Msg>>]  =>
                     ...model,
                     secondCounter: nextSecondCounter
                 },
-                counterCmd.map(
-                    (eff) => eff.map(secondCounterMsg)
+                counterCmds.map(
+                    (cmd) => cmd.map(secondCounterMsg)
                 )
             ];
         }
