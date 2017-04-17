@@ -33,9 +33,9 @@ export function createLoopStore<Model, Msg extends Action>(
     let queue: Array<Cmd<Msg>> = [];
 
     const liftReducer = (updater: Update<Model>): Reducer<Model> => (model: Model, msg: Msg): Model => {
-        const [ state, cmd ] = updater(msg, model);
+        const [ state, cmds ] = updater(msg, model);
 
-        cmd.forEach((effect) => queue.push(effect));
+        queue = queue.concat(cmds);
 
         return state;
     };
@@ -46,25 +46,18 @@ export function createLoopStore<Model, Msg extends Action>(
         enhancer
     );
 
-    function executeEffects(callback: (msg: Msg) => void, effects: Array<Cmd<Msg>>): Array<Promise<any>> {
-        return effects.map((effect) =>
-            effect.execute()
-                .then(callback)
-        );
-    }
-
-    function enhancedDispatch(msg: Msg): Promise<any> {
+    const enhancedDispatch = (msg: Msg): Promise<any> => {
         store.dispatch(msg);
 
         const currentQueue = queue;
         queue = [];
 
         return Promise.all(
-            executeEffects(enhancedDispatch, currentQueue)
+            currentQueue.map((cmd) => cmd.execute(enhancedDispatch))
         );
-    }
+    };
 
-    executeEffects(enhancedDispatch, initialCmds);
+    initialCmds.map((cmd) => cmd.execute(enhancedDispatch));
 
     return {
         getState: store.getState,
@@ -82,10 +75,10 @@ export class Cmd<T> {
     constructor(private readonly promiseCall: () => Promise<T>) {}
 
     public map<R>(f: (a: T) => R): Cmd<R> {
-        return Cmd.of(() => this.execute().then(f));
+        return Cmd.of(() => this.execute(f));
     }
 
-    public execute(): Promise<T> {
-        return this.promiseCall();
+    public execute<R>(f: (a: T) => R): Promise<R> {
+        return this.promiseCall().then(f);
     }
 }
