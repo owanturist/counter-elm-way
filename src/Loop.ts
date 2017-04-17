@@ -80,8 +80,8 @@ export class Cmd<T> implements ICmd<T> {
         return new CmdBatch(cmds);
     }
 
-    public static none<T>(): CmdBatch<T> {
-        return new CmdBatch([]);
+    public static none<T>(): CmdNone<T> {
+        return new CmdNone();
     }
 
     constructor(private readonly promise: Promise<T>) {}
@@ -96,6 +96,20 @@ export class Cmd<T> implements ICmd<T> {
 
     public execute<R>(f: (a: T) => R): Promise<R> {
         return this.promise.then(f);
+    }
+}
+
+class CmdNone<T> implements ICmd<T> {
+    public map(): CmdNone<T> {
+        return this;
+    }
+
+    public concat(cmd: ICmd<T>): ICmd<T> {
+        return cmd;
+    }
+
+    public execute(): Promise<any> {
+        return Promise.resolve();
     }
 }
 
