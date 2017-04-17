@@ -7,7 +7,7 @@ import {
 } from './Types';
 import {
     delayedIncrement
-} from './Cmd';
+} from './Cmds';
 
 export const initialModel: Model = 0;
 

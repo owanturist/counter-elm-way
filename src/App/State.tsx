@@ -22,7 +22,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
         case 'FIRST_COUNTER_MSG': {
             const [
                 nextFirstCounter,
-                counterCmds
+                counterCmd
             ] = CoutnerModelUpdate(msg.payload, model.firstCounter);
 
             return [
@@ -30,14 +30,14 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     firstCounter: nextFirstCounter
                 },
-                counterCmds.map(firstCounterMsg)
+                counterCmd.map(firstCounterMsg)
             ];
         }
 
         case 'SECOND_COUNTER_MSG': {
             const [
                 nextSecondCounter,
-                counterCmds
+                counterCmd
             ] = CoutnerModelUpdate(msg.payload, model.secondCounter);
 
             return [
@@ -45,7 +45,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     secondCounter: nextSecondCounter
                 },
-                counterCmds.map(secondCounterMsg)
+                counterCmd.map(secondCounterMsg)
             ];
         }
 
