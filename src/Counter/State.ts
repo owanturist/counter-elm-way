@@ -1,5 +1,4 @@
 import {
-    ICmd,
     Cmd
 } from 'Loop';
 import {
@@ -12,7 +11,7 @@ import {
 
 export const initialModel: Model = 0;
 
-export const update = (msg: Msg, model: Model): [ Model, ICmd<Msg> ] => {
+export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     switch (msg.type) {
         case 'INCREMENT': {
             return [ model + 1, Cmd.none()];

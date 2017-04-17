@@ -1,5 +1,4 @@
 import {
-    ICmd,
     Cmd
 } from './Loop';
 import {
@@ -18,7 +17,7 @@ export const initialModel: Model = {
     secondCounter: CounterInitialModel
 };
 
-export const update = (msg: Msg, model: Model): [ Model, ICmd<Msg>]  => {
+export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
     switch (msg.type) {
         case 'FIRST_COUNTER_MSG': {
             const [

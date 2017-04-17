@@ -12,7 +12,7 @@ import {
 
 export type Loop<Model, Msg> = [
     Model,
-    ICmd<Msg>
+    Cmd<Msg>
 ];
 
 export type Update<Model> = <Msg extends Action>(msg: Msg, model: Model) => Loop<Model, Msg>;
@@ -30,7 +30,7 @@ export function createLoopStore<Model, Msg extends Action>(
     enhancer?: StoreEnhancer<Model>
     ): Store<Model> {
 
-    let queue: ICmd<Msg> = Cmd.none();
+    let queue: Cmd<Msg> = Cmd.none();
 
     const liftReducer = (updater: Update<Model>): Reducer<Model> => (model: Model, msg: Msg): Model => {
         const [ state, cmds ] = updater(msg, model);
@@ -65,15 +65,9 @@ export function createLoopStore<Model, Msg extends Action>(
     };
 }
 
-export interface ICmd<T> {
-    map<R>(f: (a: T) => R): ICmd<R>;
-    execute<R>(f: (a: T) => R): Promise<R>;
-    concat(cmd: ICmd<T>): ICmd<T>;
-}
-
-export class Cmd<T> implements ICmd<T> {
-    public static of<T>(promise: Promise<T>): Cmd<T> {
-        return new Cmd(promise);
+export abstract class Cmd<T> {
+    public static of<T>(promise: Promise<T>): CmdSingle<T> {
+        return new CmdSingle(promise);
     }
 
     public static butch<T>(cmds: Array<Cmd<T>>): CmdBatch<T> {
@@ -84,6 +78,14 @@ export class Cmd<T> implements ICmd<T> {
         return new CmdNone();
     }
 
+    public abstract map<R>(f: (a: T) => R): Cmd<R>;
+
+    public abstract execute<R>(f: (a: T) => R): Promise<R>;
+
+    public abstract concat(cmd: Cmd<T>): Cmd<T>;
+}
+
+class CmdSingle<T> implements Cmd<T> {
     constructor(private readonly promise: Promise<T>) {}
 
     public map<R>(f: (a: T) => R): Cmd<R> {
@@ -99,12 +101,12 @@ export class Cmd<T> implements ICmd<T> {
     }
 }
 
-class CmdNone<T> implements ICmd<T> {
+class CmdNone<T> implements Cmd<T> {
     public map(): CmdNone<T> {
         return this;
     }
 
-    public concat(cmd: ICmd<T>): ICmd<T> {
+    public concat(cmd: Cmd<T>): Cmd<T> {
         return cmd;
     }
 
@@ -113,7 +115,7 @@ class CmdNone<T> implements ICmd<T> {
     }
 }
 
-class CmdBatch<T> implements ICmd<T> {
+class CmdBatch<T> implements Cmd<T> {
     constructor(private readonly cmds: Array<Cmd<T>>) {}
 
     public map<R>(f: (a: T) => R): CmdBatch<R> {
