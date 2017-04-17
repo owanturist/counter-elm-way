@@ -26,9 +26,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'SCHEDULE_INCREMENT': {
             return [
                 model,
-                Cmd.butch([
-                    delayedIncrement(msg.payload)
-                ])
+                delayedIncrement(msg.payload)
             ];
         }
 
