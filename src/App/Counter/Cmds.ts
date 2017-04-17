@@ -6,14 +6,18 @@ import {
     increment
 } from './Types';
 
-export const delayedIncrement = (delay: number) => Cmd.of(
-    new Promise<Msg>((resolve) => {
+const delay = (time: number) => {
+    return new Promise<Msg>((resolve) => {
         const timeoutID = setTimeout(() => {
             clearTimeout(timeoutID);
 
             resolve(
                 increment()
             );
-        }, delay);
-    })
+        }, time);
+    });
+};
+
+export const delayedIncrement = (time: number) => Cmd.of(
+    delay(time).then(() => increment())
 );
