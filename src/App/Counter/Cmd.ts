@@ -1,6 +1,6 @@
 import {
     Cmd
-} from 'Loop/Loop';
+} from 'Platform/Cmd';
 import {
     Msg,
     increment

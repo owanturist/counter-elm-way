@@ -8,9 +8,11 @@ import {
 } from 'react-redux';
 
 import {
-    Cmd,
     createLoopStore
 } from 'Loop/Loop';
+import {
+    Cmd
+} from 'Platform/Cmd';
 import {
     Msg,
     Model

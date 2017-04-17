@@ -10,6 +10,10 @@ import {
     compose
 } from 'redux';
 
+import {
+    Cmd
+} from 'Platform/Cmd';
+
 export type Loop<Model, Msg> = [
     Model,
     Cmd<Msg>
@@ -63,74 +67,4 @@ export function createLoopStore<Model, Msg extends Action>(
         dispatch: enhancedDispatch,
         replaceReducer: compose(store.replaceReducer, liftReducer)
     };
-}
-
-export abstract class Cmd<T> {
-    public static of<T>(promise: Promise<T>): CmdSingle<T> {
-        return new CmdSingle(promise);
-    }
-
-    public static butch<T>(cmds: Array<Cmd<T>>): CmdBatch<T> {
-        return new CmdBatch(cmds);
-    }
-
-    public static none<T>(): CmdNone<T> {
-        return new CmdNone();
-    }
-
-    public abstract map<R>(f: (a: T) => R): Cmd<R>;
-
-    public abstract execute<R>(f: (a: T) => R): Promise<R>;
-
-    public abstract concat(cmd: Cmd<T>): Cmd<T>;
-}
-
-class CmdSingle<T> implements Cmd<T> {
-    constructor(private readonly promise: Promise<T>) {}
-
-    public map<R>(f: (a: T) => R): Cmd<R> {
-        return Cmd.of(this.execute(f));
-    }
-
-    public concat(cmd: Cmd<T>): CmdBatch<T> {
-        return Cmd.butch([ this, cmd ]);
-    }
-
-    public execute<R>(f: (a: T) => R): Promise<R> {
-        return this.promise.then(f);
-    }
-}
-
-class CmdNone<T> implements Cmd<T> {
-    public map(): CmdNone<T> {
-        return this;
-    }
-
-    public concat(cmd: Cmd<T>): Cmd<T> {
-        return cmd;
-    }
-
-    public execute(): Promise<any> {
-        return Promise.resolve();
-    }
-}
-
-class CmdBatch<T> implements Cmd<T> {
-    constructor(private readonly cmds: Array<Cmd<T>>) {}
-
-    public map<R>(f: (a: T) => R): CmdBatch<R> {
-        return new CmdBatch(
-            this.cmds.map((cmd) => cmd.map(f))
-        );
-    }
-
-    public concat(cmd: Cmd<T>): CmdBatch<T> {
-        return new CmdBatch([ ...this.cmds, cmd ]);
-    }
-
-    public execute<R>(f: (a: T) => R): Promise<R[]> {
-        return Promise.all(
-            this.cmds.map((cmd) => cmd.execute(f))
-        );
-    }
 }
