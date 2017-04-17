@@ -72,8 +72,8 @@ export interface ICmd<T> {
 }
 
 export class Cmd<T> implements ICmd<T> {
-    public static of<T>(promiseCall: () => Promise<T>): Cmd<T> {
-        return new Cmd(promiseCall);
+    public static of<T>(promise: Promise<T>): Cmd<T> {
+        return new Cmd(promise);
     }
 
     public static butch<T>(cmds: Array<Cmd<T>>): CmdBatch<T> {
@@ -84,10 +84,10 @@ export class Cmd<T> implements ICmd<T> {
         return new CmdBatch([]);
     }
 
-    constructor(private readonly promiseCall: () => Promise<T>) {}
+    constructor(private readonly promise: Promise<T>) {}
 
     public map<R>(f: (a: T) => R): Cmd<R> {
-        return Cmd.of(() => this.execute(f));
+        return Cmd.of(this.execute(f));
     }
 
     public concat(cmd: Cmd<T>): CmdBatch<T> {
@@ -95,7 +95,7 @@ export class Cmd<T> implements ICmd<T> {
     }
 
     public execute<R>(f: (a: T) => R): Promise<R> {
-        return this.promiseCall().then(f);
+        return this.promise.then(f);
     }
 }
 

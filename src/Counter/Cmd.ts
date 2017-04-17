@@ -7,7 +7,7 @@ import {
 } from './Types';
 
 export const delayedIncrement = (delay: number) => Cmd.of(
-    () => new Promise<Msg>((resolve) => {
+    new Promise<Msg>((resolve) => {
         const timeoutID = setTimeout(() => {
             clearTimeout(timeoutID);
 
