@@ -1,13 +1,13 @@
 export abstract class Cmd<T> {
-    public static of<T>(promise: Promise<T>): Single<T> {
+    public static of<T>(promise: Promise<T>): Cmd<T> {
         return new Single(promise);
     }
 
-    public static butch<T>(cmds: Array<Cmd<T>>): Batch<T> {
+    public static butch<T>(cmds: Array<Cmd<T>>): Cmd<T> {
         return new Batch(cmds);
     }
 
-    public static none<T>(): None<T> {
+    public static none<T>(): Cmd<T> {
         return new None();
     }
 
@@ -25,7 +25,7 @@ class Single<T> implements Cmd<T> {
         return Cmd.of(this.execute(f));
     }
 
-    public concat(cmd: Cmd<T>): Batch<T> {
+    public concat(cmd: Cmd<T>): Cmd<T> {
         return Cmd.butch([ this, cmd ]);
     }
 
@@ -35,7 +35,7 @@ class Single<T> implements Cmd<T> {
 }
 
 class None<T> implements Cmd<T> {
-    public map(): None<T> {
+    public map(): Cmd<T> {
         return this;
     }
 
@@ -51,13 +51,13 @@ class None<T> implements Cmd<T> {
 class Batch<T> implements Cmd<T> {
     constructor(private readonly cmds: Array<Cmd<T>>) {}
 
-    public map<R>(f: (a: T) => R): Batch<R> {
+    public map<R>(f: (a: T) => R): Cmd<R> {
         return new Batch(
             this.cmds.map((cmd) => cmd.map(f))
         );
     }
 
-    public concat(cmd: Cmd<T>): Batch<T> {
+    public concat(cmd: Cmd<T>): Cmd<T> {
         return new Batch([ ...this.cmds, cmd ]);
     }
 

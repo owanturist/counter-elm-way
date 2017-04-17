@@ -9,6 +9,7 @@ import {
 } from './Types';
 import {
     initialModel as CounterInitialModel,
+    initialCmd as CounterInitialCmd,
     update as CoutnerModelUpdate
 } from './Counter/State';
 
@@ -16,6 +17,11 @@ export const initialModel: Model = {
     firstCounter: CounterInitialModel,
     secondCounter: CounterInitialModel
 };
+
+export const initialCmd = Cmd.butch<Msg>([
+    CounterInitialCmd.map(firstCounterMsg),
+    CounterInitialCmd.map(secondCounterMsg)
+]);
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
     switch (msg.type) {

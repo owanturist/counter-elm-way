@@ -11,21 +11,19 @@ import {
     createLoopStore
 } from 'Loop/Create';
 import {
-    Cmd
-} from 'Platform/Cmd';
-import {
     Msg,
     Model
 } from 'App/Types';
 import {
     initialModel,
+    initialCmd,
     update
 } from 'App/State';
 import {
     View as AppView
 } from 'App/View';
 
-const store = createLoopStore<Model, Msg>(update, [ initialModel, Cmd.none()]);
+const store = createLoopStore<Model, Msg>(update, [ initialModel, initialCmd]);
 const App = connect((model: Model) => ({ model }))(AppView);
 
 render(
