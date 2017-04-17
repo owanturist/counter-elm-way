@@ -23,7 +23,7 @@ import {
     View as AppView
 } from 'App/View';
 
-const store = createLoopStore<Model, Msg>(update, [ initialModel, initialCmd]);
+const store = createLoopStore<Model, Msg>(update, [ initialModel, initialCmd ]);
 const App = connect((model: Model) => ({ model }))(AppView);
 
 render(

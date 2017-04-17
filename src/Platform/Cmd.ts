@@ -13,9 +13,9 @@ export abstract class Cmd<T> {
 
     public abstract map<R>(f: (a: T) => R): Cmd<R>;
 
-    public abstract execute<R>(f: (a: T) => R): Promise<R>;
-
     public abstract concat(cmd: Cmd<T>): Cmd<T>;
+
+    public abstract execute<R>(f: (a: T) => R): Promise<R>;
 }
 
 class Single<T> implements Cmd<T> {
