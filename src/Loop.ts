@@ -12,7 +12,7 @@ import {
 
 export type Loop<Model, Msg> = [
     Model,
-    Array<Cmd<Msg>>
+    ICmd<Msg>
 ];
 
 export type Update<Model> = <Msg extends Action>(msg: Msg, model: Model) => Loop<Model, Msg>;
@@ -30,7 +30,7 @@ export function createLoopStore<Model, Msg extends Action>(
     enhancer?: StoreEnhancer<Model>
     ): Store<Model> {
 
-    let queue: Array<Cmd<Msg>> = [];
+    let queue: ICmd<Msg> = Cmd.butch([]);
 
     const liftReducer = (updater: Update<Model>): Reducer<Model> => (model: Model, msg: Msg): Model => {
         const [ state, cmds ] = updater(msg, model);
@@ -50,14 +50,12 @@ export function createLoopStore<Model, Msg extends Action>(
         store.dispatch(msg);
 
         const currentQueue = queue;
-        queue = [];
+        queue = Cmd.butch([]);
 
-        return Promise.all(
-            currentQueue.map((cmd) => cmd.execute(enhancedDispatch))
-        );
+        return currentQueue.execute(enhancedDispatch);
     };
 
-    initialCmds.map((cmd) => cmd.execute(enhancedDispatch));
+    initialCmds.execute(enhancedDispatch);
 
     return {
         getState: store.getState,
@@ -67,9 +65,23 @@ export function createLoopStore<Model, Msg extends Action>(
     };
 }
 
-export class Cmd<T> {
+export interface ICmd<T> {
+    map<R>(f: (a: T) => R): ICmd<R>;
+    execute<R>(f: (a: T) => R): Promise<R>;
+    concat(cmd: ICmd<T>): ICmd<T>;
+}
+
+export class Cmd<T> implements ICmd<T> {
     public static of<T>(promiseCall: () => Promise<T>): Cmd<T> {
         return new Cmd(promiseCall);
+    }
+
+    public static butch<T>(cmds: Array<Cmd<T>>): CmdBatch<T> {
+        return new CmdBatch(cmds);
+    }
+
+    public static none<T>(): CmdBatch<T> {
+        return new CmdBatch([]);
     }
 
     constructor(private readonly promiseCall: () => Promise<T>) {}
@@ -78,7 +90,31 @@ export class Cmd<T> {
         return Cmd.of(() => this.execute(f));
     }
 
+    public concat(cmd: Cmd<T>): CmdBatch<T> {
+        return Cmd.butch([ this, cmd ]);
+    }
+
     public execute<R>(f: (a: T) => R): Promise<R> {
         return this.promiseCall().then(f);
+    }
+}
+
+class CmdBatch<T> implements ICmd<T> {
+    constructor(private readonly cmds: Array<Cmd<T>>) {}
+
+    public map<R>(f: (a: T) => R): CmdBatch<R> {
+        return new CmdBatch(
+            this.cmds.map((cmd) => cmd.map(f))
+        );
+    }
+
+    public concat(cmd: Cmd<T>): CmdBatch<T> {
+        return new CmdBatch([ ...this.cmds, cmd ]);
+    }
+
+    public execute<R>(f: (a: T) => R): Promise<R[]> {
+        return Promise.all(
+            this.cmds.map((cmd) => cmd.execute(f))
+        );
     }
 }

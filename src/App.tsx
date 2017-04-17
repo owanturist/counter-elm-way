@@ -8,6 +8,7 @@ import {
 } from 'react-redux';
 
 import {
+    Cmd,
     createLoopStore
 } from 'Loop';
 import {
@@ -22,7 +23,7 @@ import {
     View as AppView
 } from './View';
 
-const store = createLoopStore<Model, Msg>(update, [ initialModel, []]);
+const store = createLoopStore<Model, Msg>(update, [ initialModel, Cmd.none()]);
 const App = connect((model: Model) => ({ model }))(AppView);
 
 render(

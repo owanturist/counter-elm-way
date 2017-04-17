@@ -1,4 +1,5 @@
 import {
+    ICmd,
     Cmd
 } from './Loop';
 import {
@@ -17,7 +18,7 @@ export const initialModel: Model = {
     secondCounter: CounterInitialModel
 };
 
-export const update = (msg: Msg, model: Model): [ Model, Array<Cmd<Msg>>]  => {
+export const update = (msg: Msg, model: Model): [ Model, ICmd<Msg>]  => {
     switch (msg.type) {
         case 'FIRST_COUNTER_MSG': {
             const [
@@ -30,9 +31,7 @@ export const update = (msg: Msg, model: Model): [ Model, Array<Cmd<Msg>>]  => {
                     ...model,
                     firstCounter: nextFirstCounter
                 },
-                counterCmds.map(
-                    (cmd) => cmd.map(firstCounterMsg)
-                )
+                counterCmds.map(firstCounterMsg)
             ];
         }
 
@@ -47,14 +46,12 @@ export const update = (msg: Msg, model: Model): [ Model, Array<Cmd<Msg>>]  => {
                     ...model,
                     secondCounter: nextSecondCounter
                 },
-                counterCmds.map(
-                    (cmd) => cmd.map(secondCounterMsg)
-                )
+                counterCmds.map(secondCounterMsg)
             ];
         }
 
         default: {
-            return [ model, []];
+            return [ model, Cmd.none()];
         }
     }
 };
