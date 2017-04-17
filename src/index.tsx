@@ -9,7 +9,7 @@ import {
 
 import {
     createLoopStore
-} from 'Loop/Loop';
+} from 'Loop/Create';
 import {
     Cmd
 } from 'Platform/Cmd';

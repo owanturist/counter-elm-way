@@ -1,10 +1,11 @@
-// COPY FROM https://github.com/redux-loop/redux-loop
+/**
+ * Solution based on:
+ * @link https://github.com/redux-loop/redux-loop
+ */
 
 import {
     Action,
     Reducer,
-    Dispatch,
-    Unsubscribe,
     StoreEnhancer,
     createStore,
     compose
@@ -13,20 +14,11 @@ import {
 import {
     Cmd
 } from 'Platform/Cmd';
-
-export type Loop<Model, Msg> = [
-    Model,
-    Cmd<Msg>
-];
-
-export type Update<Model> = <Msg extends Action>(msg: Msg, model: Model) => Loop<Model, Msg>;
-
-export interface Store<Model> {
-    dispatch: Dispatch<Model>;
-    getState(): Model;
-    subscribe(listener: () => void): Unsubscribe;
-    replaceReducer(nextReducer: Update<Model>): void;
-}
+import {
+    Loop,
+    Update,
+    Store
+} from './Types';
 
 export function createLoopStore<Model, Msg extends Action>(
     update: Update<Model>,
