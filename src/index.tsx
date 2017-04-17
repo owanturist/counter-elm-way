@@ -10,18 +10,18 @@ import {
 import {
     Cmd,
     createLoopStore
-} from 'Loop';
+} from 'Loop/Loop';
 import {
     Msg,
     Model
-} from './Types';
+} from 'App/Types';
 import {
     initialModel,
     update
-} from './State';
+} from 'App/State';
 import {
     View as AppView
-} from './View';
+} from 'App/View';
 
 const store = createLoopStore<Model, Msg>(update, [ initialModel, Cmd.none()]);
 const App = connect((model: Model) => ({ model }))(AppView);

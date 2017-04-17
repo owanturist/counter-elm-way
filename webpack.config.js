@@ -5,7 +5,7 @@ const {
 
 
 module.exports = {
-    entry: path.resolve('./src/App.tsx'),
+    entry: path.resolve('./src/index.tsx'),
 
     output: {
         path: path.resolve('./build'),
