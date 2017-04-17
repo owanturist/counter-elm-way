@@ -30,7 +30,7 @@ export function createLoopStore<Model, Msg extends Action>(
     enhancer?: StoreEnhancer<Model>
     ): Store<Model> {
 
-    let queue: ICmd<Msg> = Cmd.butch([]);
+    let queue: ICmd<Msg> = Cmd.none();
 
     const liftReducer = (updater: Update<Model>): Reducer<Model> => (model: Model, msg: Msg): Model => {
         const [ state, cmds ] = updater(msg, model);
@@ -50,7 +50,7 @@ export function createLoopStore<Model, Msg extends Action>(
         store.dispatch(msg);
 
         const currentQueue = queue;
-        queue = Cmd.butch([]);
+        queue = Cmd.none();
 
         return currentQueue.execute(enhancedDispatch);
     };
