@@ -7,17 +7,15 @@ import {
 } from './Types';
 
 const delay = (time: number) => {
-    return new Promise<Msg>((resolve) => {
+    return new Promise<void>((resolve) => {
         const timeoutID = setTimeout(() => {
             clearTimeout(timeoutID);
 
-            resolve(
-                increment()
-            );
+            resolve();
         }, time);
     });
 };
 
-export const delayedIncrement = (time: number) => Cmd.of(
+export const delayedIncrement = (time: number): Cmd<Msg> => Cmd.of(
     delay(time).then(() => increment())
 );
