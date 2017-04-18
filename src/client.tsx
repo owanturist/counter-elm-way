@@ -9,7 +9,7 @@ import {
 
 import {
     createLoopStore
-} from 'Loop/Create';
+} from 'Store/Loop';
 import {
     Msg,
     Model
