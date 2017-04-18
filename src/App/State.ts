@@ -56,7 +56,12 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
         }
 
         default: {
-            return [ model, Cmd.none()];
+            /**
+             * Stub for @@redux/INIT action.
+             * It should be placed inside only root update.
+             */
+
+            return [ model, Cmd.none() ];
         }
     }
 };

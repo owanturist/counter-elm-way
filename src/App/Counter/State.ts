@@ -16,11 +16,11 @@ export const initialCmd = Cmd.none<Msg>();
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     switch (msg.type) {
         case 'INCREMENT': {
-            return [ model + 1, Cmd.none()];
+            return [ model + 1, Cmd.none() ];
         }
 
         case 'DECREMENT': {
-            return [ model - 1, Cmd.none()];
+            return [ model - 1, Cmd.none() ];
         }
 
         case 'SCHEDULE_INCREMENT': {
