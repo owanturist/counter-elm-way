@@ -5,7 +5,7 @@ const {
 
 
 module.exports = {
-    entry: path.resolve('./src/index.tsx'),
+    entry: path.resolve('./src/client.tsx'),
 
     output: {
         path: path.resolve('./build'),
