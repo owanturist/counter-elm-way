@@ -11,11 +11,12 @@ pids
 *.pid
 *.seed
 
-# Dependency directory
+# Dependency directories
 node_modules
 
-# Optional npm cache directory
+# Cache directories
 .npm
+.awcache
 
 # OS X
 .DS_STORE
