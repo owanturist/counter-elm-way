@@ -1,3 +1,24 @@
+# Build folder
+build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# Dependency directory
 node_modules
 
-build
+# Optional npm cache directory
+.npm
+
+# OS X
+.DS_STORE
+
+# TypeScript
+typings
