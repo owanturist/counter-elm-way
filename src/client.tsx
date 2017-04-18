@@ -8,22 +8,20 @@ import {
 } from 'react-redux';
 
 import {
-    createLoopStore
-} from 'Store/Loop';
+    create
+} from 'Store/Create';
 import {
-    Msg,
     Model
 } from 'App/Types';
 import {
     initialModel,
-    initialCmd,
-    update
+    initialCmd
 } from 'App/State';
 import {
     View as AppView
 } from 'App/View';
 
-const store = createLoopStore<Model, Msg>(update, [ initialModel, initialCmd ]);
+const store = create([ initialModel, initialCmd ]);
 const App = connect((model: Model) => ({ model }))(AppView);
 
 render(
