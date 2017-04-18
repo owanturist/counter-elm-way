@@ -2,7 +2,9 @@
   "name": "counter-elm-way",
   "version": "0.0.1",
   "scripts": {
-    "build": "rm -rf dist && webpack",
+    "clean": "rm -rf build",
+    "prebuild": "yarn run clean",
+    "build": "webpack",
     "lint": "tslint \"src/**/**.ts*\""
   },
   "main": "index.js",
