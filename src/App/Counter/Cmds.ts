@@ -3,7 +3,7 @@ import {
 } from 'Platform/Cmd';
 import {
     Msg,
-    increment
+    Increment
 } from './Types';
 
 const delay = (time: number) => {
@@ -17,5 +17,5 @@ const delay = (time: number) => {
 };
 
 export const delayedIncrement = (time: number): Cmd<Msg> => Cmd.of(
-    delay(time).then(() => increment())
+    delay(time).then(() => Increment())
 );

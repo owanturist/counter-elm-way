@@ -3,8 +3,8 @@ import React from 'react';
 import {
     Msg,
     Model,
-    decrement,
-    scheduleIncrement
+    Decrement,
+    ScheduleIncrement
 } from './Types';
 
 export type View = {
@@ -15,8 +15,8 @@ export type View = {
 
 export const View = ({ dispatch, model, delay }: View) => (
     <div>
-        <button onClick={() => dispatch(decrement())}>-</button>
+        <button onClick={() => dispatch(Decrement())}>-</button>
         {model}
-        <button onClick={() => dispatch(scheduleIncrement(delay))}>+</button>
+        <button onClick={() => dispatch(ScheduleIncrement(delay))}>+</button>
     </div>
 );

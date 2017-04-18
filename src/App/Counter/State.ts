@@ -29,9 +29,5 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 delayedIncrement(msg.payload)
             ];
         }
-
-        default: {
-            throw new Error('Msg does not match');
-        }
     }
 };

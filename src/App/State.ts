@@ -4,8 +4,8 @@ import {
 import {
     Msg,
     Model,
-    firstCounterMsg,
-    secondCounterMsg
+    FirstCounterMsg,
+    SecondCounterMsg
 } from './Types';
 import {
     initialModel as CounterInitialModel,
@@ -19,8 +19,8 @@ export const initialModel: Model = {
 };
 
 export const initialCmd = Cmd.butch<Msg>([
-    CounterInitialCmd.map(firstCounterMsg),
-    CounterInitialCmd.map(secondCounterMsg)
+    CounterInitialCmd.map(FirstCounterMsg),
+    CounterInitialCmd.map(SecondCounterMsg)
 ]);
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
@@ -36,7 +36,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     firstCounter: nextFirstCounter
                 },
-                counterCmd.map(firstCounterMsg)
+                counterCmd.map(FirstCounterMsg)
             ];
         }
 
@@ -51,7 +51,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     secondCounter: nextSecondCounter
                 },
-                counterCmd.map(secondCounterMsg)
+                counterCmd.map(SecondCounterMsg)
             ];
         }
 

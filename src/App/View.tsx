@@ -6,8 +6,8 @@ import {
 import {
     Msg,
     Model,
-    firstCounterMsg,
-    secondCounterMsg
+    FirstCounterMsg,
+    SecondCounterMsg
 } from './Types';
 import {
     View as CounterView
@@ -22,12 +22,12 @@ export const View = ({ dispatch, model }: View) => (
     <div>
         <CounterView
             model={model.firstCounter}
-            dispatch={compose(dispatch, firstCounterMsg)}
+            dispatch={compose(dispatch, FirstCounterMsg)}
             delay={3000}
         />
         <CounterView
             model={model.secondCounter}
-            dispatch={compose(dispatch, secondCounterMsg)}
+            dispatch={compose(dispatch, SecondCounterMsg)}
             delay={1000}
         />
     </div>

@@ -4,6 +4,15 @@ import {
 } from './Counter/Types';
 
 /**
+ * --- MODEL --
+ */
+
+export type Model = {
+    firstCounter: CounterModel,
+    secondCounter: CounterModel
+};
+
+/**
  * --- MESSAGES ---
  */
 
@@ -12,33 +21,20 @@ export type Msg
     | SecondCounterMsg
     ;
 
-type FIRST_COUNTER_MSG = 'FIRST_COUNTER_MSG';
-type FirstCounterMsg = {
-    type: FIRST_COUNTER_MSG,
-    payload: CounterMsg
-};
-
-export const firstCounterMsg = (action: CounterMsg): FirstCounterMsg => ({
+export interface FirstCounterMsg {
+    type: 'FIRST_COUNTER_MSG';
+    payload: CounterMsg;
+}
+export const FirstCounterMsg = (action: CounterMsg): FirstCounterMsg => ({
     type: 'FIRST_COUNTER_MSG',
     payload: action
 });
 
-type SECOND_COUNTER_MSG = 'SECOND_COUNTER_MSG';
-type SecondCounterMsg = {
-    type: SECOND_COUNTER_MSG,
-    payload: CounterMsg
-};
-
-export const secondCounterMsg = (action: CounterMsg): SecondCounterMsg => ({
+export interface SecondCounterMsg {
+    type: 'SECOND_COUNTER_MSG';
+    payload: CounterMsg;
+}
+export const SecondCounterMsg = (action: CounterMsg): SecondCounterMsg => ({
     type: 'SECOND_COUNTER_MSG',
     payload: action
 });
-
-/**
- * --- MODEL --
- */
-
-export type Model = {
-    firstCounter: CounterModel,
-    secondCounter: CounterModel
-};
