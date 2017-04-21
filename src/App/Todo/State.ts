@@ -42,7 +42,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     '',
                     [ ...model.todos, todo ]
                 ),
-                CounterInitialCmd.map((counterMsg) => Counter(todo.id, counterMsg))
+                CounterInitialCmd.map(Counter(todo.id))
             ];
         }
 
@@ -77,7 +77,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
                     return {
                         todos: [ ...acc.todos, nextTodoModel ],
-                        cmd: counterCmd.map((counterMsg) => Counter(todo.id, counterMsg))
+                        cmd: counterCmd.map(Counter(todo.id))
                     };
                 },
                 next

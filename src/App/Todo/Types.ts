@@ -74,7 +74,7 @@ export interface Counter {
         counterMsg: CounterMsg
     };
 }
-export const Counter = (id: number, counterMsg: CounterMsg): Counter => ({
+export const Counter = (id: number) => (counterMsg: CounterMsg): Counter => ({
     type: 'COUNTER',
     payload: { id, counterMsg }
 });
