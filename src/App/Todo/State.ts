@@ -1,16 +1,12 @@
 import {
     Cmd
 } from 'Platform/Cmd';
-import {
-    initialModel as CounterInitialModel,
-    initialCmd as CounterInitialCmd,
-    update as CounterUpdate
-} from 'App/Counter/State';
+import * as Counter from 'App/Counter/State';
 import {
     Msg,
     Model,
     Todo,
-    Counter
+    CounterMsg
 } from './Types';
 
 export const initialModel: Model = Model(0, '', []);
@@ -33,7 +29,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             const todo: Todo = Todo(
                 model.nextId,
                 model.input,
-                CounterInitialModel
+                Counter.initialModel
             );
 
             return [
@@ -42,11 +38,11 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     '',
                     [ ...model.todos, todo ]
                 ),
-                CounterInitialCmd.map(Counter(todo.id))
+                Counter.initialCmd.map(CounterMsg(todo.id))
             ];
         }
 
-        case 'COUNTER': {
+        case 'COUNTER_MSG': {
             type next = {
                 todos: Todo[],
                 cmd: Cmd<Msg>
@@ -68,7 +64,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     const [
                         nextCounterModel,
                         counterCmd
-                    ] = CounterUpdate(msg.payload.counterMsg, todo.counter);
+                    ] = Counter.update(msg.payload.msg, todo.counter);
 
                     const nextTodoModel = {
                         ...todo,
@@ -77,7 +73,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
                     return {
                         todos: [ ...acc.todos, nextTodoModel ],
-                        cmd: counterCmd.map(Counter(todo.id))
+                        cmd: counterCmd.map(CounterMsg(todo.id))
                     };
                 },
                 next

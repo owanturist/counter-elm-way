@@ -2,16 +2,8 @@ import {
     Cmd
 } from 'Platform/Cmd';
 
-import {
-    initialModel as CounterInitialModel,
-    initialCmd as CounterInitialCmd,
-    update as CoutnerUpdate
-} from 'App/Counter/State';
-import {
-    initialModel as TodoInitialModel,
-    initialCmd as TodoInitialCmd,
-    update as TodoUpdate
-} from 'App/Todo/State';
+import * as Counter from 'App/Counter/State';
+import * as Todo from 'App/Todo/State';
 import {
     Msg,
     Model,
@@ -21,15 +13,15 @@ import {
 } from './Types';
 
 export const initialModel: Model = Model(
-    CounterInitialModel,
-    CounterInitialModel,
-    TodoInitialModel
+    Counter.initialModel,
+    Counter.initialModel,
+    Todo.initialModel
 );
 
 export const initialCmd: Cmd<Msg> = Cmd.butch<Msg>([
-    CounterInitialCmd.map(FirstCounterMsg),
-    CounterInitialCmd.map(SecondCounterMsg),
-    TodoInitialCmd.map(TodoListMsg)
+    Counter.initialCmd.map(FirstCounterMsg),
+    Counter.initialCmd.map(SecondCounterMsg),
+    Todo.initialCmd.map(TodoListMsg)
 ]);
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
@@ -38,7 +30,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
             const [
                 nextFirstCounter,
                 counterCmd
-            ] = CoutnerUpdate(msg.payload, model.firstCounter);
+            ] = Counter.update(msg.payload, model.firstCounter);
 
             return [
                 {
@@ -53,7 +45,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
             const [
                 nextSecondCounter,
                 counterCmd
-            ] = CoutnerUpdate(msg.payload, model.secondCounter);
+            ] = Counter.update(msg.payload, model.secondCounter);
 
             return [
                 {
@@ -68,7 +60,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
             const [
                 nextTodoList,
                 todoListCmd
-            ] = TodoUpdate(msg.payload, model.todoList);
+            ] = Todo.update(msg.payload, model.todoList);
 
             return [
                 {

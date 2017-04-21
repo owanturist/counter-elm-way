@@ -18,11 +18,11 @@ import {
     initialCmd
 } from 'App/State';
 import {
-    View as AppView
+    View
 } from 'App/View';
 
 const store = create([ initialModel, initialCmd ]);
-const App = connect((model: Model) => ({ model }))(AppView);
+const App = connect((model: Model) => ({ model }))(View);
 
 render(
     (

@@ -3,12 +3,8 @@ import {
     compose
 } from 'redux';
 
-import {
-    View as CounterView
-} from 'App/Counter/View';
-import {
-    View as TodoView
-} from 'App/Todo/View';
+import * as Counter from 'App/Counter/View';
+import * as Todo from 'App/Todo/View';
 import {
     Msg,
     Model,
@@ -24,17 +20,17 @@ export type View = {
 
 export const View = ({ dispatch, model }: View) => (
     <div>
-        <CounterView
+        <Counter.View
             model={model.firstCounter}
             dispatch={compose(dispatch, FirstCounterMsg)}
             delay={3000}
         />
-        <CounterView
+        <Counter.View
             model={model.secondCounter}
             dispatch={compose(dispatch, SecondCounterMsg)}
             delay={1000}
         />
-        <TodoView
+        <Todo.View
             model={model.todoList}
             dispatch={compose(dispatch, TodoListMsg)}
         />

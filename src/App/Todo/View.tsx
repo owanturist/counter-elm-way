@@ -3,16 +3,14 @@ import {
     compose
 } from 'redux';
 
-import {
-    View as CounterView
-} from 'App/Counter/View';
+import * as Counter from 'App/Counter/View';
 import {
     Msg,
     Model,
     Todo,
     ChangeInput,
     CreateTodo,
-    Counter
+    CounterMsg
 } from './Types';
 
 
@@ -48,10 +46,10 @@ export const View = ({ dispatch, model }: View) => (
         <ul>
             {model.todos.map((todo: Todo) => (
                 <li key={todo.id}>
-                    <CounterView
+                    <Counter.View
                         model={todo.counter}
                         delay={1000}
-                        dispatch={compose(dispatch, Counter(todo.id))}
+                        dispatch={compose(dispatch, CounterMsg(todo.id))}
                     />
 
                     {todo.message}
