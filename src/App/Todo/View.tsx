@@ -89,7 +89,7 @@ interface FilterView {
     dispatch: Dispatch;
 }
 
-const FilterView = ({ dispatch, filters, value }: FilterView) => (
+const FilterView = ({ dispatch, filters, value }: FilterView): JSX.Element => (
     <div>
         {filters.map((filter) => (
             <label key={filter}>

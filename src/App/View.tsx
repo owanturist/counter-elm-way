@@ -18,7 +18,7 @@ export type View = {
     dispatch(msg: Msg): void
 };
 
-export const View = ({ dispatch, model }: View) => (
+export const View = ({ dispatch, model }: View): JSX.Element => (
     <div>
         <Counter.View
             model={model.firstCounter}

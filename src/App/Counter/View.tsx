@@ -13,7 +13,7 @@ export interface View {
     dispatch(msg: Msg): void;
 }
 
-export const View = ({ dispatch, model, delay }: View) => (
+export const View = ({ dispatch, model, delay }: View): JSX.Element => (
     <div>
         <button onClick={() => dispatch(Decrement())}>-</button>
         {model}
