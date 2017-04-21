@@ -9,18 +9,22 @@ import {
     CounterMsg
 } from './Types';
 
-export const initialModel: Model = Model(0, '', []);
+export const initialModel: Model = Model(0, 'All', '', []);
 
 export const initialCmd: Cmd<Msg> = Cmd.none();
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     switch (msg.type) {
+        case 'CHANGE_FILTER': {
+            return [
+                { ...model, filter: msg.payload },
+                Cmd.none()
+            ];
+        }
+
         case 'CHANGE_INPUT': {
             return [
-                {
-                    ...model,
-                    input: msg.payload
-                },
+                { ...model, input: msg.payload },
                 Cmd.none()
             ];
         }
@@ -36,6 +40,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             return [
                 Model(
                     model.nextId + 1,
+                    model.filter,
                     '',
                     [ ...model.todos, todo ]
                 ),
@@ -55,7 +60,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 };
             });
 
-            return [ { ...model, todos: nextTodos }, Cmd.none() ];
+            return [
+                { ...model, todos: nextTodos },
+                Cmd.none()
+            ];
         }
 
         case 'COUNTER_MSG': {
@@ -95,7 +103,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 next
             );
 
-            return [ { ...model, todos }, cmd ];
+            return [
+                { ...model, todos },
+                cmd
+            ];
         }
     }
 };

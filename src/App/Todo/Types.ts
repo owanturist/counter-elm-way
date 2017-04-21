@@ -6,15 +6,18 @@ import * as Counter from 'App/Counter/Types';
 
 export interface Model {
     nextId: number;
+    filter: Filter;
     input: string;
     todos: Todo[];
 }
 export const Model = (
     nextId: number,
+    filter: Filter,
     input: string,
     todos: Todo[]
     ): Model => ({
     nextId,
+    filter,
     input,
     todos
 });
@@ -42,15 +45,35 @@ export const Todo = (
 });
 
 /*
+ * --- FILTRES ---
+ */
+
+export type Filter
+    = 'All'
+    | 'Completed'
+    | 'Uncompleted'
+    ;
+
+/*
  * --- MESSAGES ---
  */
 
 export type Msg
-    = ChangeInput
+    = ChangeFilter
+    | ChangeInput
     | CreateTodo
     | CounterMsg
     | CompleteTodo
     ;
+
+export interface ChangeFilter {
+    type: 'CHANGE_FILTER';
+    payload: Filter;
+}
+export const ChangeFilter = (filter: Filter): ChangeFilter => ({
+    type: 'CHANGE_FILTER',
+    payload: filter
+});
 
 export interface ChangeInput {
     type: 'CHANGE_INPUT';

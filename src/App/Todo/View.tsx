@@ -8,6 +8,8 @@ import {
     Msg,
     Model,
     Todo,
+    Filter,
+    ChangeFilter,
     ChangeInput,
     CreateTodo,
     CompleteTodo,
@@ -21,6 +23,24 @@ export interface View {
     dispatch: Dispatch;
 }
 
+const filtersList: Filter[] = [ 'All', 'Completed', 'Uncompleted' ];
+
+const filterTodos = (filter: Filter) => (todo: Todo): boolean => {
+    switch (filter) {
+        case 'All': {
+            return true;
+        }
+
+        case 'Completed': {
+            return todo.completed;
+        }
+
+        case 'Uncompleted': {
+            return !todo.completed;
+        }
+    }
+};
+
 export const View = ({ dispatch, model }: View) => (
     <div>
         <h1>Todo List:</h1>
@@ -33,6 +53,12 @@ export const View = ({ dispatch, model }: View) => (
                 event.preventDefault();
             }}
         >
+            <FilterView
+                filters={filtersList}
+                value={model.filter}
+                dispatch={dispatch}
+            />
+
             <input
                 type="text"
                 value={model.input}
@@ -44,7 +70,7 @@ export const View = ({ dispatch, model }: View) => (
         </form>
 
         <ul>
-            {model.todos.map((todo: Todo) => (
+            {model.todos.filter(filterTodos(model.filter)).map((todo: Todo) => (
                 <TodoView
                     key={todo.id}
                     todo={todo}
@@ -55,12 +81,33 @@ export const View = ({ dispatch, model }: View) => (
     </div>
 );
 
-export interface TodoView {
+interface FilterView {
+    filters: Filter[];
+    value: Filter;
+    dispatch: Dispatch;
+}
+
+const FilterView = ({ dispatch, filters, value }: FilterView) => (
+    <div>
+        {filters.map((filter) => (
+            <label key={filter}>
+                <input
+                    type="radio"
+                    checked={filter === value}
+                    onChange={() => dispatch(ChangeFilter(filter))}
+                />
+                {filter}
+            </label>
+        ))}
+    </div>
+);
+
+interface TodoView {
     todo: Todo;
     dispatch: Dispatch;
 }
 
-export const TodoView = ({ dispatch, todo }: TodoView) => (
+const TodoView = ({ dispatch, todo }: TodoView) => (
     <li>
         <input
             type="checkbox"
