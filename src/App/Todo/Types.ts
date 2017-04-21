@@ -121,7 +121,7 @@ export interface CounterMsg {
     type: 'COUNTER_MSG';
     payload: {
         id: number;
-        msg: Counter.Msg
+        msg: Counter.Msg;
     };
 }
 export const CounterMsg = (id: number) => (msg: Counter.Msg): CounterMsg => ({
@@ -133,7 +133,7 @@ export interface TodosMsg {
     type: 'TODOS_MSG';
     payload: {
         id: number;
-        msg: Msg
+        msg: Msg;
     };
 }
 export const TodosMsg = (id: number) => (msg: Msg): TodosMsg => ({
