@@ -22,11 +22,11 @@ class Single<T> implements Cmd<T> {
     constructor(private readonly promise: Promise<T>) {}
 
     public map<R>(f: (a: T) => R): Cmd<R> {
-        return Cmd.of(this.execute(f));
+        return new Single(this.execute(f));
     }
 
     public concat(cmd: Cmd<T>): Cmd<T> {
-        return Cmd.batch([ this, cmd ]);
+        return new Batch([ this, cmd ]);
     }
 
     public execute<R>(f: (a: T) => R): Promise<R> {
@@ -52,13 +52,13 @@ class Batch<T> implements Cmd<T> {
     constructor(private readonly cmds: Array<Cmd<T>>) {}
 
     public map<R>(f: (a: T) => R): Cmd<R> {
-        return Cmd.batch(
+        return new Batch(
             this.cmds.map((cmd) => cmd.map(f))
         );
     }
 
     public concat(cmd: Cmd<T>): Cmd<T> {
-        return Cmd.batch([ ...this.cmds, cmd ]);
+        return new Batch([ ...this.cmds, cmd ]);
     }
 
     public execute<R>(f: (a: T) => R): Promise<R[]> {
