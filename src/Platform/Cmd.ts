@@ -1,6 +1,6 @@
 export abstract class Cmd<T> {
-    public static of<T>(promise: Promise<T>): Cmd<T> {
-        return new Single(promise);
+    public static of<T>(promiseCall: () => Promise<T>): Cmd<T> {
+        return new Single(promiseCall);
     }
 
     public static batch<T>(cmds: Array<Cmd<T>>): Cmd<T> {
@@ -31,12 +31,12 @@ export abstract class Cmd<T> {
 }
 
 class Single<T> extends Cmd<T> {
-    constructor(private readonly promise: Promise<T>) {
+    constructor(private readonly promiseCall: () => Promise<T>) {
         super();
     }
 
     protected map<R>(f: (a: T) => R): Cmd<R> {
-        return new Single(this.execute(f));
+        return new Single(() => this.execute(f));
     }
 
     protected concat(cmd: Cmd<T>): Cmd<T> {
@@ -44,7 +44,7 @@ class Single<T> extends Cmd<T> {
     }
 
     protected execute<R>(f: (a: T) => R): Promise<R> {
-        return this.promise.then(f);
+        return this.promiseCall().then(f);
     }
 }
 

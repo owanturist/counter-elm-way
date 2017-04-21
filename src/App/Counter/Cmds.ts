@@ -17,5 +17,5 @@ const delay = (time: number) => {
 };
 
 export const delayedIncrement = (time: number): Cmd<Msg> => Cmd.of(
-    delay(time).then(() => Increment())
+    () => delay(time).then(() => Increment())
 );

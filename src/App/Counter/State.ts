@@ -11,7 +11,14 @@ import {
 
 export const initialModel: Model = Model(0);
 
-export const initialCmd: Cmd<Msg> = Cmd.none();
+// export const initialCmd: Cmd<Msg> = Cmd.none();
+export const initialCmd: Cmd<Msg> = Cmd.batch([
+    delayedIncrement(200),
+    delayedIncrement(400),
+    delayedIncrement(600),
+    delayedIncrement(800),
+    delayedIncrement(1000)
+]);
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     switch (msg.type) {
