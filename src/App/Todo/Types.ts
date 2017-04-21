@@ -62,8 +62,9 @@ export type Msg
     = ChangeFilter
     | ChangeInput
     | CreateTodo
-    | CounterMsg
     | CompleteTodo
+    | DeleteTodo
+    | CounterMsg
     ;
 
 export interface ChangeFilter {
@@ -98,10 +99,18 @@ export interface CompleteTodo {
         completed: boolean;
     };
 }
-
 export const CompleteTodo = (id: number, completed: boolean): CompleteTodo => ({
     type: 'COMPLETE_TODO',
     payload: { id, completed }
+});
+
+export interface DeleteTodo {
+    type: 'DELETE_TODO';
+    payload: number;
+}
+export const DeleteTodo = (id: number): DeleteTodo => ({
+    type: 'DELETE_TODO',
+    payload: id
 });
 
 export interface CounterMsg {

@@ -13,6 +13,7 @@ import {
     ChangeInput,
     CreateTodo,
     CompleteTodo,
+    DeleteTodo,
     CounterMsg
 } from './Types';
 
@@ -122,5 +123,11 @@ const TodoView = ({ dispatch, todo }: TodoView) => (
         />
 
         {todo.message}
+
+        <button
+            onClick={() => dispatch(DeleteTodo(todo.id))}
+        >
+            &times;
+        </button>
     </li>
 );

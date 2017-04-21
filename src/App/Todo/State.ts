@@ -66,6 +66,15 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             ];
         }
 
+        case 'DELETE_TODO': {
+            const nextTodos: Todo[] = model.todos.filter((todo) => todo.id !== msg.payload);
+
+            return [
+                { ...model, todos: nextTodos },
+                Cmd.none()
+            ];
+        }
+
         case 'COUNTER_MSG': {
             type next = {
                 todos: Todo[],
