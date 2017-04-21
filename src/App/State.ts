@@ -18,7 +18,7 @@ export const initialModel: Model = Model(
     Todo.initialModel
 );
 
-export const initialCmd: Cmd<Msg> = Cmd.butch<Msg>([
+export const initialCmd: Cmd<Msg> = Cmd.batch<Msg>([
     Counter.initialCmd.map(FirstCounterMsg),
     Counter.initialCmd.map(SecondCounterMsg),
     Todo.initialCmd.map(TodoListMsg)

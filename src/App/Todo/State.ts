@@ -46,7 +46,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     '',
                     [ todo, ...model.todos ]
                 ),
-                Cmd.butch<Msg>([
+                Cmd.batch<Msg>([
                     Counter.initialCmd.map(CounterMsg(todo.id)),
                     initialCmd.map(TodosMsg(todo.id))
                 ])

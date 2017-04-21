@@ -3,7 +3,7 @@ export abstract class Cmd<T> {
         return new Single(promise);
     }
 
-    public static butch<T>(cmds: Array<Cmd<T>>): Cmd<T> {
+    public static batch<T>(cmds: Array<Cmd<T>>): Cmd<T> {
         return new Batch(cmds);
     }
 
@@ -26,7 +26,7 @@ class Single<T> implements Cmd<T> {
     }
 
     public concat(cmd: Cmd<T>): Cmd<T> {
-        return Cmd.butch([ this, cmd ]);
+        return Cmd.batch([ this, cmd ]);
     }
 
     public execute<R>(f: (a: T) => R): Promise<R> {
@@ -52,13 +52,13 @@ class Batch<T> implements Cmd<T> {
     constructor(private readonly cmds: Array<Cmd<T>>) {}
 
     public map<R>(f: (a: T) => R): Cmd<R> {
-        return new Batch(
+        return Cmd.batch(
             this.cmds.map((cmd) => cmd.map(f))
         );
     }
 
     public concat(cmd: Cmd<T>): Cmd<T> {
-        return new Batch([ ...this.cmds, cmd ]);
+        return Cmd.batch([ ...this.cmds, cmd ]);
     }
 
     public execute<R>(f: (a: T) => R): Promise<R[]> {
