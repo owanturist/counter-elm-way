@@ -14,7 +14,8 @@ import {
     CreateTodo,
     CompleteTodo,
     DeleteTodo,
-    CounterMsg
+    CounterMsg,
+    TodosMsg
 } from './Types';
 
 export type Dispatch = (msg: Msg) => void;
@@ -42,9 +43,9 @@ const filterTodos = (filter: Filter) => (todo: Todo): boolean => {
     }
 };
 
-export const View = ({ dispatch, model }: View) => (
+export const View = ({ dispatch, model }: View): JSX.Element => (
     <div>
-        <h1>Todo List:</h1>
+        <div>Todo List:</div>
 
         <form
             action="todo"
@@ -108,7 +109,7 @@ interface TodoView {
     dispatch: Dispatch;
 }
 
-const TodoView = ({ dispatch, todo }: TodoView) => (
+const TodoView = ({ dispatch, todo }: TodoView): JSX.Element => (
     <li>
         <input
             type="checkbox"
@@ -129,5 +130,10 @@ const TodoView = ({ dispatch, todo }: TodoView) => (
         >
             &times;
         </button>
+
+        <View
+            model={todo.todos}
+            dispatch={compose(dispatch, TodosMsg(todo.id))}
+        />
     </li>
 );

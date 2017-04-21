@@ -31,17 +31,20 @@ export interface Todo {
     message: string;
     completed: boolean;
     counter: Counter.Model;
+    todos: Model;
 }
 export const Todo = (
     id: number,
     message: string,
     completed: boolean,
-    counter: Counter.Model
+    counter: Counter.Model,
+    todos: Model
     ): Todo => ({
     id,
     message,
     completed,
-    counter
+    counter,
+    todos
 });
 
 /*
@@ -65,6 +68,7 @@ export type Msg
     | CompleteTodo
     | DeleteTodo
     | CounterMsg
+    | TodosMsg
     ;
 
 export interface ChangeFilter {
@@ -122,5 +126,17 @@ export interface CounterMsg {
 }
 export const CounterMsg = (id: number) => (msg: Counter.Msg): CounterMsg => ({
     type: 'COUNTER_MSG',
+    payload: { id, msg }
+});
+
+export interface TodosMsg {
+    type: 'TODOS_MSG';
+    payload: {
+        id: number;
+        msg: Msg
+    };
+}
+export const TodosMsg = (id: number) => (msg: Msg): TodosMsg => ({
+    type: 'TODOS_MSG',
     payload: { id, msg }
 });

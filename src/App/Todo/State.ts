@@ -6,7 +6,8 @@ import {
     Msg,
     Model,
     Todo,
-    CounterMsg
+    CounterMsg,
+    TodosMsg
 } from './Types';
 
 export const initialModel: Model = Model(0, 'All', '', []);
@@ -34,7 +35,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 model.nextId,
                 model.input,
                 false,
-                Counter.initialModel
+                Counter.initialModel,
+                initialModel
             );
 
             return [
@@ -44,7 +46,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     '',
                     [ ...model.todos, todo ]
                 ),
-                Counter.initialCmd.map(CounterMsg(todo.id))
+                Cmd.butch<Msg>([
+                    Counter.initialCmd.map(CounterMsg(todo.id)),
+                    initialCmd.map(TodosMsg(todo.id))
+                ])
             ];
         }
 
@@ -67,7 +72,9 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'DELETE_TODO': {
-            const nextTodos: Todo[] = model.todos.filter((todo) => todo.id !== msg.payload);
+            const nextTodos: Todo[] = model.todos.filter(
+                (todo) => todo.id !== msg.payload
+            );
 
             return [
                 { ...model, todos: nextTodos },
@@ -107,6 +114,49 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     return {
                         todos: [ ...acc.todos, nextTodoModel ],
                         cmd: counterCmd.map(CounterMsg(todo.id))
+                    };
+                },
+                next
+            );
+
+            return [
+                { ...model, todos },
+                cmd
+            ];
+        }
+
+        case 'TODOS_MSG': {
+            type next = {
+                todos: Todo[],
+                cmd: Cmd<Msg>
+            };
+            const next: next = {
+                todos: [],
+                cmd: Cmd.none()
+            };
+
+            const { todos, cmd }: next = model.todos.reduce(
+                (acc: next, todo: Todo) => {
+                    if (todo.id !== msg.payload.id) {
+                        return {
+                            ...acc,
+                            todos: [ ...acc.todos, todo ]
+                        };
+                    }
+
+                    const [
+                        nextTodosModel,
+                        todosCmd
+                    ] = update(msg.payload.msg, todo.todos);
+
+                    const nextTodoModel = {
+                        ...todo,
+                        todos: nextTodosModel
+                    };
+
+                    return {
+                        todos: [ ...acc.todos, nextTodoModel ],
+                        cmd: todosCmd.map(TodosMsg(todo.id))
                     };
                 },
                 next
