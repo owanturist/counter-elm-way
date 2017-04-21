@@ -1,6 +1,17 @@
 import {
     Cmd
 } from 'Platform/Cmd';
+
+import {
+    initialModel as CounterInitialModel,
+    initialCmd as CounterInitialCmd,
+    update as CoutnerUpdate
+} from 'App/Counter/State';
+import {
+    initialModel as TodoInitialModel,
+    initialCmd as TodoInitialCmd,
+    update as TodoUpdate
+} from 'App/Todo/State';
 import {
     Msg,
     Model,
@@ -8,16 +19,6 @@ import {
     SecondCounterMsg,
     TodoListMsg
 } from './Types';
-import {
-    initialModel as CounterInitialModel,
-    initialCmd as CounterInitialCmd,
-    update as CoutnerUpdate
-} from './Counter/State';
-import {
-    initialModel as TodoInitialModel,
-    initialCmd as TodoInitialCmd,
-    update as TodoUpdate
-} from './Todo/State';
 
 export const initialModel: Model = Model(
     CounterInitialModel,

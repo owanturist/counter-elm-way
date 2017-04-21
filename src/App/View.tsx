@@ -4,18 +4,18 @@ import {
 } from 'redux';
 
 import {
+    View as CounterView
+} from 'App/Counter/View';
+import {
+    View as TodoView
+} from 'App/Todo/View';
+import {
     Msg,
     Model,
     FirstCounterMsg,
     SecondCounterMsg,
     TodoListMsg
 } from './Types';
-import {
-    View as CounterView
-} from './Counter/View';
-import {
-    View as TodoView
-} from './Todo/View';
 
 export type View = {
     model: Model,
