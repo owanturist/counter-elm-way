@@ -1,3 +1,8 @@
+import {
+    Msg as CounterMsg,
+    Model as CounterModel
+} from 'App/Counter/Types';
+
 /*
  * --- MODEL ---
  */
@@ -7,7 +12,11 @@ export interface Model {
     input: string;
     todos: Todo[];
 }
-export const Model = (nextId: number, input: string, todos: Todo[]): Model => ({
+export const Model = (
+    nextId: number,
+    input: string,
+    todos: Todo[]
+    ): Model => ({
     nextId,
     input,
     todos
@@ -20,10 +29,16 @@ export const Model = (nextId: number, input: string, todos: Todo[]): Model => ({
 export interface Todo {
     id: number;
     message: string;
+    counter: CounterModel;
 }
-export const Todo = (id: number, message: string): Todo => ({
+export const Todo = (
+    id: number,
+    message: string,
+    counter: CounterModel
+    ): Todo => ({
     id,
-    message
+    message,
+    counter
 });
 
 /*
@@ -33,6 +48,7 @@ export const Todo = (id: number, message: string): Todo => ({
 export type Msg
     = ChangeInput
     | CreateTodo
+    | Counter
     ;
 
 export interface ChangeInput {
@@ -49,4 +65,16 @@ export interface CreateTodo {
 }
 export const CreateTodo = (): CreateTodo => ({
     type: 'CREATE_TODO'
+});
+
+export interface Counter {
+    type: 'COUNTER';
+    payload: {
+        id: number;
+        counterMsg: CounterMsg
+    };
+}
+export const Counter = (id: number, counterMsg: CounterMsg): Counter => ({
+    type: 'COUNTER',
+    payload: { id, counterMsg }
 });

@@ -1,11 +1,15 @@
 import React from 'react';
 
 import {
+    View as CounterView
+} from 'App/Counter/View';
+import {
     Msg,
     Model,
     Todo,
     ChangeInput,
-    CreateTodo
+    CreateTodo,
+    Counter
 } from './Types';
 
 
@@ -40,7 +44,15 @@ export const View = ({ dispatch, model }: View) => (
 
         <ul>
             {model.todos.map((todo: Todo) => (
-                <li key={todo.id}>{todo.message}</li>
+                <li key={todo.id}>
+                    <p>{todo.message}</p>
+
+                    <CounterView
+                        model={todo.counter}
+                        delay={1000}
+                        dispatch={(msg) => dispatch(Counter(todo.id, msg))}
+                    />
+                </li>
             ))}
         </ul>
     </div>

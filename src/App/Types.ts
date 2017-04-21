@@ -1,11 +1,11 @@
 import {
     Msg as CounterMsg,
     Model as CounterModel
-} from './Counter/Types';
+} from 'App/Counter/Types';
 import {
     Msg as TodoMsg,
     Model as TodoModel
-} from './Todo/Types';
+} from 'App/Todo/Types';
 
 /**
  * --- MODEL --

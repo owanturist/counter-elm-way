@@ -2,9 +2,15 @@ import {
     Cmd
 } from 'Platform/Cmd';
 import {
+    initialModel as CounterInitialModel,
+    initialCmd as CounterInitialCmd,
+    update as CounterUpdate
+} from 'App/Counter/State';
+import {
     Msg,
     Model,
-    Todo
+    Todo,
+    Counter
 } from './Types';
 
 export const initialModel: Model = Model(0, '', []);
@@ -24,14 +30,60 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'CREATE_TODO': {
+            const todo: Todo = Todo(
+                model.nextId,
+                model.input,
+                CounterInitialModel
+            );
+
             return [
                 Model(
                     model.nextId + 1,
                     '',
-                    [ ...model.todos, Todo(model.nextId, model.input) ]
+                    [ ...model.todos, todo ]
                 ),
-                Cmd.none()
+                CounterInitialCmd.map((counterMsg) => Counter(todo.id, counterMsg))
             ];
+        }
+
+        case 'COUNTER': {
+            type next = {
+                todos: Todo[],
+                cmd: Cmd<Msg>
+            };
+            const next: next = {
+                todos: [],
+                cmd: Cmd.none()
+            };
+
+            const { todos, cmd }: next = model.todos.reduce(
+                (acc: next, todo: Todo) => {
+                    if (todo.id !== msg.payload.id) {
+                        return {
+                            ...acc,
+                            todos: [ ...acc.todos, todo ]
+                        };
+                    }
+
+                    const [
+                        nextCounterModel,
+                        counterCmd
+                    ] = CounterUpdate(msg.payload.counterMsg, todo.counter);
+
+                    const nextTodoModel = {
+                        ...todo,
+                        counter: nextCounterModel
+                    };
+
+                    return {
+                        todos: [ ...acc.todos, nextTodoModel ],
+                        cmd: counterCmd.map((counterMsg) => Counter(todo.id, counterMsg))
+                    };
+                },
+                next
+            );
+
+            return [ { ...model, todos }, cmd ];
         }
     }
 };
