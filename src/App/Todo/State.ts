@@ -106,7 +106,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         counterCmd
                     ] = Counter.update(msg.payload.msg, todo.counter);
 
-                    const nextTodoModel = {
+                    const nextTodoModel: Todo = {
                         ...todo,
                         counter: nextCounterModel
                     };
@@ -149,7 +149,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         todosCmd
                     ] = update(msg.payload.msg, todo.todos);
 
-                    const nextTodoModel = {
+                    const nextTodoModel: Todo = {
                         ...todo,
                         todos: nextTodosModel
                     };
