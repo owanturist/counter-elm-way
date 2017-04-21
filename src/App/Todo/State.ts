@@ -47,8 +47,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     [ todo, ...model.todos ]
                 ),
                 Cmd.batch<Msg>([
-                    Counter.initialCmd.map(CounterMsg(todo.id)),
-                    initialCmd.map(TodosMsg(todo.id))
+                    Cmd.map(CounterMsg(todo.id), Counter.initialCmd),
+                    Cmd.map(TodosMsg(todo.id), initialCmd)
                 ])
             ];
         }
@@ -113,7 +113,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
                     return {
                         todos: [ ...acc.todos, nextTodoModel ],
-                        cmd: counterCmd.map(CounterMsg(todo.id))
+                        cmd: Cmd.map(CounterMsg(todo.id), counterCmd)
                     };
                 },
                 next
@@ -156,7 +156,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
                     return {
                         todos: [ ...acc.todos, nextTodoModel ],
-                        cmd: todosCmd.map(TodosMsg(todo.id))
+                        cmd: Cmd.map(TodosMsg(todo.id), todosCmd)
                     };
                 },
                 next

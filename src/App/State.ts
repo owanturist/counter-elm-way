@@ -19,9 +19,9 @@ export const initialModel: Model = Model(
 );
 
 export const initialCmd: Cmd<Msg> = Cmd.batch<Msg>([
-    Counter.initialCmd.map(FirstCounterMsg),
-    Counter.initialCmd.map(SecondCounterMsg),
-    Todo.initialCmd.map(TodoListMsg)
+    Cmd.map(FirstCounterMsg, Counter.initialCmd),
+    Cmd.map(SecondCounterMsg, Counter.initialCmd),
+    Cmd.map(TodoListMsg, Todo.initialCmd)
 ]);
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
@@ -37,7 +37,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     firstCounter: nextFirstCounter
                 },
-                counterCmd.map(FirstCounterMsg)
+                Cmd.map(FirstCounterMsg, counterCmd)
             ];
         }
 
@@ -52,7 +52,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     secondCounter: nextSecondCounter
                 },
-                counterCmd.map(SecondCounterMsg)
+                Cmd.map(SecondCounterMsg, counterCmd)
             ];
         }
 
@@ -67,7 +67,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     todoList: nextTodoList
                 },
-                todoListCmd.map(TodoListMsg)
+                Cmd.map(TodoListMsg, todoListCmd)
             ];
         }
 

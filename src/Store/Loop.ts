@@ -31,7 +31,7 @@ export function createLoopStore<Model, Msg extends Action>(
     const liftReducer = (updater: Update<Model>): Reducer<Model> => (model: Model, msg: Msg): Model => {
         const [ state, cmd ] = updater(msg, model);
 
-        queue = queue.concat(cmd);
+        queue = Cmd.concat(cmd, queue);
 
         return state;
     };
@@ -48,10 +48,10 @@ export function createLoopStore<Model, Msg extends Action>(
         const currentQueue = queue;
         queue = Cmd.none();
 
-        return currentQueue.execute(enhancedDispatch);
+        return Cmd.execute(enhancedDispatch, currentQueue);
     };
 
-    initialCmd.execute(enhancedDispatch);
+    Cmd.execute(enhancedDispatch, initialCmd);
 
     return {
         getState: store.getState,

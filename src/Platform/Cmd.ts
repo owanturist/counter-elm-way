@@ -11,59 +11,75 @@ export abstract class Cmd<T> {
         return new None();
     }
 
-    public abstract map<R>(f: (a: T) => R): Cmd<R>;
+    public static map<T, R>(f: (a: T) => R, cmd: Cmd<T>): Cmd<R> {
+        return cmd.map(f);
+    }
 
-    public abstract concat(cmd: Cmd<T>): Cmd<T>;
+    public static concat<T>(cmdA: Cmd<T>, cmdB: Cmd<T>): Cmd<T> {
+        return cmdA.concat(cmdB);
+    }
 
-    public abstract execute<R>(f: (a: T) => R): Promise<R>;
+    public static execute<T, R>(f: (a: T) => R, cmd: Cmd<T>): Promise<R> {
+        return cmd.execute(f);
+    }
+
+    protected abstract map<R>(f: (a: T) => R): Cmd<R>;
+
+    protected abstract concat(cmd: Cmd<T>): Cmd<T>;
+
+    protected abstract execute<R>(f: (a: T) => R): Promise<R>;
 }
 
-class Single<T> implements Cmd<T> {
-    constructor(private readonly promise: Promise<T>) {}
+class Single<T> extends Cmd<T> {
+    constructor(private readonly promise: Promise<T>) {
+        super();
+    }
 
-    public map<R>(f: (a: T) => R): Cmd<R> {
+    protected map<R>(f: (a: T) => R): Cmd<R> {
         return new Single(this.execute(f));
     }
 
-    public concat(cmd: Cmd<T>): Cmd<T> {
+    protected concat(cmd: Cmd<T>): Cmd<T> {
         return new Batch([ this, cmd ]);
     }
 
-    public execute<R>(f: (a: T) => R): Promise<R> {
+    protected execute<R>(f: (a: T) => R): Promise<R> {
         return this.promise.then(f);
     }
 }
 
-class None<T> implements Cmd<T> {
-    public map(): Cmd<T> {
+class None<T> extends Cmd<T> {
+    protected map(): Cmd<T> {
         return this;
     }
 
-    public concat(cmd: Cmd<T>): Cmd<T> {
+    protected concat(cmd: Cmd<T>): Cmd<T> {
         return cmd;
     }
 
-    public execute(): Promise<any> {
+    protected execute(): Promise<any> {
         return Promise.resolve();
     }
 }
 
-class Batch<T> implements Cmd<T> {
-    constructor(private readonly cmds: Array<Cmd<T>>) {}
+class Batch<T> extends Cmd<T> {
+    constructor(private readonly cmds: Array<Cmd<T>>) {
+        super();
+    }
 
-    public map<R>(f: (a: T) => R): Cmd<R> {
+    protected map<R>(f: (a: T) => R): Cmd<R> {
         return new Batch(
-            this.cmds.map((cmd) => cmd.map(f))
+            this.cmds.map((cmd) => Cmd.map(f, cmd))
         );
     }
 
-    public concat(cmd: Cmd<T>): Cmd<T> {
+    protected concat(cmd: Cmd<T>): Cmd<T> {
         return new Batch([ ...this.cmds, cmd ]);
     }
 
-    public execute<R>(f: (a: T) => R): Promise<R[]> {
+    protected execute<R>(f: (a: T) => R): Promise<R[]> {
         return Promise.all(
-            this.cmds.map((cmd) => cmd.execute(f))
+            this.cmds.map((cmd) => Cmd.execute(f, cmd))
         );
     }
 }
