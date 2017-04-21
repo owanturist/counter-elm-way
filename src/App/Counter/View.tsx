@@ -7,11 +7,11 @@ import {
     ScheduleIncrement
 } from './Types';
 
-export type View = {
-    model: Model,
-    delay: number,
-    dispatch(msg: Msg): void
-};
+export interface View {
+    model: Model;
+    delay: number;
+    dispatch(msg: Msg): void;
+}
 
 export const View = ({ dispatch, model, delay }: View) => (
     <div>

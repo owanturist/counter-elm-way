@@ -7,11 +7,15 @@ import {
     Msg,
     Model,
     FirstCounterMsg,
-    SecondCounterMsg
+    SecondCounterMsg,
+    TodoListMsg
 } from './Types';
 import {
     View as CounterView
 } from './Counter/View';
+import {
+    View as TodoView
+} from './Todo/View';
 
 export type View = {
     model: Model,
@@ -29,6 +33,10 @@ export const View = ({ dispatch, model }: View) => (
             model={model.secondCounter}
             dispatch={compose(dispatch, SecondCounterMsg)}
             delay={1000}
+        />
+        <TodoView
+            model={model.todoList}
+            dispatch={compose(dispatch, TodoListMsg)}
         />
     </div>
 );

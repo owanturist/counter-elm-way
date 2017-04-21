@@ -11,7 +11,7 @@ import {
 
 export const initialModel: Model = 0;
 
-export const initialCmd = Cmd.none<Msg>();
+export const initialCmd: Cmd<Msg> = Cmd.none();
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     switch (msg.type) {

@@ -2,6 +2,10 @@ import {
     Msg as CounterMsg,
     Model as CounterModel
 } from './Counter/Types';
+import {
+    Msg as TodoMsg,
+    Model as TodoModel
+} from './Todo/Types';
 
 /**
  * --- MODEL --
@@ -9,7 +13,8 @@ import {
 
 export type Model = {
     firstCounter: CounterModel,
-    secondCounter: CounterModel
+    secondCounter: CounterModel,
+    todoList: TodoModel
 };
 
 /**
@@ -19,22 +24,32 @@ export type Model = {
 export type Msg
     = FirstCounterMsg
     | SecondCounterMsg
+    | TodoListMsg
     ;
 
 export interface FirstCounterMsg {
     type: 'FIRST_COUNTER_MSG';
     payload: CounterMsg;
 }
-export const FirstCounterMsg = (action: CounterMsg): FirstCounterMsg => ({
+export const FirstCounterMsg = (msg: CounterMsg): FirstCounterMsg => ({
     type: 'FIRST_COUNTER_MSG',
-    payload: action
+    payload: msg
 });
 
 export interface SecondCounterMsg {
     type: 'SECOND_COUNTER_MSG';
     payload: CounterMsg;
 }
-export const SecondCounterMsg = (action: CounterMsg): SecondCounterMsg => ({
+export const SecondCounterMsg = (msg: CounterMsg): SecondCounterMsg => ({
     type: 'SECOND_COUNTER_MSG',
-    payload: action
+    payload: msg
+});
+
+export interface TodoListMsg {
+    type: 'TODO_LIST_MSG';
+    payload: TodoMsg;
+}
+export const TodoListMsg = (msg: TodoMsg): TodoListMsg => ({
+    type: 'TODO_LIST_MSG',
+    payload: msg
 });
