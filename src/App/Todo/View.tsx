@@ -10,9 +10,9 @@ import {
     Todo,
     ChangeInput,
     CreateTodo,
+    CompleteTodo,
     CounterMsg
 } from './Types';
-
 
 export type Dispatch = (msg: Msg) => void;
 
@@ -45,16 +45,35 @@ export const View = ({ dispatch, model }: View) => (
 
         <ul>
             {model.todos.map((todo: Todo) => (
-                <li key={todo.id}>
-                    <Counter.View
-                        model={todo.counter}
-                        delay={1000}
-                        dispatch={compose(dispatch, CounterMsg(todo.id))}
-                    />
-
-                    {todo.message}
-                </li>
+                <TodoView
+                    key={todo.id}
+                    todo={todo}
+                    dispatch={dispatch}
+                />
             ))}
         </ul>
     </div>
+);
+
+export interface TodoView {
+    todo: Todo;
+    dispatch: Dispatch;
+}
+
+export const TodoView = ({ dispatch, todo }: TodoView) => (
+    <li>
+        <input
+            type="checkbox"
+            checked={todo.completed}
+            onChange={(event) => dispatch(CompleteTodo(todo.id, event.target.checked))}
+        />
+
+        <Counter.View
+            model={todo.counter}
+            delay={1000}
+            dispatch={compose(dispatch, CounterMsg(todo.id))}
+        />
+
+        {todo.message}
+    </li>
 );

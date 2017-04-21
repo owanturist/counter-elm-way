@@ -29,6 +29,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             const todo: Todo = Todo(
                 model.nextId,
                 model.input,
+                false,
                 Counter.initialModel
             );
 
@@ -40,6 +41,21 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 ),
                 Counter.initialCmd.map(CounterMsg(todo.id))
             ];
+        }
+
+        case 'COMPLETE_TODO': {
+            const nextTodos: Todo[] = model.todos.map((todo) => {
+                if (todo.id !== msg.payload.id) {
+                    return todo;
+                }
+
+                return {
+                    ...todo,
+                    completed: msg.payload.completed
+                };
+            });
+
+            return [ { ...model, todos: nextTodos }, Cmd.none() ];
         }
 
         case 'COUNTER_MSG': {

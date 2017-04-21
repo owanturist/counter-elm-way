@@ -26,15 +26,18 @@ export const Model = (
 export interface Todo {
     id: number;
     message: string;
+    completed: boolean;
     counter: Counter.Model;
 }
 export const Todo = (
     id: number,
     message: string,
+    completed: boolean,
     counter: Counter.Model
     ): Todo => ({
     id,
     message,
+    completed,
     counter
 });
 
@@ -46,6 +49,7 @@ export type Msg
     = ChangeInput
     | CreateTodo
     | CounterMsg
+    | CompleteTodo
     ;
 
 export interface ChangeInput {
@@ -62,6 +66,19 @@ export interface CreateTodo {
 }
 export const CreateTodo = (): CreateTodo => ({
     type: 'CREATE_TODO'
+});
+
+export interface CompleteTodo {
+    type: 'COMPLETE_TODO';
+    payload: {
+        id: number;
+        completed: boolean;
+    };
+}
+
+export const CompleteTodo = (id: number, completed: boolean): CompleteTodo => ({
+    type: 'COMPLETE_TODO',
+    payload: { id, completed }
 });
 
 export interface CounterMsg {
