@@ -44,7 +44,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     model.nextId + 1,
                     model.filter,
                     '',
-                    [ ...model.todos, todo ]
+                    [ todo, ...model.todos ]
                 ),
                 Cmd.butch<Msg>([
                     Counter.initialCmd.map(CounterMsg(todo.id)),
