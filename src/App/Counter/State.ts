@@ -9,7 +9,7 @@ import {
     delayedIncrement
 } from './Cmds';
 
-export const initialModel: Model = 0;
+export const initialModel: Model = Model(0);
 
 export const initialCmd: Cmd<Msg> = Cmd.none();
 

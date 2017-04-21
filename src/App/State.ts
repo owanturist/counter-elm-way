@@ -19,11 +19,11 @@ import {
     update as TodoUpdate
 } from './Todo/State';
 
-export const initialModel: Model = {
-    firstCounter: CounterInitialModel,
-    secondCounter: CounterInitialModel,
-    todoList: TodoInitialModel
-};
+export const initialModel: Model = Model(
+    CounterInitialModel,
+    CounterInitialModel,
+    TodoInitialModel
+);
 
 export const initialCmd: Cmd<Msg> = Cmd.butch<Msg>([
     CounterInitialCmd.map(FirstCounterMsg),

@@ -16,6 +16,15 @@ export type Model = {
     secondCounter: CounterModel,
     todoList: TodoModel
 };
+export const Model = (
+    firstCounter: CounterModel,
+    secondCounter: CounterModel,
+    todoList: TodoModel
+    ): Model => ({
+    firstCounter,
+    secondCounter,
+    todoList
+});
 
 /**
  * --- MESSAGES ---

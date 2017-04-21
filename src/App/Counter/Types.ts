@@ -3,6 +3,7 @@
  */
 
 export type Model = number;
+export const Model = (a: number): Model => a;
 
 /**
  * --- MESSAGES ---
