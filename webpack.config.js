@@ -2,6 +2,7 @@ const path = require('path');
 const {
     CheckerPlugin
 } = require('awesome-typescript-loader');
+const WebpackHTMLPlugin = require('webpack-html-plugin');
 
 
 module.exports = {
@@ -9,6 +10,7 @@ module.exports = {
 
     output: {
         path: path.resolve('./build'),
+        publicPath: '/',
         filename: 'bundle.js'
     },
 
@@ -38,6 +40,11 @@ module.exports = {
         ]
     },
     plugins: [
-        new CheckerPlugin()
+        new CheckerPlugin(),
+
+        new WebpackHTMLPlugin({
+            inject: true,
+            template: path.resolve('./src/index.html')
+        })
     ]
 };

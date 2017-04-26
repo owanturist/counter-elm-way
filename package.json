@@ -5,7 +5,8 @@
     "clean": "rm -rf build",
     "prebuild": "yarn run clean",
     "build": "webpack",
-    "lint": "tslint \"src/**/**.ts*\""
+    "lint": "tslint \"src/**/**.ts*\"",
+    "dev": "webpack-dev-server"
   },
   "main": "index.js",
   "repository": "git@github.com:owanturist/counter-elm-way.git",
@@ -18,7 +19,9 @@
     "awesome-typescript-loader": "^3.1.2",
     "tslint": "^5.1.0",
     "typescript": "^2.2.2",
-    "webpack": "^2.3.3"
+    "webpack": "^2.3.3",
+    "webpack-dev-server": "^2.4.4",
+    "webpack-html-plugin": "^0.1.1"
   },
   "dependencies": {
     "react": "^15.5.4",
