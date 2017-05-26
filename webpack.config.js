@@ -36,6 +36,24 @@ module.exports = {
             {
                 test: /\.tsx?$/,
                 loader: 'awesome-typescript-loader'
+            },
+            {
+                test: /\.css$/,
+                use: [
+                    {
+                        loader: 'style-loader'
+                    },
+                    {
+                        loader: 'css-loader',
+                        options: {
+                            modules: true,
+                            localIdentName: '[folder]__[local]--[hash:base64:5]'
+                        }
+                    },
+                    {
+                        loader: 'typed-css-modules-loader'
+                    }
+                ]
             }
         ]
     },
