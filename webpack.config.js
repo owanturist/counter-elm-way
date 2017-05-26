@@ -47,11 +47,15 @@ module.exports = {
                         loader: 'css-loader',
                         options: {
                             modules: true,
+                            importLoaders: 1,
                             localIdentName: '[folder]__[local]--[hash:base64:5]'
                         }
                     },
                     {
                         loader: 'typed-css-modules-loader'
+                    },
+                    {
+                        loader: 'postcss-loader'
                     }
                 ]
             }
