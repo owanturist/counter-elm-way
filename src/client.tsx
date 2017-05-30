@@ -6,6 +6,7 @@ import {
     Provider,
     connect
 } from 'react-redux';
+import 'normalize.css';
 
 import {
     create
