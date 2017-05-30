@@ -6,6 +6,7 @@ import {
     Decrement,
     ScheduleIncrement
 } from './Types';
+import Styles from './Styles.css';
 
 export interface View {
     model: Model;
@@ -14,9 +15,15 @@ export interface View {
 }
 
 export const View = ({ dispatch, model, delay }: View): JSX.Element => (
-    <div>
-        <button onClick={() => dispatch(Decrement())}>-</button>
+    <div className={Styles.Root}>
+        <button
+            className={Styles.Button_Rounded}
+            onClick={() => dispatch(Decrement())}
+        >-</button>
         {model}
-        <button onClick={() => dispatch(ScheduleIncrement(delay))}>+</button>
+        <button
+            className={Styles.Button}
+            onClick={() => dispatch(ScheduleIncrement(delay))}
+        >+</button>
     </div>
 );

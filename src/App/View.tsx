@@ -12,6 +12,7 @@ import {
     SecondCounterMsg,
     TodoListMsg
 } from './Types';
+import Styles from './Styles.css';
 
 export type View = {
     model: Model,
@@ -19,7 +20,7 @@ export type View = {
 };
 
 export const View = ({ dispatch, model }: View): JSX.Element => (
-    <div>
+    <div className={Styles.Root}>
         <Counter.View
             model={model.firstCounter}
             dispatch={compose(dispatch, FirstCounterMsg)}
