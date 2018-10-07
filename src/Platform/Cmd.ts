@@ -11,23 +11,19 @@ export abstract class Cmd<T> {
         return new None();
     }
 
-    public static map<T, R>(f: (a: T) => R, cmd: Cmd<T>): Cmd<R> {
-        return cmd.map(f);
+    protected static concat<T>(left: Cmd<T>, right: Cmd<T>): Cmd<T> {
+        return left.concat(right);
     }
 
-    public static concat<T>(cmdA: Cmd<T>, cmdB: Cmd<T>): Cmd<T> {
-        return cmdA.concat(cmdB);
+    protected static execute<T>(cmd: Cmd<T>): Promise<any> {
+        return cmd.execute();
     }
 
-    public static execute<T, R>(f: (a: T) => R, cmd: Cmd<T>): Promise<R> {
-        return cmd.execute(f);
-    }
-
-    protected abstract map<R>(f: (a: T) => R): Cmd<R>;
+    public abstract map<R>(fn: (value: T) => R): Cmd<R>;
 
     protected abstract concat(cmd: Cmd<T>): Cmd<T>;
 
-    protected abstract execute<R>(f: (a: T) => R): Promise<R>;
+    protected abstract execute(): Promise<any>;
 }
 
 class Single<T> extends Cmd<T> {
@@ -35,22 +31,22 @@ class Single<T> extends Cmd<T> {
         super();
     }
 
-    protected map<R>(f: (a: T) => R): Cmd<R> {
-        return new Single(() => this.execute(f));
+    public map<R>(fn: (value: T) => R): Cmd<R> {
+        return new Single(() => this.execute().then(fn));
     }
 
     protected concat(cmd: Cmd<T>): Cmd<T> {
         return new Batch([ this, cmd ]);
     }
 
-    protected execute<R>(f: (a: T) => R): Promise<R> {
-        return this.promiseCall().then(f);
+    protected execute(): Promise<any> {
+        return this.promiseCall();
     }
 }
 
 class None<T> extends Cmd<T> {
-    protected map(): Cmd<T> {
-        return this;
+    public map<R>(): Cmd<R> {
+        return new None();
     }
 
     protected concat(cmd: Cmd<T>): Cmd<T> {
@@ -67,19 +63,27 @@ class Batch<T> extends Cmd<T> {
         super();
     }
 
-    protected map<R>(f: (a: T) => R): Cmd<R> {
-        return new Batch(
-            this.cmds.map((cmd) => Cmd.map(f, cmd))
-        );
+    public map<R>(fn: (value: T) => R): Cmd<R> {
+        const result: Array<Cmd<R>> = [];
+
+        for (const cmd of this.cmds) {
+            result.push(cmd.map(fn));
+        }
+
+        return new Batch(result);
     }
 
     protected concat(cmd: Cmd<T>): Cmd<T> {
         return new Batch([ ...this.cmds, cmd ]);
     }
 
-    protected execute<R>(f: (a: T) => R): Promise<R[]> {
-        return Promise.all(
-            this.cmds.map((cmd) => Cmd.execute(f, cmd))
-        );
+    protected execute<R>(): Promise<any> {
+        const result: Array<Promise<R>> = [];
+
+        for (const cmd of this.cmds) {
+            result.push(Cmd.execute(cmd));
+        }
+
+        return Promise.all(result);
     }
 }
