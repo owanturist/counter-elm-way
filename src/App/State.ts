@@ -19,9 +19,9 @@ export const initialModel: Model = Model(
 );
 
 export const initialCmd: Cmd<Msg> = Cmd.batch<Msg>([
-    Cmd.map(FirstCounterMsg, Counter.initialCmd),
-    Cmd.map(SecondCounterMsg, Counter.initialCmd),
-    Cmd.map(TodoListMsg, Todo.initialCmd)
+    Counter.initialCmd.map(FirstCounterMsg),
+    Counter.initialCmd.map(SecondCounterMsg),
+    Todo.initialCmd.map(TodoListMsg)
 ]);
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
@@ -37,7 +37,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     firstCounter: nextFirstCounter
                 },
-                Cmd.map(FirstCounterMsg, counterCmd)
+                counterCmd.map(FirstCounterMsg)
             ];
         }
 
@@ -52,7 +52,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     secondCounter: nextSecondCounter
                 },
-                Cmd.map(SecondCounterMsg, counterCmd)
+                counterCmd.map(SecondCounterMsg)
             ];
         }
 
@@ -67,17 +67,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
                     ...model,
                     todoList: nextTodoList
                 },
-                Cmd.map(TodoListMsg, todoListCmd)
+                todoListCmd.map(TodoListMsg)
             ];
-        }
-
-        default: {
-            /**
-             * Stub for @@redux/INIT action.
-             * It should be placed inside only root update.
-             */
-
-            return [ model, Cmd.none() ];
         }
     }
 };

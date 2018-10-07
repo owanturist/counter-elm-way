@@ -2,7 +2,7 @@
  * Solution based on:
  * @link https://github.com/redux-loop/redux-loop
  */
-
+import React from 'react';
 import {
     Action,
     Reducer,
@@ -32,20 +32,21 @@ abstract class Executable<T> extends Cmd<T> {
         return Cmd.concat(left, right);
     }
 
-    public static execute<T>(cmd: Cmd<T>): Promise<any> {
-        return Cmd.execute(cmd);
+    public static execute<T, R>(fn: (value: T) => R, cmd: Cmd<T>): Promise<R> {
+        return Cmd.execute(fn, cmd);
     }
 }
 
 export const createStore = <Msg extends Action, Model>(
     update: Update<Msg, Model>,
-    [ initialModel, initialCmd ]: Loop<Msg, Model>,
+    initial: Loop<Msg, Model>,
     enhancer?: StoreEnhancer<Model>
 ): Store<Msg, Model> => {
+    const [ initialModel, initialCmd ] = initial;
     let queue: Cmd<Msg> = Cmd.none();
 
     const liftReducer = (updater: Update<Msg, Model>): Reducer<Model> => (model: Model, msg: Msg): Model => {
-        const [ state, cmd ] = updater(msg, model);
+        const [ state, cmd ] = updater(msg, model) || initial;
 
         queue = Executable.concat(cmd, queue);
 
@@ -64,10 +65,10 @@ export const createStore = <Msg extends Action, Model>(
         const currentQueue = queue;
         queue = Cmd.none();
 
-        return Executable.execute(currentQueue).then(enhancedDispatch);
+        return Executable.execute(enhancedDispatch, currentQueue);
     };
 
-    Executable.execute(initialCmd).then(enhancedDispatch);
+    Executable.execute(enhancedDispatch, initialCmd);
 
     return {
         getState: store.getState,
@@ -78,3 +79,49 @@ export const createStore = <Msg extends Action, Model>(
         replaceReducer: compose(store.replaceReducer, liftReducer)
     };
 };
+
+export interface Props<Msg extends Action, Model> {
+    model: Model;
+    dispatch(msg: Msg): void;
+}
+
+export interface ProviderProps<Msg extends Action, Model> {
+    initial: Loop<Msg, Model>;
+    update: Update<Msg, Model>;
+    view: React.StatelessComponent<Props<Msg, Model>>;
+}
+
+export class Provider<Msg extends Action, Model> extends React.Component<ProviderProps<Msg, Model>, Model> {
+    private store: Store<Msg, Model>;
+
+    constructor(props: ProviderProps<Msg, Model>, context: any) {
+        super(props, context);
+
+        this.store = createStore(this.props.update, this.props.initial);
+
+        this.state = this.store.getState();
+        this.store.subscribe(this.subscribe);
+    }
+
+    public render() {
+        return React.createElement(
+            this.props.view,
+            {
+                model: this.state,
+                dispatch: this.dispatch
+            }
+        );
+    }
+
+    private dispatch = (msg: Msg): void => {
+        this.store.dispatch(msg);
+    }
+
+    private subscribe = (): void => {
+        const nextState = this.store.getState();
+
+        if (this.state !== nextState) {
+            this.setState(nextState);
+        }
+    }
+}

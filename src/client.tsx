@@ -2,34 +2,25 @@ import React from 'react';
 import {
     render
 } from 'react-dom';
-import {
-    Provider,
-    connect
-} from 'react-redux';
-import 'normalize.css';
+
+import * as Loop from 'Loop';
 
 import {
-    create
-} from 'Store/Create';
-import {
-    Model
-} from 'App/Types';
-import {
+    initialCmd,
     initialModel,
-    initialCmd
+    update
 } from 'App/State';
 import {
     View
 } from 'App/View';
 
-const store = create([ initialModel, initialCmd ]);
-const App = connect((model: Model) => ({ model }))(View);
-
 render(
     (
-        <Provider store={store}>
-            <App />
-        </Provider>
+        <Loop.Provider
+            initial={[ initialModel, initialCmd ]}
+            update={update}
+            view={View}
+        />
     ),
     document.getElementById('app')
 );
