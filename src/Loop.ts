@@ -5,6 +5,7 @@
 import React from 'react';
 import {
     Action,
+    DeepPartial,
     Reducer,
     Unsubscribe,
     StoreEnhancer,
@@ -37,7 +38,7 @@ abstract class Executable<T> extends Cmd<T> {
     }
 }
 
-export const createStore = <Msg extends Action, Model>(
+export const createStore = <Msg extends Action, Model extends DeepPartial<Model>>(
     update: Update<Msg, Model>,
     initial: Loop<Msg, Model>,
     enhancer?: StoreEnhancer<Model>
@@ -91,7 +92,7 @@ export interface ProviderProps<Msg extends Action, Model> {
     view: React.StatelessComponent<Props<Msg, Model>>;
 }
 
-export class Provider<Msg extends Action, Model> extends React.Component<ProviderProps<Msg, Model>, Model> {
+export class Provider<Msg extends Action, Model extends DeepPartial<Model>> extends React.Component<ProviderProps<Msg, Model>, Model> {
     private store: Store<Msg, Model>;
 
     constructor(props: ProviderProps<Msg, Model>, context: any) {

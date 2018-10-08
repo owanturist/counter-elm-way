@@ -2,7 +2,7 @@ const path = require('path');
 const {
     CheckerPlugin
 } = require('awesome-typescript-loader');
-const WebpackHTMLPlugin = require('webpack-html-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 
 module.exports = {
@@ -26,13 +26,11 @@ module.exports = {
         ]
     },
 
-    devtool: 'source-map',
-
     module: {
         noParse: [
             /react\.min.js/
         ],
-        loaders: [
+        rules: [
             {
                 test: /\.tsx?$/,
                 loader: 'awesome-typescript-loader'
@@ -61,12 +59,17 @@ module.exports = {
             }
         ]
     },
+
     plugins: [
         new CheckerPlugin(),
 
-        new WebpackHTMLPlugin({
+        new HtmlWebpackPlugin({
             inject: true,
             template: path.resolve('./src/index.html')
         })
-    ]
+    ],
+
+    devtool: 'source-map',
+
+    mode: 'development'
 };

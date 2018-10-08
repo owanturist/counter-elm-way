@@ -16,26 +16,24 @@
   "author": "Anton Ovechkin <owanturist@gmail.com>",
   "license": "MIT",
   "devDependencies": {
-    "@types/react": "^15.0.21",
-    "@types/react-dom": "^0.14.23",
-    "@types/react-redux": "^4.4.38",
-    "awesome-typescript-loader": "^3.1.2",
-    "css-loader": "^0.28.2",
-    "postcss-cssnext": "^2.11.0",
-    "postcss-loader": "^2.0.5",
-    "style-loader": "^0.18.1",
-    "tslint": "^5.1.0",
-    "typed-css-modules-loader": "^0.0.9",
-    "typescript": "^2.2.2",
-    "webpack": "^2.3.3",
-    "webpack-dev-server": "^2.4.4",
-    "webpack-html-plugin": "^0.1.1"
+    "@types/react": "^16.4.15",
+    "@types/react-dom": "^16.0.8",
+    "awesome-typescript-loader": "^5.2.1",
+    "css-loader": "^1.0.0",
+    "html-webpack-plugin": "^3.2.0",
+    "postcss-cssnext": "^3.1.0",
+    "postcss-loader": "^3.0.0",
+    "style-loader": "^0.23.0",
+    "tslint": "^5.11.0",
+    "typed-css-modules-loader": "0.0.15",
+    "typescript": "^3.1.1",
+    "webpack": "^4.20.2",
+    "webpack-cli": "^3.1.2",
+    "webpack-dev-server": "^3.1.9"
   },
   "dependencies": {
-    "normalize.css": "^7.0.0",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4",
-    "react-redux": "^5.0.4",
-    "redux": "^3.6.0"
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2",
+    "redux": "^4.0.0"
   }
 }
