@@ -11,17 +11,11 @@ export abstract class Cmd<T> {
         return new None();
     }
 
-    protected static concat<T>(left: Cmd<T>, right: Cmd<T>): Cmd<T> {
-        return left.concat(right);
-    }
-
     protected static execute<T, R>(fn: (value: T) => R, cmd: Cmd<T>): Promise<R> {
         return cmd.execute(fn);
     }
 
     public abstract map<R>(fn: (value: T) => R): Cmd<R>;
-
-    protected abstract concat(cmd: Cmd<T>): Cmd<T>;
 
     protected abstract execute<R>(fn: (value: T) => R): Promise<R>;
 }
@@ -35,10 +29,6 @@ class Single<T> extends Cmd<T> {
         return new Single(() => this.execute(fn));
     }
 
-    protected concat(cmd: Cmd<T>): Cmd<T> {
-        return new Batch([ this, cmd ]);
-    }
-
     protected execute<R>(fn: (value: T) => R): Promise<R> {
         return this.promiseCall().then(fn);
     }
@@ -47,10 +37,6 @@ class Single<T> extends Cmd<T> {
 class None<T> extends Cmd<T> {
     public map<R>(): Cmd<R> {
         return new None();
-    }
-
-    protected concat(cmd: Cmd<T>): Cmd<T> {
-        return cmd;
     }
 
     protected execute(): Promise<any> {
@@ -71,10 +57,6 @@ class Batch<T> extends Cmd<T> {
         }
 
         return new Batch(result);
-    }
-
-    protected concat(cmd: Cmd<T>): Cmd<T> {
-        return new Batch([ ...this.cmds, cmd ]);
     }
 
     protected execute<R>(fn: (value: T) => R): Promise<any> {

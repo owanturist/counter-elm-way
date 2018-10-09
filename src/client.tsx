@@ -3,7 +3,9 @@ import {
     render
 } from 'react-dom';
 
-import * as Loop from 'Loop';
+import {
+    Loop
+} from 'Loop';
 
 import {
     initialCmd,
@@ -16,7 +18,7 @@ import {
 
 render(
     (
-        <Loop.Provider
+        <Loop
             initial={[ initialModel, initialCmd ]}
             update={update}
             view={View}
