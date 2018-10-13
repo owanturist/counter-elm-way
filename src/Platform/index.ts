@@ -6,7 +6,7 @@ import React from 'react';
 
 import {
     Cmd
-} from 'Platform/Cmd';
+} from './Cmd';
 
 abstract class Executable<T> extends Cmd<T> {
     public static execute<T, R>(fn: (value: T) => R, cmd: Cmd<T>): Promise<R> {
@@ -14,18 +14,18 @@ abstract class Executable<T> extends Cmd<T> {
     }
 }
 
-export interface Props<Msg, Model> {
-    model: Model;
-    dispatch(msg: Msg): void;
-}
+export type Dispatch<Msg> = (msg: Msg) => void;
 
 export interface Configuration<Msg, Model> {
     initial: [ Model, Cmd<Msg> ];
     update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ];
-    view: React.StatelessComponent<Props<Msg, Model>>;
+    view: React.StatelessComponent<{
+        dispatch: Dispatch<Msg>;
+        model: Model;
+    }>;
 }
 
-export class Loop<Msg, Model> extends React.Component<Configuration<Msg, Model>, Model> {
+export class Application<Msg, Model> extends React.Component<Configuration<Msg, Model>, Model> {
     constructor(props: Configuration<Msg, Model>, context: any) {
         super(props, context);
 

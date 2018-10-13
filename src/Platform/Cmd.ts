@@ -7,7 +7,7 @@ export abstract class Cmd<T> {
         return new Batch(cmds);
     }
 
-    public static none<T>(): Cmd<T> {
+    public static none(): Cmd<any> {
         return new None();
     }
 

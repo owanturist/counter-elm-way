@@ -3,25 +3,16 @@ import {
     render
 } from 'react-dom';
 
-import {
-    Loop
-} from 'Loop';
+import * as Platform from 'Platform';
 
-import {
-    initialCmd,
-    initialModel,
-    update
-} from 'App/State';
-import {
-    View
-} from 'App/View';
+import * as App from 'App';
 
 render(
     (
-        <Loop
-            initial={[ initialModel, initialCmd ]}
-            update={update}
-            view={View}
+        <Platform.Application
+            initial={App.initial}
+            update={App.update}
+            view={App.View}
         />
     ),
     document.getElementById('app')
