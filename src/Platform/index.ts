@@ -8,8 +8,8 @@ import {
     Cmd
 } from './Cmd';
 
-abstract class Executable<T> extends Cmd<T> {
-    public static execute<T, R>(fn: (value: T) => R, cmd: Cmd<T>): Promise<R> {
+abstract class Internal<M> extends Cmd<M> {
+    public static execute<M, R>(fn: (msg: M) => R, cmd: Cmd<M>): Promise<any> {
         return Cmd.execute(fn, cmd);
     }
 }
@@ -32,7 +32,7 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
         const [ initialModel, initialCmd ] = props.initial;
 
         this.state = initialModel;
-        Executable.execute(this.dispatch, initialCmd);
+        Internal.execute(this.dispatch, initialCmd);
     }
 
     public render() {
@@ -54,6 +54,6 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
             this.setState(nextModel);
         }
 
-        return Executable.execute(this.dispatch, cmd);
+        return Internal.execute(this.dispatch, cmd);
     }
 }

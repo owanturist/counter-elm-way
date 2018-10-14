@@ -1,11 +1,17 @@
 import {
     Either,
-    Right,
-    Left
+    Left,
+    Right
 } from './Either';
 import {
     Cmd
 } from './Cmd';
+
+abstract class Internal<M> extends Cmd<M> {
+    public static cons<M>(callPromise: () => Promise<M>): Cmd<M> {
+        return super.cons(callPromise);
+    }
+}
 
 export abstract class Task<E, T> {
     public static succeed<T>(value: T): Task<any, T> {
@@ -21,7 +27,9 @@ export abstract class Task<E, T> {
     }
 
     public static perform<M, T>(tagger: (value: T) => M, task: Task<never, T>): Cmd<M> {
-        return Cmd.of(() => task.map(tagger).execute());
+        return Internal.cons(
+            () => task.execute().then((value: T) => tagger(value))
+        );
     }
 
     protected static execute<E, T>(task: Task<E, T>): Promise<T> {
@@ -45,7 +53,7 @@ export abstract class Task<E, T> {
     }
 
     public attempt<M>(tagger: (either: Either<E, T>) => M): Cmd<M> {
-        return Cmd.of(
+        return Internal.cons(
             () => this.execute()
                 .then((value: T) => tagger(Right(value)))
                 .catch((error: E) => tagger(Left(error)))

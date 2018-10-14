@@ -1,9 +1,5 @@
-export abstract class Cmd<T> {
-    public static of<T>(promiseCall: () => Promise<T>): Cmd<T> {
-        return new Single(promiseCall);
-    }
-
-    public static batch<T>(cmds: Array<Cmd<T>>): Cmd<T> {
+export abstract class Cmd<M> {
+    public static batch<M>(cmds: Array<Cmd<M>>): Cmd<M> {
         return new Batch(cmds);
     }
 
@@ -11,30 +7,34 @@ export abstract class Cmd<T> {
         return new None();
     }
 
-    protected static execute<T, R>(fn: (value: T) => R, cmd: Cmd<T>): Promise<R> {
+    protected static execute<M, R>(fn: (msg: M) => R, cmd: Cmd<M>): Promise<any> {
         return cmd.execute(fn);
     }
 
-    public abstract map<R>(fn: (value: T) => R): Cmd<R>;
+    protected static cons<M>(callPromise: () => Promise<M>): Cmd<M> {
+        return new Single(callPromise);
+    }
 
-    protected abstract execute<R>(fn: (value: T) => R): Promise<R>;
+    public abstract map<R>(fn: (msg: M) => R): Cmd<R>;
+
+    protected abstract execute<R>(fn: (msg: M) => R): Promise<R>;
 }
 
-class Single<T> extends Cmd<T> {
-    constructor(private readonly promiseCall: () => Promise<T>) {
+class Single<M> extends Cmd<M> {
+    constructor(private readonly callPromise: () => Promise<M>) {
         super();
     }
 
-    public map<R>(fn: (value: T) => R): Cmd<R> {
-        return new Single(() => this.execute(fn));
+    public map<R>(fn: (msg: M) => R): Cmd<R> {
+        return new Single(() => this.callPromise().then(fn));
     }
 
-    protected execute<R>(fn: (value: T) => R): Promise<R> {
-        return this.promiseCall().then(fn);
+    protected execute<R>(fn: (msg: M) => R): Promise<R> {
+        return this.callPromise().then(fn);
     }
 }
 
-class None<T> extends Cmd<T> {
+class None<M> extends Cmd<M> {
     public map<R>(): Cmd<R> {
         return new None();
     }
@@ -44,12 +44,12 @@ class None<T> extends Cmd<T> {
     }
 }
 
-class Batch<T> extends Cmd<T> {
-    constructor(private readonly cmds: Array<Cmd<T>>) {
+class Batch<M> extends Cmd<M> {
+    constructor(private readonly cmds: Array<Cmd<M>>) {
         super();
     }
 
-    public map<R>(fn: (value: T) => R): Cmd<R> {
+    public map<R>(fn: (msg: M) => R): Cmd<R> {
         const result: Array<Cmd<R>> = [];
 
         for (const cmd of this.cmds) {
@@ -59,7 +59,7 @@ class Batch<T> extends Cmd<T> {
         return new Batch(result);
     }
 
-    protected execute<R>(fn: (value: T) => R): Promise<any> {
+    protected execute<R>(fn: (msg: M) => R): Promise<any> {
         const result: Array<Promise<R>> = [];
 
         for (const cmd of this.cmds) {
