@@ -2,7 +2,7 @@ import {
     Either,
     Left,
     Right
-} from './Either';
+} from 'Either';
 import {
     Cmd
 } from './Cmd';

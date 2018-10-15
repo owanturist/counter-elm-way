@@ -1,12 +1,12 @@
 import {
     DefaultCase,
     WithDefaultCase
-} from './Basics';
+} from 'Basics';
 import {
     Either,
     Left,
     Right
-} from './Either';
+} from 'Either';
 
 export type Pattern<T, R> = WithDefaultCase<{
     Nothing(): R;
