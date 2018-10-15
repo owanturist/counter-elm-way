@@ -28,7 +28,7 @@ export abstract class Task<E, T> {
 
     public static perform<M, T>(tagger: (value: T) => M, task: Task<never, T>): Cmd<M> {
         return Internal.cons(
-            () => task.execute().then((value: T) => tagger(value))
+            () => task.execute().then(tagger)
         );
     }
 

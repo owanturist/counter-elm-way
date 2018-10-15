@@ -13,8 +13,6 @@ export abstract class Cmd<T> {
                 return new Batch(cmds);
             }
         }
-
-        return new Batch(cmds);
     }
 
     public static none(): Cmd<any> {
