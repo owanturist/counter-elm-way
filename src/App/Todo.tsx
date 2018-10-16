@@ -17,14 +17,14 @@ type Filter
     ;
 
 export type Msg
-    = { $: 'CHANGE_FILTER', _0: Filter }
-    | { $: 'CHANGE_INPUT', _0: string }
-    | { $: 'CREATE_TODO', _0: number }
-    | { $: 'COMPLETE_TODO', _0: number, _1: boolean }
-    | { $: 'DELETE_TODO', _0: number }
-    | { $: 'COUNTER_MSG', _0: number, _1: Counter.Msg }
-    | { $: 'TODO_MSG', _0: number, _1: Msg }
-    | { $: 'SWAPI_MSG', _0: number, _1: Swapi.Msg }
+    = { $: 'CHANGE_FILTER'; _0: Filter }
+    | { $: 'CHANGE_INPUT'; _0: string }
+    | { $: 'CREATE_TODO'; _0: number }
+    | { $: 'COMPLETE_TODO'; _0: number; _1: boolean }
+    | { $: 'DELETE_TODO'; _0: number }
+    | { $: 'COUNTER_MSG'; _0: number; _1: Counter.Msg }
+    | { $: 'TODO_MSG'; _0: number; _1: Msg }
+    | { $: 'SWAPI_MSG'; _0: number; _1: Swapi.Msg }
     ;
 
 interface Todo {
@@ -40,7 +40,7 @@ export interface Model {
     nextId: number;
     filter: Filter;
     input: string;
-    todos: Todo[];
+    todos: Array<Todo>;
 }
 
 export const initial: [ Model, Cmd<Msg> ] = [
@@ -91,15 +91,15 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     todos: [ newTodo, ...model.todos ]
                 },
                 Cmd.batch([
-                    initialCounterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: newTodo.id, _1: counterMsg })),
-                    initialSwapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: newTodo.id, _1: swapiMsg })),
-                    initialCmd.map((todoMsg: Msg): Msg => ({ $: 'TODO_MSG', _0: newTodo.id, _1: todoMsg }))
+                    initialCounterCmd.map((msg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: newTodo.id, _1: msg })),
+                    initialSwapiCmd.map((msg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: newTodo.id, _1: msg })),
+                    initialCmd.map((msg: Msg): Msg => ({ $: 'TODO_MSG', _0: newTodo.id, _1: msg }))
                 ])
             ];
         }
 
         case 'COMPLETE_TODO': {
-            const nextTodos: Todo[] = model.todos.map((todo) => {
+            const nextTodos: Array<Todo> = model.todos.map(todo => {
                 if (todo.id !== msg._0) {
                     return todo;
                 }
@@ -117,8 +117,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'DELETE_TODO': {
-            const nextTodos: Todo[] = model.todos.filter(
-                (todo) => todo.id !== msg._0
+            const nextTodos: Array<Todo> = model.todos.filter(
+                todo => todo.id !== msg._0
             );
 
             return [
@@ -128,10 +128,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'COUNTER_MSG': {
-            type Acc = {
-                todos: Todo[],
-                cmd: Cmd<Msg>
-            };
+            interface Acc {
+                todos: Array<Todo>;
+                cmd: Cmd<Msg>;
+            }
 
             const { todos, cmd }: Acc = model.todos.reduce(
                 (acc: Acc, todo: Todo) => {
@@ -147,7 +147,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         counterCmd
                     ] = Counter.update(msg._1, todo.counter);
 
-                    const [ nextSwapiModel, swapiCmd ]: [ Swapi.Model, Cmd<Swapi.Msg> ] = nextCounterModel.count === todo.counter.count
+                    const [
+                        nextSwapiModel,
+                        swapiCmd
+                    ]: [ Swapi.Model, Cmd<Swapi.Msg> ] = nextCounterModel.count === todo.counter.count
                         ? [ todo.swapi, Cmd.none() ]
                         : Swapi.init(nextCounterModel.count.toString())
                         ;
@@ -161,8 +164,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     return {
                         todos: [ ...acc.todos, nextTodoModel ],
                         cmd: Cmd.batch([
-                            counterCmd.map((couterMsg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: todo.id, _1: couterMsg })),
-                            swapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: todo.id, _1: swapiMsg }))
+                            counterCmd.map((msg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })),
+                            swapiCmd.map((msg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: todo.id, _1: msg }))
                         ])
                     };
                 },
@@ -179,10 +182,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'SWAPI_MSG': {
-            type Acc = {
-                todos: Todo[],
-                cmd: Cmd<Msg>
-            };
+            interface Acc {
+                todos: Array<Todo>;
+                cmd: Cmd<Msg>;
+            }
 
             const { todos, cmd }: Acc = model.todos.reduce(
                 (acc: Acc, todo: Todo) => {
@@ -218,10 +221,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'TODO_MSG': {
-            type Acc = {
-                todos: Todo[],
-                cmd: Cmd<Msg>
-            };
+            interface Acc {
+                todos: Array<Todo>;
+                cmd: Cmd<Msg>;
+            }
 
             const { todos, cmd }: Acc = model.todos.reduce(
                 (acc: Acc, todo: Todo) => {
@@ -261,7 +264,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     }
 };
 
-const filtersList: Filter[] = [ 'ALL', 'COMPLETED', 'UNCOMPLETED' ];
+const filtersList: Array<Filter> = [ 'ALL', 'COMPLETED', 'UNCOMPLETED' ];
 
 const filterTodos = (filter: Filter) => (todo: Todo): boolean => {
     switch (filter) {
@@ -281,11 +284,11 @@ const filterTodos = (filter: Filter) => (todo: Todo): boolean => {
 
 const FilterView = ({ dispatch, filters, current }: {
     dispatch: Dispatch<Msg>;
-    filters: Filter[];
+    filters: Array<Filter>;
     current: Filter;
 }): JSX.Element => (
     <div>
-        {filters.map((filter) => (
+        {filters.map(filter => (
             <label key={filter}>
                 <input
                     type="radio"
@@ -306,18 +309,18 @@ const TodoView = ({ dispatch, todo }: {
         <input
             type="checkbox"
             checked={todo.completed}
-            onChange={(event) => dispatch({ $: 'COMPLETE_TODO', _0: todo.id, _1: event.target.checked })}
+            onChange={event => dispatch({ $: 'COMPLETE_TODO', _0: todo.id, _1: event.target.checked })}
         />
 
         <Counter.View
             disabled={todo.swapi.person.isNothing()}
             model={todo.counter}
-            dispatch={(msg) => dispatch({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })}
+            dispatch={msg => dispatch({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })}
         />
 
         <Swapi.View
             model={todo.swapi}
-            dispatch={(msg) => dispatch({ $: 'SWAPI_MSG', _0: todo.id, _1: msg })}
+            dispatch={msg => dispatch({ $: 'SWAPI_MSG', _0: todo.id, _1: msg })}
         />
 
         {todo.message}
@@ -331,7 +334,7 @@ const TodoView = ({ dispatch, todo }: {
         <View
             initialCount={todo.counter.count}
             model={todo.todos}
-            dispatch={(msg) => dispatch({ $: 'TODO_MSG', _0: todo.id, _1: msg })}
+            dispatch={msg => dispatch({ $: 'TODO_MSG', _0: todo.id, _1: msg })}
         />
     </li>
 );
@@ -346,7 +349,7 @@ export const View = ({ dispatch, model, ...props }: {
 
         <form
             action="todo"
-            onSubmit={(event) => {
+            onSubmit={event => {
                 dispatch({ $: 'CREATE_TODO', _0: props.initialCount });
 
                 event.preventDefault();
@@ -361,7 +364,7 @@ export const View = ({ dispatch, model, ...props }: {
             <input
                 type="text"
                 value={model.input}
-                onChange={(event) => dispatch({ $: 'CHANGE_INPUT', _0: event.target.value })}
+                onChange={event => dispatch({ $: 'CHANGE_INPUT', _0: event.target.value })}
             />
             <button type="submit">
                 Create

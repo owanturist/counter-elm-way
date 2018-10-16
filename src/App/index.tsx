@@ -12,10 +12,10 @@ import * as Todo from './Todo';
 import * as Swapi from './Swapi';
 
 export type Msg
-    = { $: 'SWAPI_MSG', _0: Swapi.Msg }
-    | { $: 'FIRST_COUNTER_MSG', _0: Counter.Msg }
-    | { $: 'SECOND_COUNTER_MSG', _0: Counter.Msg }
-    | { $: 'TODO_MSG', _0: Todo.Msg }
+    = { $: 'SWAPI_MSG'; _0: Swapi.Msg }
+    | { $: 'FIRST_COUNTER_MSG'; _0: Counter.Msg }
+    | { $: 'SECOND_COUNTER_MSG'; _0: Counter.Msg }
+    | { $: 'TODO_MSG'; _0: Todo.Msg }
     ;
 
 interface Model {
@@ -114,20 +114,20 @@ export const View = ({ dispatch, model }: {
     <div>
         <Swapi.View
             model={model.swapi}
-            dispatch={(msg) => dispatch({ $: 'SWAPI_MSG', _0: msg })}
+            dispatch={msg => dispatch({ $: 'SWAPI_MSG', _0: msg })}
         />
         <Counter.View
             model={model.firstCounter}
-            dispatch={(msg) => dispatch({ $: 'FIRST_COUNTER_MSG', _0: msg })}
+            dispatch={msg => dispatch({ $: 'FIRST_COUNTER_MSG', _0: msg })}
         />
         <Counter.View
             model={model.secondCounter}
-            dispatch={(msg) => dispatch({ $: 'SECOND_COUNTER_MSG', _0: msg })}
+            dispatch={msg => dispatch({ $: 'SECOND_COUNTER_MSG', _0: msg })}
         />
         <Todo.View
             initialCount={0}
             model={model.todo}
-            dispatch={(msg) => dispatch({ $: 'TODO_MSG', _0: msg })}
+            dispatch={msg => dispatch({ $: 'TODO_MSG', _0: msg })}
         />
     </div>
 );

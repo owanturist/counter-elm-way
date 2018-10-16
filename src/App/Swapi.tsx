@@ -31,7 +31,7 @@ const peopleDecoder: Decode.Decoder<Person> = Decode.props({
 
 export type Msg
     = { $: 'FETCH' }
-    | { $: 'FETCH_DONE', _0: Either<Http.Error, Person> }
+    | { $: 'FETCH_DONE'; _0: Either<Http.Error, Person> }
     ;
 
 export interface Model {
@@ -78,8 +78,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 };
 
 export const View = ({ dispatch, model }: {
-    dispatch: Dispatch<Msg>,
-    model: Model
+    dispatch: Dispatch<Msg>;
+    model: Model;
 }): JSX.Element => (
     <div>
         {model.person.cata({

@@ -5,7 +5,7 @@ import {
 } from 'Either';
 import {
     Cmd
-} from './Cmd';
+} from 'Platform/Cmd';
 
 abstract class Internal<M> extends Cmd<M> {
     public static cons<M>(callPromise: () => Promise<M>): Cmd<M> {
@@ -22,7 +22,7 @@ export abstract class Task<E, T> {
         return new Variations.Fail(error);
     }
 
-    public static sequence<E, T>(tasks: Array<Task<E, T>>): Task<E, T[]> {
+    public static sequence<E, T>(tasks: Array<Task<E, T>>): Task<E, Array<T>> {
         return new Variations.Sequence(tasks);
     }
 
@@ -98,12 +98,12 @@ namespace Variations {
         }
     }
 
-    export class Sequence<E, T> extends Task<E, T[]> {
+    export class Sequence<E, T> extends Task<E, Array<T>> {
         constructor(protected readonly tasks: Array<Task<E, T>>) {
             super();
         }
 
-        protected execute(): Promise<T[]> {
+        protected execute(): Promise<Array<T>> {
             const result: Array<Promise<T>> = [];
 
             for (const task of this.tasks) {

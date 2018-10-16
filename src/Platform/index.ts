@@ -18,11 +18,11 @@ export type Dispatch<Msg> = (msg: Msg) => void;
 
 export interface Configuration<Msg, Model> {
     initial: [ Model, Cmd<Msg> ];
-    update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ];
     view: React.StatelessComponent<{
         dispatch: Dispatch<Msg>;
         model: Model;
     }>;
+    update(msg: Msg, model: Model): [ Model, Cmd<Msg> ];
 }
 
 export class Application<Msg, Model> extends React.Component<Configuration<Msg, Model>, Model> {
@@ -47,7 +47,7 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
         );
     }
 
-    private dispatch = (msg: Msg): Promise<any> => {
+    private readonly dispatch = (msg: Msg): Promise<any> => {
         const [ nextModel, cmd ] = this.props.update(msg, this.state);
 
         if (this.state !== nextModel) {

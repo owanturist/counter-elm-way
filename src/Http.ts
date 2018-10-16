@@ -13,7 +13,7 @@ import {
 } from 'Either';
 import {
     Task as Task_
-} from 'Platform/Task';
+} from 'Task';
 import {
     Cmd
 } from 'Platform/Cmd';
@@ -71,20 +71,33 @@ export namespace Error {
         BadPayload(error: Decode.Error, response: Response<string>): T;
     }, T>;
 
-    export const BadUrl = (url: string): Error => new Internal.BadUrl(url);
+    export const BadUrl = (url: string): Error => {
+        return new Internal.BadUrl(url);
+    };
 
-    export const Timeout = (): Error => new Internal.Timeout();
+    export const Timeout = (): Error => {
+        return new Internal.Timeout();
+    };
 
-    export const NetworkError = (): Error => new Internal.NetworkError();
+    export const NetworkError = (): Error => {
+        return new Internal.NetworkError();
+    };
 
-    export const BadStatus = (response: Response<string>): Error => new Internal.BadStatus(response);
+    export const BadStatus = (response: Response<string>): Error => {
+        return new Internal.BadStatus(response);
+    };
 
-    export const BadPayload = (error: Decode.Error, response: Response<string>): Error => new Internal.BadPayload(error, response);
+    export const BadPayload = (error: Decode.Error, response: Response<string>): Error => {
+        return new Internal.BadPayload(error, response);
+    };
 }
 
 namespace Internal {
     export abstract class Task<E, T> extends Task_<E, T> {
-        public static cons<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task_<E, T> {
+        public static cons<E, T>(executor: (
+            succeed: (value: T) => void,
+            fail: (error: E) => void
+        ) => void): Task_<E, T> {
             return Task_.cons(executor);
         }
     }
@@ -262,7 +275,7 @@ export class Request<T> {
         private readonly method: string,
         private readonly url: string,
         private readonly config: {
-            headers: Header[];
+            headers: Array<Header>;
             body: Body;
             expect: Expect<T>;
             timeout: Maybe<number>;
@@ -281,7 +294,7 @@ export class Request<T> {
         });
     }
 
-    public withHeaders(headers: Header[]): Request<T> {
+    public withHeaders(headers: Array<Header>): Request<T> {
         return new Request(this.method, this.url, {
             ...this.config,
             headers: [
@@ -354,7 +367,9 @@ export class Request<T> {
         });
     }
 
-    public withExpectResponse<R>(responseToResult: (response: Response<string>) => Either<Decode.Error, R>): Request<R> {
+    public withExpectResponse<R>(
+        responseToResult: (response: Response<string>) => Either<Decode.Error, R>
+    ): Request<R> {
         return this.withExpect(expectResponse(responseToResult));
     }
 
@@ -389,13 +404,13 @@ export class Request<T> {
                     body: xhr.responseText
                 };
 
-                if (xhr.status < 200 || 300 <= xhr.status) {
+                if (xhr.status < 200 || xhr.status >= 300) {
                     return fail(Error.BadStatus(stringResponse));
                 }
 
                 this.config.expect.responseToResult({
                     ...stringResponse,
-                    body: xhr.response
+                    body: xhr.response as string
                 }).cata({
                     Left(decodeError: Decode.Error): void {
                         fail(Error.BadPayload(decodeError, stringResponse));
