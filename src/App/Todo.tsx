@@ -19,7 +19,7 @@ type Filter
 export type Msg
     = { $: 'CHANGE_FILTER', _0: Filter }
     | { $: 'CHANGE_INPUT', _0: string }
-    | { $: 'CREATE_TODO' }
+    | { $: 'CREATE_TODO', _0: number }
     | { $: 'COMPLETE_TODO', _0: number, _1: boolean }
     | { $: 'DELETE_TODO', _0: number }
     | { $: 'COUNTER_MSG', _0: number, _1: Counter.Msg }
@@ -70,7 +70,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'CREATE_TODO': {
-            const [ initialCounterModel, initialCounterCmd ] = Counter.initial;
+            const [ initialCounterModel, initialCounterCmd ] = Counter.init(msg._0);
             const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init(initialCounterModel.count.toString());
             const [ initialModel, initialCmd ] = initial;
 
@@ -329,15 +329,17 @@ const TodoView = ({ dispatch, todo }: {
         </button>
 
         <View
+            initialCount={todo.counter.count}
             model={todo.todos}
             dispatch={(msg) => dispatch({ $: 'TODO_MSG', _0: todo.id, _1: msg })}
         />
     </li>
 );
 
-export const View = ({ dispatch, model }: {
+export const View = ({ dispatch, model, ...props }: {
     dispatch: Dispatch<Msg>;
     model: Model;
+    initialCount: number;
 }): JSX.Element => (
     <div>
         <div>Todo List:</div>
@@ -345,7 +347,7 @@ export const View = ({ dispatch, model }: {
         <form
             action="todo"
             onSubmit={(event) => {
-                dispatch({ $: 'CREATE_TODO' });
+                dispatch({ $: 'CREATE_TODO', _0: props.initialCount });
 
                 event.preventDefault();
             }}

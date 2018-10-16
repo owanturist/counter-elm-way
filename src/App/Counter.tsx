@@ -16,10 +16,8 @@ export interface Model {
     count: number;
 }
 
-export const initial: [ Model, Cmd<Msg> ] = [
-    {
-        count: 0
-    },
+export const init = (count: number): [ Model, Cmd<Msg> ] => [
+    { count },
     Cmd.none()
 ];
 

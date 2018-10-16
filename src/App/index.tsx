@@ -26,8 +26,8 @@ interface Model {
 }
 
 export const init = (): [ Model, Cmd<Msg> ] => {
+    const [ initialCounterModel, initialCounterCmd ] = Counter.init(0);
     const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init('1');
-    const [ initialCounterModel, initialCounterCmd ] = Counter.initial;
     const [ initialTodoModel, initialTodoCmd ] = Todo.initial;
 
     return [
@@ -125,6 +125,7 @@ export const View = ({ dispatch, model }: {
             dispatch={(msg) => dispatch({ $: 'SECOND_COUNTER_MSG', _0: msg })}
         />
         <Todo.View
+            initialCount={0}
             model={model.todo}
             dispatch={(msg) => dispatch({ $: 'TODO_MSG', _0: msg })}
         />

@@ -1,16 +1,18 @@
 export abstract class Cmd<T> {
     public static batch<T>(cmds: Array<Cmd<T>>): Cmd<T> {
-        switch (cmds.length) {
+        const nonEmptyCmds = cmds.filter((cmd: Cmd<T>): boolean => !cmd.isEmpty());
+
+        switch (nonEmptyCmds.length) {
             case 0: {
                 return new None();
             }
 
             case 1: {
-                return cmds[ 0 ];
+                return nonEmptyCmds[ 0 ];
             }
 
             default: {
-                return new Batch(cmds);
+                return new Batch(nonEmptyCmds);
             }
         }
     }
@@ -19,17 +21,23 @@ export abstract class Cmd<T> {
         return new None();
     }
 
+    protected static cons<T>(callPromise: () => Promise<T>): Cmd<T> {
+        return new Single(callPromise);
+    }
+
     protected static execute<T, R>(fn: (msg: T) => R, cmd: Cmd<T>): Promise<R> {
         return cmd.execute(fn);
     }
 
-    protected static cons<T>(callPromise: () => Promise<T>): Cmd<T> {
-        return new Single(callPromise);
+    protected static isEmpty<T>(cmd: Cmd<T>): boolean {
+        return cmd.isEmpty();
     }
 
     public abstract map<R>(fn: (msg: T) => R): Cmd<R>;
 
     protected abstract execute<R>(fn: (msg: T) => R): Promise<R>;
+
+    protected abstract isEmpty(): boolean;
 }
 
 class Single<T> extends Cmd<T> {
@@ -44,6 +52,10 @@ class Single<T> extends Cmd<T> {
     protected execute<R>(fn: (msg: T) => R): Promise<R> {
         return this.callPromise().then(fn);
     }
+
+    protected isEmpty(): boolean {
+        return false;
+    }
 }
 
 class Map<T, R> extends Cmd<R> {
@@ -55,10 +67,7 @@ class Map<T, R> extends Cmd<R> {
     }
 
     public map<S>(fn: (msg: R) => S): Cmd<S> {
-        return new Map(
-            (msg: T): S => fn(this.fn(msg)),
-            this.cmd
-        );
+        return new Map(fn, this);
     }
 
     protected execute<S>(fn: (msg: R) => S): Promise<S> {
@@ -66,6 +75,10 @@ class Map<T, R> extends Cmd<R> {
             (msg: T): S => fn(this.fn(msg)),
             this.cmd
         );
+    }
+
+    protected isEmpty(): boolean {
+        return Cmd.isEmpty(this.cmd);
     }
 }
 
@@ -76,6 +89,10 @@ class None<T> extends Cmd<T> {
 
     protected execute(): Promise<any> {
         return Promise.resolve();
+    }
+
+    protected isEmpty(): boolean {
+        return true;
     }
 }
 
@@ -102,5 +119,9 @@ class Batch<T> extends Cmd<T> {
         }
 
         return Promise.all(result);
+    }
+
+    protected isEmpty(): boolean {
+        return this.cmds.length === 0;
     }
 }
