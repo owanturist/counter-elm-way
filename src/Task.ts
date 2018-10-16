@@ -14,16 +14,50 @@ abstract class Internal<M> extends Cmd<M> {
 }
 
 export abstract class Task<E, T> {
-    public static succeed<T>(value: T): Task<any, T> {
+    public static succeed<E, T>(value: T): Task<E, T> {
         return new Variations.Succeed(value);
     }
 
-    public static fail<E>(error: E): Task<E, any> {
+    public static fail<E, T>(error: E): Task<E, T> {
         return new Variations.Fail(error);
     }
 
+    public static props<E, T extends object>(config: {[ K in keyof T ]: Task<E, T[ K ]>}): Task<E, T> {
+        let acc: Task<E, T> = Task.succeed({} as T);
+
+        for (const key in config) {
+            if (config.hasOwnProperty(key)) {
+                acc = acc.chain(
+                    (obj: T): Task<E, T> => config[ key ].map(
+                        (value: T[ Extract<keyof T, string> ]): T => {
+                            obj[ key ] = value;
+
+                            return obj;
+                        }
+                    )
+                );
+            }
+        }
+
+        return acc;
+    }
+
     public static sequence<E, T>(tasks: Array<Task<E, T>>): Task<E, Array<T>> {
-        return new Variations.Sequence(tasks);
+        let acc: Task<E, Array<T>> = Task.succeed([]);
+
+        for (const task of tasks) {
+            acc = acc.chain(
+                (arr: Array<T>): Task<E, Array<T>> => task.map(
+                    (value: T): Array<T> => {
+                        arr.push(value);
+
+                        return arr;
+                    }
+                )
+            );
+        }
+
+        return acc;
     }
 
     public static perform<M, T>(tagger: (value: T) => M, task: Task<never, T>): Cmd<M> {
@@ -95,22 +129,6 @@ namespace Variations {
 
         protected execute(): Promise<T> {
             return Promise.reject(this.error);
-        }
-    }
-
-    export class Sequence<E, T> extends Task<E, Array<T>> {
-        constructor(protected readonly tasks: Array<Task<E, T>>) {
-            super();
-        }
-
-        protected execute(): Promise<Array<T>> {
-            const result: Array<Promise<T>> = [];
-
-            for (const task of this.tasks) {
-                result.push(Task.execute(task));
-            }
-
-            return Promise.all(result);
         }
     }
 
