@@ -32,6 +32,10 @@ export abstract class Task<E, T> {
         );
     }
 
+    protected static cons<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {
+        return new Variations.Cons(executor);
+    }
+
     protected static execute<E, T>(task: Task<E, T>): Promise<T> {
         return task.execute();
     }
@@ -64,6 +68,16 @@ export abstract class Task<E, T> {
 }
 
 namespace Variations {
+    export class Cons<E, T> extends Task<E, T> {
+        constructor(protected readonly executor: (succeed: (value: T) => void, fail: (error: E) => void) => void) {
+            super();
+        }
+
+        protected execute(): Promise<T> {
+            return new Promise(this.executor);
+        }
+    }
+
     export class Succeed<E, T> extends Task<E, T> {
         constructor(protected readonly value: T) {
             super();
