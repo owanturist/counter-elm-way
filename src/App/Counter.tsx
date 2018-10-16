@@ -41,13 +41,20 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     }
 };
 
-export const View = ({ dispatch, model }: {
+export const View = ({ dispatch, model, ...props }: {
     dispatch: Dispatch<Msg>;
     model: Model;
-}) => (
+    disabled?: boolean;
+}): JSX.Element => (
     <div>
-        <button onClick={() => dispatch({ $: 'DECREMENT' })}>-</button>
+        <button
+            disabled={props.disabled}
+            onClick={() => dispatch({ $: 'DECREMENT' })}
+        >-</button>
         {model.count}
-        <button onClick={() => dispatch({ $: 'INCREMENT' })}>+</button>
+        <button
+            disabled={props.disabled}
+            onClick={() => dispatch({ $: 'INCREMENT' })}
+        >+</button>
     </div>
 );

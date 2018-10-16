@@ -8,6 +8,7 @@ import {
 } from 'Platform/Cmd';
 
 import * as Counter from './Counter';
+import * as Swapi from './Swapi';
 
 type Filter
     = 'ALL'
@@ -23,6 +24,7 @@ export type Msg
     | { $: 'DELETE_TODO', _0: number }
     | { $: 'COUNTER_MSG', _0: number, _1: Counter.Msg }
     | { $: 'TODO_MSG', _0: number, _1: Msg }
+    | { $: 'SWAPI_MSG', _0: number, _1: Swapi.Msg }
     ;
 
 interface Todo {
@@ -30,6 +32,7 @@ interface Todo {
     message: string;
     completed: boolean;
     counter: Counter.Model;
+    swapi: Swapi.Model;
     todos: Model;
 }
 
@@ -68,6 +71,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
         case 'CREATE_TODO': {
             const [ initialCounterModel, initialCounterCmd ] = Counter.initial;
+            const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init(initialCounterModel.count.toString());
             const [ initialModel, initialCmd ] = initial;
 
             const newTodo: Todo = {
@@ -75,6 +79,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 message: model.input,
                 completed: false,
                 counter: initialCounterModel,
+                swapi: initialSwapiModel,
                 todos: initialModel
             };
 
@@ -87,6 +92,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 },
                 Cmd.batch([
                     initialCounterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: newTodo.id, _1: counterMsg })),
+                    initialSwapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: newTodo.id, _1: swapiMsg })),
                     initialCmd.map((todoMsg: Msg): Msg => ({ $: 'TODO_MSG', _0: newTodo.id, _1: todoMsg }))
                 ])
             ];
@@ -141,14 +147,62 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         counterCmd
                     ] = Counter.update(msg._1, todo.counter);
 
+                    const [ nextSwapiModel, swapiCmd ]: [ Swapi.Model, Cmd<Swapi.Msg> ] = nextCounterModel.count === todo.counter.count
+                        ? [ todo.swapi, Cmd.none() ]
+                        : Swapi.init(nextCounterModel.count.toString())
+                        ;
+
                     const nextTodoModel: Todo = {
                         ...todo,
-                        counter: nextCounterModel
+                        counter: nextCounterModel,
+                        swapi: nextSwapiModel
                     };
 
                     return {
                         todos: [ ...acc.todos, nextTodoModel ],
-                        cmd: counterCmd.map((couterMsg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: todo.id, _1: couterMsg }))
+                        cmd: Cmd.batch([
+                            counterCmd.map((couterMsg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: todo.id, _1: couterMsg })),
+                            swapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: todo.id, _1: swapiMsg }))
+                        ])
+                    };
+                },
+                {
+                    todos: [],
+                    cmd: Cmd.none()
+                }
+            );
+
+            return [
+                { ...model, todos },
+                cmd
+            ];
+        }
+
+        case 'SWAPI_MSG': {
+            type Acc = {
+                todos: Todo[],
+                cmd: Cmd<Msg>
+            };
+
+            const { todos, cmd }: Acc = model.todos.reduce(
+                (acc: Acc, todo: Todo) => {
+                    if (todo.id !== msg._0) {
+                        return {
+                            ...acc,
+                            todos: [ ...acc.todos, todo ]
+                        };
+                    }
+
+                    const [ nextSwapiModel, swapiCmd ] = Swapi.update(msg._1, todo.swapi);
+
+                    const nextTodoModel: Todo = {
+                        ...todo,
+                        swapi: nextSwapiModel
+                    };
+
+                    return {
+                        todos: [ ...acc.todos, nextTodoModel ],
+                        cmd: swapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: todo.id, _1: swapiMsg }))
                     };
                 },
                 {
@@ -256,8 +310,14 @@ const TodoView = ({ dispatch, todo }: {
         />
 
         <Counter.View
+            disabled={todo.swapi.person.isNothing()}
             model={todo.counter}
             dispatch={(msg) => dispatch({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })}
+        />
+
+        <Swapi.View
+            model={todo.swapi}
+            dispatch={(msg) => dispatch({ $: 'SWAPI_MSG', _0: todo.id, _1: msg })}
         />
 
         {todo.message}

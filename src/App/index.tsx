@@ -9,34 +9,57 @@ import {
 
 import * as Counter from './Counter';
 import * as Todo from './Todo';
+import * as Swapi from './Swapi';
 
 export type Msg
-    = { $: 'FIRST_COUNTER_MSG', _0: Counter.Msg }
+    = { $: 'SWAPI_MSG', _0: Swapi.Msg }
+    | { $: 'FIRST_COUNTER_MSG', _0: Counter.Msg }
     | { $: 'SECOND_COUNTER_MSG', _0: Counter.Msg }
     | { $: 'TODO_MSG', _0: Todo.Msg }
     ;
 
 interface Model {
+    swapi: Swapi.Model;
     firstCounter: Counter.Model;
     secondCounter: Counter.Model;
     todo: Todo.Model;
 }
 
-export const initial: [ Model, Cmd<Msg> ] = [
-    {
-        firstCounter: Counter.initial[ 0 ],
-        secondCounter: Counter.initial[ 0 ],
-        todo: Todo.initial[ 0 ]
-    },
-    Cmd.batch([
-        Counter.initial[ 1 ].map((counterMsg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: counterMsg })),
-        Counter.initial[ 1 ].map((counterMsg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: counterMsg })),
-        Todo.initial[ 1 ].map((todoMsg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: todoMsg }))
-    ])
-];
+export const init = (): [ Model, Cmd<Msg> ] => {
+    const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init('1');
+    const [ initialCounterModel, initialCounterCmd ] = Counter.initial;
+    const [ initialTodoModel, initialTodoCmd ] = Todo.initial;
+
+    return [
+        {
+            swapi: initialSwapiModel,
+            firstCounter: initialCounterModel,
+            secondCounter: initialCounterModel,
+            todo: initialTodoModel
+        },
+        Cmd.batch([
+            initialSwapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: swapiMsg })),
+            initialCounterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: counterMsg })),
+            initialCounterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: counterMsg })),
+            initialTodoCmd.map((todoMsg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: todoMsg }))
+        ])
+    ];
+};
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
     switch (msg.$) {
+        case 'SWAPI_MSG': {
+            const [ nextSwapiModel, swapiCmd ] = Swapi.update(msg._0, model.swapi);
+
+            return [
+                {
+                    ...model,
+                    swapi: nextSwapiModel
+                },
+                swapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: swapiMsg }))
+            ];
+        }
+
         case 'FIRST_COUNTER_MSG': {
             const [
                 nextFirstCounter,
@@ -89,6 +112,10 @@ export const View = ({ dispatch, model }: {
     model: Model;
 }): JSX.Element => (
     <div>
+        <Swapi.View
+            model={model.swapi}
+            dispatch={(msg) => dispatch({ $: 'SWAPI_MSG', _0: msg })}
+        />
         <Counter.View
             model={model.firstCounter}
             dispatch={(msg) => dispatch({ $: 'FIRST_COUNTER_MSG', _0: msg })}

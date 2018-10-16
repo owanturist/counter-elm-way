@@ -62,6 +62,26 @@ export abstract class Error {
     public abstract cata<T>(pattern: Error.Pattern<T>): T;
 }
 
+export namespace Error {
+    export type Pattern<T> = WithDefaultCase<{
+        BadUrl(url: string): T;
+        Timeout(): T;
+        NetworkError(): T;
+        BadStatus(response: Response<string>): T;
+        BadPayload(error: Decode.Error, response: Response<string>): T;
+    }, T>;
+
+    export const BadUrl = (url: string): Error => new Internal.BadUrl(url);
+
+    export const Timeout = (): Error => new Internal.Timeout();
+
+    export const NetworkError = (): Error => new Internal.NetworkError();
+
+    export const BadStatus = (response: Response<string>): Error => new Internal.BadStatus(response);
+
+    export const BadPayload = (error: Decode.Error, response: Response<string>): Error => new Internal.BadPayload(error, response);
+}
+
 namespace Internal {
     export abstract class Task<E, T> extends Task_<E, T> {
         public static cons<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task_<E, T> {
@@ -133,26 +153,6 @@ namespace Internal {
             return (pattern as DefaultCase<T>)._();
         }
     }
-}
-
-export namespace Error {
-    export type Pattern<T> = WithDefaultCase<{
-        BadUrl(url: string): T;
-        Timeout(): T;
-        NetworkError(): T;
-        BadStatus(response: Response<string>): T;
-        BadPayload(error: Decode.Error, response: Response<string>): T;
-    }, T>;
-
-    export const BadUrl = (url: string): Error => new Internal.BadUrl(url);
-
-    export const Timeout = (): Error => new Internal.Timeout();
-
-    export const NetworkError = (): Error => new Internal.NetworkError();
-
-    export const BadStatus = (response: Response<string>): Error => new Internal.BadStatus(response);
-
-    export const BadPayload = (error: Decode.Error, response: Response<string>): Error => new Internal.BadPayload(error, response);
 }
 
 /* H E A D E R */

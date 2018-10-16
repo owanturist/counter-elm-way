@@ -10,7 +10,7 @@ import * as App from 'App';
 render(
     (
         <Platform.Application
-            initial={App.initial}
+            initial={App.init()}
             update={App.update}
             view={App.View}
         />
