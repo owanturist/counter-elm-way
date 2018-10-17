@@ -110,7 +110,11 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
     }
 };
 
-export const subscriptions = (): Sub<Msg> => Sub.none();
+export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
+    Todo.subscriptions(model.todo).map((msg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: msg })),
+    Counter.subscription(model.firstCounter).map((msg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: msg })),
+    Counter.subscription(model.secondCounter).map((msg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: msg }))
+]);
 
 export const View = ({ dispatch, model }: {
     dispatch: Dispatch<Msg>;

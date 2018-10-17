@@ -6,18 +6,27 @@ import {
 import {
     Cmd
 } from 'Platform/Cmd';
+import {
+    Sub,
+    every
+} from 'Platform/Sub';
 
 export type Msg
     = { $: 'DECREMENT' }
     | { $: 'INCREMENT' }
+    | { $: 'SET_AUTO'; _0: boolean }
     ;
 
 export interface Model {
     count: number;
+    auto: boolean;
 }
 
 export const init = (count: number): [ Model, Cmd<Msg> ] => [
-    { count },
+    {
+        count,
+        auto: false
+    },
     Cmd.none()
 ];
 
@@ -36,7 +45,22 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 Cmd.none()
             ];
         }
+
+        case 'SET_AUTO': {
+            return [
+                { ...model, auto: msg._0 },
+                Cmd.none()
+            ];
+        }
     }
+};
+
+export const subscription = (model: Model): Sub<Msg> => {
+    if (model.auto) {
+        return every(100, (): Msg => ({ $: 'INCREMENT'}));
+    }
+
+    return Sub.none();
 };
 
 export const View = ({ dispatch, model, ...props }: {
@@ -54,5 +78,10 @@ export const View = ({ dispatch, model, ...props }: {
             disabled={props.disabled}
             onClick={() => dispatch({ $: 'INCREMENT' })}
         >+</button>
+        <input
+            type="checkbox"
+            checked={model.auto}
+            onChange={event => dispatch({ $: 'SET_AUTO', _0: event.target.checked })}
+        />
     </div>
 );

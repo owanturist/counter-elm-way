@@ -6,6 +6,9 @@ import {
 import {
     Cmd
 } from 'Platform/Cmd';
+import {
+    Sub
+} from 'Platform/Sub';
 
 import * as Counter from './Counter';
 import * as Swapi from './Swapi';
@@ -150,7 +153,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     const [
                         nextSwapiModel,
                         swapiCmd
-                    ]: [ Swapi.Model, Cmd<Swapi.Msg> ] = nextCounterModel.count === todo.counter.count
+                    ]: [ Swapi.Model, Cmd<Swapi.Msg> ] = nextCounterModel.auto
+                        || nextCounterModel.count === todo.counter.count
                         ? [ todo.swapi, Cmd.none() ]
                         : Swapi.init(nextCounterModel.count.toString())
                         ;
@@ -337,6 +341,15 @@ const TodoView = ({ dispatch, todo }: {
             dispatch={msg => dispatch({ $: 'TODO_MSG', _0: todo.id, _1: msg })}
         />
     </li>
+);
+
+const subscriptionsTodo = (todo: Todo): Sub<Msg> => Sub.batch([
+    Counter.subscription(todo.counter).map((msg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })),
+    subscriptions(todo.todos).map((msg: Msg): Msg => ({ $: 'TODO_MSG', _0: todo.id, _1: msg }))
+]);
+
+export const subscriptions = (model: Model): Sub<Msg> => Sub.batch(
+    model.todos.map(subscriptionsTodo)
 );
 
 export const View = ({ dispatch, model, ...props }: {
