@@ -83,7 +83,7 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
         return InternalCmd.execute(this.dispatch, cmd);
     }
 
-    private dispatch(msg: Msg): Promise<any> {
+    private readonly dispatch = (msg: Msg): Promise<any> => {
         const [ nextModel, cmd ] = this.props.update(msg, this.state);
 
         return this.applyChanges(nextModel, cmd);

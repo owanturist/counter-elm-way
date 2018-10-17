@@ -25,7 +25,7 @@ export const every = <Msg>(delay: number, tagger: (posix: number) => Msg): Sub<M
 
 export abstract class Sub<Msg> {
     public static batch<Msg>(subs: Array<Sub<Msg>>): Sub<Msg> {
-        const nonEmptySubs = subs.filter(Sub.isEmpty);
+        const nonEmptySubs = subs.filter((sub: Sub<Msg>): boolean => !Sub.isEmpty(sub));
 
         switch (nonEmptySubs.length) {
             case 0: {
