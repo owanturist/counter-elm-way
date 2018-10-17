@@ -67,7 +67,10 @@ class Map<T, R> extends Cmd<R> {
     }
 
     public map<S>(fn: (msg: R) => S): Cmd<S> {
-        return new Map(fn, this);
+        return new Map(
+            (msg: T): S => fn(this.fn(msg)),
+            this.cmd
+        );
     }
 
     protected execute<S>(fn: (msg: R) => S): Promise<S> {
