@@ -1,6 +1,6 @@
 export abstract class Cmd<T> {
     public static batch<T>(cmds: Array<Cmd<T>>): Cmd<T> {
-        const nonEmptyCmds = cmds.filter((cmd: Cmd<T>): boolean => !cmd.isEmpty());
+        const nonEmptyCmds = cmds.filter(Cmd.isEmpty);
 
         switch (nonEmptyCmds.length) {
             case 0: {

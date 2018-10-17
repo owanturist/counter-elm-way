@@ -6,6 +6,9 @@ import {
 import {
     Cmd
 } from 'Platform/Cmd';
+import {
+    Sub
+} from 'Platform/Sub';
 
 import * as Counter from './Counter';
 import * as Todo from './Todo';
@@ -106,6 +109,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
         }
     }
 };
+
+export const subscriptions = (): Sub<Msg> => Sub.none();
 
 export const View = ({ dispatch, model }: {
     dispatch: Dispatch<Msg>;

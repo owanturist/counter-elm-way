@@ -1,11 +1,31 @@
 import {
-    Subscription
+    Subscriber
 } from 'Platform';
+import {
+    Encoder
+} from 'Json/Encode';
 import * as Encode from 'Json/Encode';
 
-export abstract class Sub<T> {
-    public static batch<T>(subs: Array<Sub<T>>): Sub<T> {
-        const nonEmptySubs = subs.filter((sub: Sub<T>): boolean => !sub.isEmpty());
+export const every = <Msg>(delay: number, tagger: (posix: number) => Msg): Sub<Msg> => {
+    return Sub.of(
+        'TIME',
+        Encode.number(delay),
+        tagger,
+        (callback: (posix: number) => void) => {
+            const intervalID = setInterval(() => {
+                callback(Date.now());
+            }, delay);
+
+            return () => {
+                clearInterval(intervalID);
+            };
+        }
+    );
+};
+
+export abstract class Sub<Msg> {
+    public static batch<Msg>(subs: Array<Sub<Msg>>): Sub<Msg> {
+        const nonEmptySubs = subs.filter(Sub.isEmpty);
 
         switch (nonEmptySubs.length) {
             case 0: {
@@ -26,55 +46,55 @@ export abstract class Sub<T> {
         return new None();
     }
 
-    protected static cons<T>(
+    public static of<T, Msg>(
         namespace: string,
-        key: Encode.Encoder,
-        executor: () => () => void,
-        tagger: (dispatch: (msg: T) => void) => void
-    ): Sub<T> {
-        return new Single(namespace, key, executor, tagger);
+        key: Encoder,
+        tagger: (config: T) => Msg,
+        executor: (callback: (config: T) => void) => () => void
+    ): Sub<Msg> {
+        return new Single(namespace, key.encode(0), tagger, executor);
     }
 
-    protected static configure<T>(sub: Sub<T>): Array<Subscription<T>> {
+    protected static configure<Msg>(sub: Sub<Msg>): Array<Subscriber<Msg>> {
         return sub.configure();
     }
 
-    protected static isEmpty<T>(sub: Sub<T>): boolean {
+    protected static isEmpty<Msg>(sub: Sub<Msg>): boolean {
         return sub.isEmpty();
     }
 
-    public abstract map<R>(fn: (msg: T) => R): Sub<R>;
+    public abstract map<R>(fn: (msg: Msg) => R): Sub<R>;
 
-    protected abstract configure(): Array<Subscription<T>>;
+    protected abstract configure(): Array<Subscriber<Msg>>;
 
     protected abstract isEmpty(): boolean;
 }
 
-class Single<T> extends Sub<T> {
+class Single<T, Msg> extends Sub<Msg> {
     constructor(
         private readonly namespace: string,
-        private readonly key: Encode.Encoder,
-        private readonly executor: () => () => void,
-        private readonly tagger: (dispatch: (msg: T) => void) => void
+        private readonly key: string,
+        private readonly tagger: (config: T) => Msg,
+        private readonly executor: (callback: (config: T) => void) => () => void
     ) {
         super();
     }
 
-    public map<R>(fn: (msg: T) => R): Sub<R> {
+    public map<R>(fn: (msg: Msg) => R): Sub<R> {
         return new Single(
             this.namespace,
             this.key,
-            this.executor,
-            (dispatch: (msg: R) => void) => (msg: T) => dispatch(fn(msg))
+            (config: T): R => fn(this.tagger(config)),
+            this.executor
         );
     }
 
-    protected configure(): Array<Subscription<T>> {
+    protected configure(): Array<Subscriber<Msg>> {
         return [{
             namespace: this.namespace,
             key: this.key,
-            executor: this.executor,
-            tagger: this.tagger
+            tagger: this.tagger,
+            executor: this.executor
         }];
     }
 
@@ -85,10 +105,10 @@ class Single<T> extends Sub<T> {
 
 class None<T> extends Sub<T> {
     public map<R>(): Sub<R> {
-        return this as any as None<R>;
+        return this as any as Sub<R>;
     }
 
-    protected configure(): Array<Subscription<T>> {
+    protected configure(): Array<Subscriber<T>> {
         return [];
     }
 
@@ -112,8 +132,8 @@ class Batch<T> extends Sub<T> {
         return new Batch(result);
     }
 
-    protected configure(): Array<Subscription<T>> {
-        const result: Array<Subscription<T>> = [];
+    protected configure(): Array<Subscriber<T>> {
+        const result: Array<Subscriber<T>> = [];
 
         for (const sub of this.subs) {
             result.push(...Sub.configure(sub));

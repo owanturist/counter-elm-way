@@ -10,8 +10,9 @@ import * as App from 'App';
 render(
     (
         <Platform.Application
-            initial={App.init()}
+            init={App.init}
             update={App.update}
+            subscriptions={App.subscriptions}
             view={App.View}
         />
     ),
