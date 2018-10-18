@@ -4,16 +4,21 @@ import {
     Dispatch
 } from 'Fractal/Platform';
 import {
+    Task
+} from 'Fractal/Task';
+import {
     Cmd
 } from 'Fractal/Platform/Cmd';
 import {
     Sub
 } from 'Fractal/Platform/Sub';
 import * as Time from 'Fractal/Time';
+import * as Process from 'Fractal/Process';
 
 export type Msg
     = { $: 'DECREMENT' }
     | { $: 'INCREMENT' }
+    | { $: 'DELAYED'; _0: Msg }
     | { $: 'SET_AUTO'; _0: boolean }
     ;
 
@@ -46,6 +51,13 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             ];
         }
 
+        case 'DELAYED': {
+            return [
+                model,
+                Task.perform(() => msg._0, Process.sleep(1000))
+            ];
+        }
+
         case 'SET_AUTO': {
             return [
                 { ...model, auto: msg._0 },
@@ -71,7 +83,7 @@ export const View = ({ dispatch, model, ...props }: {
     <div>
         <button
             disabled={props.disabled}
-            onClick={() => dispatch({ $: 'DECREMENT' })}
+            onClick={() => dispatch({ $: 'DELAYED', _0: { $: 'DECREMENT' }})}
         >-</button>
         {model.count}
         <button
