@@ -1,6 +1,6 @@
-export abstract class Cmd<T> {
-    public static batch<T>(cmds: Array<Cmd<T>>): Cmd<T> {
-        const nonEmptyCmds = cmds.filter((cmd: Cmd<T>): boolean => !Cmd.isEmpty(cmd));
+export abstract class Cmd<Msg> {
+    public static batch<Msg>(cmds: Array<Cmd<Msg>>): Cmd<Msg> {
+        const nonEmptyCmds = cmds.filter((cmd: Cmd<Msg>): boolean => !Cmd.isEmpty(cmd));
 
         switch (nonEmptyCmds.length) {
             case 0: {
@@ -21,36 +21,36 @@ export abstract class Cmd<T> {
         return new None();
     }
 
-    protected static cons<T>(callPromise: () => Promise<T>): Cmd<T> {
+    protected static cons<Msg>(callPromise: () => Promise<Msg>): Cmd<Msg> {
         return new Single(callPromise);
     }
 
-    protected static execute<T, R>(fn: (msg: T) => R, cmd: Cmd<T>): Promise<R> {
-        return cmd.execute(fn);
+    protected static execute<Msg>(cmd: Cmd<Msg>): Array<Promise<Msg>> {
+        return cmd.execute();
     }
 
-    protected static isEmpty<T>(cmd: Cmd<T>): boolean {
+    protected static isEmpty<Msg>(cmd: Cmd<Msg>): boolean {
         return cmd.isEmpty();
     }
 
-    public abstract map<R>(fn: (msg: T) => R): Cmd<R>;
+    public abstract map<R>(fn: (msg: Msg) => R): Cmd<R>;
 
-    protected abstract execute<R>(fn: (msg: T) => R): Promise<R>;
+    protected abstract execute(): Array<Promise<Msg>>;
 
     protected abstract isEmpty(): boolean;
 }
 
-class Single<T> extends Cmd<T> {
-    constructor(private readonly callPromise: () => Promise<T>) {
+class Single<Msg> extends Cmd<Msg> {
+    constructor(private readonly callPromise: () => Promise<Msg>) {
         super();
     }
 
-    public map<R>(fn: (msg: T) => R): Cmd<R> {
+    public map<R>(fn: (msg: Msg) => R): Cmd<R> {
         return new Map(fn, this);
     }
 
-    protected execute<R>(fn: (msg: T) => R): Promise<R> {
-        return this.callPromise().then(fn);
+    protected execute(): Array<Promise<Msg>> {
+        return [ this.callPromise() ];
     }
 
     protected isEmpty(): boolean {
@@ -58,26 +58,29 @@ class Single<T> extends Cmd<T> {
     }
 }
 
-class Map<T, R> extends Cmd<R> {
+class Map<T, Msg> extends Cmd<Msg> {
     constructor(
-        private readonly fn: (msg: T) => R,
+        private readonly fn: (msg: T) => Msg,
         private readonly cmd: Cmd<T>
     ) {
         super();
     }
 
-    public map<S>(fn: (msg: R) => S): Cmd<S> {
+    public map<R>(fn: (msg: Msg) => R): Cmd<R> {
         return new Map(
-            (msg: T): S => fn(this.fn(msg)),
+            (msg: T): R => fn(this.fn(msg)),
             this.cmd
         );
     }
 
-    protected execute<S>(fn: (msg: R) => S): Promise<S> {
-        return Cmd.execute(
-            (msg: T): S => fn(this.fn(msg)),
-            this.cmd
-        );
+    protected execute(): Array<Promise<Msg>> {
+        const result: Array<Promise<Msg>> = [];
+
+        for (const promise of Cmd.execute(this.cmd)) {
+            result.push(promise.then(this.fn));
+        }
+
+        return result;
     }
 
     protected isEmpty(): boolean {
@@ -85,13 +88,13 @@ class Map<T, R> extends Cmd<R> {
     }
 }
 
-class None<T> extends Cmd<T> {
+class None<Msg> extends Cmd<Msg> {
     public map<R>(): Cmd<R> {
         return this;
     }
 
-    protected execute(): Promise<any> {
-        return Promise.resolve();
+    protected execute<R>(): Array<Promise<R>> {
+        return [];
     }
 
     protected isEmpty(): boolean {
@@ -99,12 +102,12 @@ class None<T> extends Cmd<T> {
     }
 }
 
-class Batch<T> extends Cmd<T> {
-    constructor(private readonly cmds: Array<Cmd<T>>) {
+class Batch<Msg> extends Cmd<Msg> {
+    constructor(private readonly cmds: Array<Cmd<Msg>>) {
         super();
     }
 
-    public map<R>(fn: (msg: T) => R): Cmd<R> {
+    public map<R>(fn: (msg: Msg) => R): Cmd<R> {
         const result: Array<Cmd<R>> = [];
 
         for (const cmd of this.cmds) {
@@ -114,14 +117,14 @@ class Batch<T> extends Cmd<T> {
         return new Batch(result);
     }
 
-    protected execute<R>(fn: (msg: T) => R): Promise<any> {
-        const result: Array<Promise<R>> = [];
+    protected execute(): Array<Promise<Msg>> {
+        const result: Array<Promise<Msg>> = [];
 
         for (const cmd of this.cmds) {
-            result.push(Cmd.execute(fn, cmd));
+            result.push(...Cmd.execute(cmd));
         }
 
-        return Promise.all(result);
+        return result;
     }
 
     protected isEmpty(): boolean {

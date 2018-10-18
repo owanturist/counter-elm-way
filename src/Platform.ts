@@ -24,14 +24,14 @@ interface Process<Msg, T = any> {
 }
 
 abstract class InternalCmd<Msg> extends Cmd<Msg> {
-    public static execute<Msg, R>(fn: (msg: Msg) => R, cmd: Cmd<Msg>): Promise<any> {
-        return Cmd.execute(fn, cmd);
+    public static execute<Msg>(cmd: Cmd<Msg>): Array<Promise<Msg>> {
+        return super.execute(cmd);
     }
 }
 
 abstract class InternalSub<Msg> extends Sub<Msg> {
     public static configure<Msg>(sub: Sub<Msg>): Array<Subscriber<Msg>> {
-        return Sub.configure(sub);
+        return super.configure(sub);
     }
 }
 
@@ -56,7 +56,8 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
         const [ initialModel, initialCmd ] = props.init();
 
         this.state = initialModel;
-        InternalCmd.execute(this.dispatch, initialCmd);
+
+        this.handleCmd(initialCmd);
     }
 
     public render() {
@@ -71,7 +72,26 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
         );
     }
 
-    private applyChanges(nextModel: Model, cmd: Cmd<Msg>): Promise<any> {
+    private handleCmd(cmd: Cmd<Msg>): Promise<Array<Msg>> {
+        const promises: Array<Promise<Msg>> = InternalCmd.execute(cmd);
+        const result: Array<Promise<Array<Msg>>> = [];
+
+        for (const promise of promises) {
+            result.push(promise.then(this.dispatch));
+        }
+
+        return Promise.all(result).then((arrayOfArrays: Array<Array<Msg>>): Array<Msg> => {
+            const result: Array<Msg> = [];
+
+            for (const arrayOfMsgs of arrayOfArrays) {
+                result.push(...arrayOfMsgs);
+            }
+
+            return result;
+        });
+    }
+
+    private applyChanges(nextModel: Model, cmd: Cmd<Msg>): Promise<Array<Msg>> {
         if (this.state !== nextModel) {
             this.setState(nextModel);
         }
@@ -80,18 +100,18 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
             InternalSub.configure(this.props.subscriptions(nextModel))
         );
 
-        return InternalCmd.execute(this.dispatch, cmd);
+        return this.handleCmd(cmd);
     }
 
-    private readonly dispatch = (msg: Msg): Promise<any> => {
+    private readonly dispatch = (msg: Msg): Promise<Array<Msg>> => {
         const [ nextModel, cmd ] = this.props.update(msg, this.state);
 
         return this.applyChanges(nextModel, cmd);
     }
 
-    private sequence(msgs: Array<Msg>): Promise<any> {
+    private sequence(msgs: Array<Msg>): Promise<Array<Msg>> {
         if (msgs.length === 0) {
-            return Promise.resolve();
+            return Promise.resolve([]);
         }
 
         let nextModel: Model = this.state;
