@@ -4,24 +4,6 @@ import {
 import {
     Encoder
 } from 'Json/Encode';
-import * as Encode from 'Json/Encode';
-
-export const every = <Msg>(delay: number, tagger: (posix: number) => Msg): Sub<Msg> => {
-    return Sub.of(
-        'TIME',
-        Encode.number(delay),
-        tagger,
-        (callback: (posix: number) => void) => {
-            const intervalID = setInterval(() => {
-                callback(Date.now());
-            }, delay);
-
-            return () => {
-                clearInterval(intervalID);
-            };
-        }
-    );
-};
 
 export abstract class Sub<Msg> {
     public static batch<Msg>(subs: Array<Sub<Msg>>): Sub<Msg> {
@@ -46,7 +28,7 @@ export abstract class Sub<Msg> {
         return new None();
     }
 
-    public static of<T, Msg>(
+    protected static of<T, Msg>(
         namespace: string,
         key: Encoder,
         tagger: (config: T) => Msg,

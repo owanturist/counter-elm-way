@@ -7,9 +7,9 @@ import {
     Cmd
 } from 'Platform/Cmd';
 import {
-    Sub,
-    every
+    Sub
 } from 'Platform/Sub';
+import * as Time from 'Time';
 
 export type Msg
     = { $: 'DECREMENT' }
@@ -57,7 +57,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
 export const subscription = (model: Model): Sub<Msg> => {
     if (model.auto) {
-        return every(100, (): Msg => ({ $: 'INCREMENT'}));
+        return Time.every(100, (): Msg => ({ $: 'INCREMENT' }));
     }
 
     return Sub.none();
