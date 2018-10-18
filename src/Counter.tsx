@@ -1,4 +1,5 @@
 import React from 'react';
+import styled from 'styled-components';
 
 import {
     Dispatch
@@ -75,21 +76,26 @@ export const subscription = (model: Model): Sub<Msg> => {
     return Sub.none();
 };
 
+const Button = styled.button`
+    border: 1px solid red;
+    font-size: 20px;
+`;
+
 export const View = ({ dispatch, model, ...props }: {
     dispatch: Dispatch<Msg>;
     model: Model;
     disabled?: boolean;
 }): JSX.Element => (
     <div>
-        <button
+        <Button
             disabled={props.disabled}
             onClick={() => dispatch({ $: 'DELAYED', _0: { $: 'DECREMENT' }})}
-        >-</button>
+        >-</Button>
         {model.count}
-        <button
+        <Button
             disabled={props.disabled}
             onClick={() => dispatch({ $: 'INCREMENT' })}
-        >+</button>
+        >+</Button>
         <input
             type="checkbox"
             checked={model.auto}
