@@ -8,7 +8,7 @@ import {
 
 abstract class InternalTask<E, T> extends Task<E, T> {
     public static of<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {
-        return Task.cons(executor);
+        return Task.of(executor);
     }
 }
 

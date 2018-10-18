@@ -12,13 +12,19 @@ import {
     Right
 } from './Either';
 import {
-    Task as Task_
+    Task
 } from './Task';
 import {
     Cmd
 } from './Platform/Cmd';
 import * as Decode from './Json/Decode';
 import * as Encode from './Json/Encode';
+
+abstract class InternalTask<E, T> extends Task<E, T> {
+    public static of<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {
+        return Task.of(executor);
+    }
+}
 
 const queryEscape = (str: string): string => encodeURIComponent(str).replace(/%20/g, '+');
 
@@ -93,15 +99,6 @@ export namespace Error {
 }
 
 namespace Internal {
-    export abstract class Task<E, T> extends Task_<E, T> {
-        public static cons<E, T>(executor: (
-            succeed: (value: T) => void,
-            fail: (error: E) => void
-        ) => void): Task_<E, T> {
-            return Task_.cons(executor);
-        }
-    }
-
     export class BadUrl extends Error {
         constructor(private readonly url: string) {
             super();
@@ -381,8 +378,8 @@ export class Request<T> {
         return this.withExpect(expectJson(decoder));
     }
 
-    public toTask(): Task_<Error, T> {
-        return Internal.Task.cons((succeed: (value: T) => void, fail: (error: Error) => void): void => {
+    public toTask(): Task<Error, T> {
+        return InternalTask.of((succeed: (value: T) => void, fail: (error: Error) => void): void => {
             const xhr = new XMLHttpRequest();
 
             xhr.addEventListener('error', () => {

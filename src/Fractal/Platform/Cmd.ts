@@ -21,7 +21,7 @@ export abstract class Cmd<Msg> {
         return new None();
     }
 
-    protected static cons<Msg>(callPromise: () => Promise<Msg>): Cmd<Msg> {
+    protected static of<Msg>(callPromise: () => Promise<Msg>): Cmd<Msg> {
         return new Single(callPromise);
     }
 

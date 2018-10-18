@@ -7,9 +7,9 @@ import {
     Cmd
 } from './Platform/Cmd';
 
-abstract class Internal<M> extends Cmd<M> {
-    public static cons<M>(callPromise: () => Promise<M>): Cmd<M> {
-        return super.cons(callPromise);
+abstract class InternalCmd<M> extends Cmd<M> {
+    public static of<M>(callPromise: () => Promise<M>): Cmd<M> {
+        return super.of(callPromise);
     }
 }
 
@@ -61,12 +61,12 @@ export abstract class Task<E, T> {
     }
 
     public static perform<M, T>(tagger: (value: T) => M, task: Task<never, T>): Cmd<M> {
-        return Internal.cons(
+        return InternalCmd.of(
             () => task.execute().then(tagger)
         );
     }
 
-    protected static cons<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {
+    protected static of<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {
         return new Variations.Cons(executor);
     }
 
@@ -91,7 +91,7 @@ export abstract class Task<E, T> {
     }
 
     public attempt<M>(tagger: (either: Either<E, T>) => M): Cmd<M> {
-        return Internal.cons(
+        return InternalCmd.of(
             () => this.execute()
                 .then((value: T) => tagger(Right(value)))
                 .catch((error: E) => tagger(Left(error)))
