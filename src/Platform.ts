@@ -57,7 +57,9 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
 
         this.state = initialModel;
 
-        this.handleCmd(initialCmd);
+        this.executeCmd(initialCmd).then(() => {
+            console.log('Initial Cmd has been done'); // tslint:disable-line:no-console
+        });
     }
 
     public render() {
@@ -72,11 +74,10 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
         );
     }
 
-    private handleCmd(cmd: Cmd<Msg>): Promise<Array<Msg>> {
-        const promises: Array<Promise<Msg>> = InternalCmd.execute(cmd);
+    private executeCmd(cmd: Cmd<Msg>): Promise<Array<Msg>> {
         const result: Array<Promise<Array<Msg>>> = [];
 
-        for (const promise of promises) {
+        for (const promise of InternalCmd.execute(cmd)) {
             result.push(promise.then(this.dispatch));
         }
 
@@ -100,7 +101,7 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
             InternalSub.configure(this.props.subscriptions(nextModel))
         );
 
-        return this.handleCmd(cmd);
+        return this.executeCmd(cmd);
     }
 
     private readonly dispatch = (msg: Msg): Promise<Array<Msg>> => {
