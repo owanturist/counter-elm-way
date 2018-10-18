@@ -32,14 +32,14 @@ import * as Api from './Api';
 export type Msg
     = { $: 'FETCH_RATES' }
     | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
-    | { $: 'CHANGE_AMOUNT'; _0: string }
+    | { $: 'CHANGE_AMOUNT'; _0: string; _1: string }
     ;
 
 interface Model {
     rates: RemoteData<Http.Error, Api.Response<Array<Currency>>>;
     wallet: {[ currency: string ]: number };
     currentCurrency: Maybe<string>;
-    amount: number;
+    amounts: {[ currency: string ]: number };
 }
 
 const fetchRates: Cmd<Msg> = Api.getRatesFor([ 'EUR', 'GBP', 'USD' ])
@@ -54,7 +54,7 @@ export const init = (): [ Model, Cmd<Msg> ] => [
             USD: 25.51
         },
         currentCurrency: Nothing(),
-        amount: 0
+        amounts: {}
     },
     fetchRates
 ];
@@ -87,8 +87,16 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'CHANGE_AMOUNT': {
+            const amount = Number(msg._1) || 0;
+
             return [
-                { ...model, amount: Number(msg._0) || 0 },
+                {
+                    ...model,
+                    amounts: {
+                        ...model.amounts,
+                        [ msg._0 ]: amount
+                    }
+                },
                 Cmd.none()
             ];
         }
@@ -113,7 +121,7 @@ const ViewCurrency = ({ dispatch, currency, debit, amount }: {
             type="number"
             value={Math.max(-debit, amount) || ''}
             min={-debit} // @TODO max?
-            onChange={event => dispatch({ $: 'CHANGE_AMOUNT', _0: event.currentTarget.value })}
+            onChange={event => dispatch({ $: 'CHANGE_AMOUNT', _0: currency.toCode(), _1: event.currentTarget.value })}
         />
     </div>
 );
@@ -154,7 +162,7 @@ export const View = ({ dispatch, model }: {
                             dispatch={dispatch}
                             currency={currency}
                             debit={model.wallet[ currency.toCode() ] || 0}
-                            amount={model.amount}
+                            amount={model.amounts[ currency.toCode() ] || 0}
                         />
                     </li>
                 ))}
