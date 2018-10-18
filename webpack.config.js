@@ -1,15 +1,13 @@
 const path = require('path');
+const webpack = require('webpack');
 const {
     CheckerPlugin
 } = require('awesome-typescript-loader');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 
-module.exports = {
-    entry: [
-        'normalize.css',
-        path.resolve('./src/index.tsx')
-    ],
+module.exports = env => ({
+    entry: path.resolve('./src/index.tsx'),
 
     output: {
         path: path.resolve('./build'),
@@ -69,10 +67,14 @@ module.exports = {
         new HtmlWebpackPlugin({
             inject: true,
             template: path.resolve('./src/index.html')
+        }),
+
+        new webpack.DefinePlugin({
+            OPENEXCHANGERATES_APP_ID: JSON.stringify(env.OPENEXCHANGERATES_APP_ID)
         })
     ],
 
     devtool: 'source-map',
 
     mode: 'development'
-};
+});
