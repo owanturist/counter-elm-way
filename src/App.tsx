@@ -1,6 +1,13 @@
 import React from 'react';
 
 import {
+    Either
+} from 'Fractal/Either';
+import {
+    RemoteData,
+    Loading
+} from 'Fractal/RemoteData';
+import {
     Dispatch
 } from 'Fractal/Platform';
 import {
@@ -9,134 +16,90 @@ import {
 import {
     Sub
 } from 'Fractal/Platform/Sub';
+import * as Http from 'Fractal/Http';
 
-import * as Counter from './Counter';
-import * as Todo from './Todo';
-import * as Swapi from './Swapi';
+import {
+    Currency
+} from './Currency';
+import * as Api from './Api';
 
 export type Msg
-    = { $: 'SWAPI_MSG'; _0: Swapi.Msg }
-    | { $: 'FIRST_COUNTER_MSG'; _0: Counter.Msg }
-    | { $: 'SECOND_COUNTER_MSG'; _0: Counter.Msg }
-    | { $: 'TODO_MSG'; _0: Todo.Msg }
+    = { $: 'FETCH_RATES' }
+    | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
     ;
 
 interface Model {
-    swapi: Swapi.Model;
-    firstCounter: Counter.Model;
-    secondCounter: Counter.Model;
-    todo: Todo.Model;
+    rates: RemoteData<Http.Error, Api.Response<Array<Currency>>>;
 }
 
-export const init = (): [ Model, Cmd<Msg> ] => {
-    const [ initialCounterModel, initialCounterCmd ] = Counter.init(0);
-    const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init('1');
-    const [ initialTodoModel, initialTodoCmd ] = Todo.initial;
+const fetchRates: Cmd<Msg> = Api.getRatesFor([ 'GBP', 'EUR', 'USD' ])
+    .send((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: result }));
 
-    return [
-        {
-            swapi: initialSwapiModel,
-            firstCounter: initialCounterModel,
-            secondCounter: initialCounterModel,
-            todo: initialTodoModel
-        },
-        Cmd.batch([
-            initialSwapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: swapiMsg })),
-            initialCounterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: counterMsg })),
-            initialCounterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: counterMsg })),
-            initialTodoCmd.map((todoMsg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: todoMsg }))
-        ])
-    ];
-};
+export const init = (): [ Model, Cmd<Msg> ] => [
+    {
+        rates: Loading()
+    },
+    fetchRates
+];
 
-export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
+export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     switch (msg.$) {
-        case 'SWAPI_MSG': {
-            const [ nextSwapiModel, swapiCmd ] = Swapi.update(msg._0, model.swapi);
-
+        case 'FETCH_RATES': {
             return [
-                {
-                    ...model,
-                    swapi: nextSwapiModel
-                },
-                swapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: swapiMsg }))
+                { ...model, rates: Loading() },
+                fetchRates
             ];
         }
 
-        case 'FIRST_COUNTER_MSG': {
-            const [
-                nextFirstCounter,
-                counterCmd
-            ] = Counter.update(msg._0, model.firstCounter);
-
+        case 'FETCH_RATES_DONE': {
             return [
-                {
-                    ...model,
-                    firstCounter: nextFirstCounter
-                },
-                counterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: counterMsg }))
-            ];
-        }
-
-        case 'SECOND_COUNTER_MSG': {
-            const [
-                nextSecondCounter,
-                counterCmd
-            ] = Counter.update(msg._0, model.secondCounter);
-
-            return [
-                {
-                    ...model,
-                    secondCounter: nextSecondCounter
-                },
-                counterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: counterMsg }))
-            ];
-        }
-
-        case 'TODO_MSG': {
-            const [
-                nextTodo,
-                todoListCmd
-            ] = Todo.update(msg._0, model.todo);
-
-            return [
-                {
-                    ...model,
-                    todo: nextTodo
-                },
-                todoListCmd.map((todoMsg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: todoMsg }))
+                { ...model, rates: RemoteData.fromEither(msg._0) },
+                Cmd.none()
             ];
         }
     }
 };
 
-export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
-    Todo.subscriptions(model.todo).map((msg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: msg })),
-    Counter.subscription(model.firstCounter).map((msg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: msg })),
-    Counter.subscription(model.secondCounter).map((msg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: msg }))
-]);
+export const subscriptions = (_model: Model): Sub<Msg> => {
+    return Sub.none();
+};
 
 export const View = ({ dispatch, model }: {
     dispatch: Dispatch<Msg>;
     model: Model;
-}): JSX.Element => (
-    <div>
-        <Swapi.View
-            model={model.swapi}
-            dispatch={msg => dispatch({ $: 'SWAPI_MSG', _0: msg })}
-        />
-        <Counter.View
-            model={model.firstCounter}
-            dispatch={msg => dispatch({ $: 'FIRST_COUNTER_MSG', _0: msg })}
-        />
-        <Counter.View
-            model={model.secondCounter}
-            dispatch={msg => dispatch({ $: 'SECOND_COUNTER_MSG', _0: msg })}
-        />
-        <Todo.View
-            initialCount={0}
-            model={model.todo}
-            dispatch={msg => dispatch({ $: 'TODO_MSG', _0: msg })}
-        />
-    </div>
-);
+}): JSX.Element => model.rates.cata({
+    NotAsked: () => (
+        <h1>It's an impossible situation here</h1>
+    ),
+
+    Loading: () => (
+        <h1>Loading...</h1>
+    ),
+
+    Failure: () => (
+        <div>
+            <h1>
+                Wow-wow... something went wrong
+            </h1>
+            <button
+                onClick={() => dispatch({ $: 'FETCH_RATES' })}
+            >
+                Try again
+            </button>
+        </div>
+    ),
+
+    Succeed: response => (
+        <div>
+            <h1>Success!</h1>
+
+            <ul>
+                {response.data.map(currency => (
+                    <li key={currency.toCode()}>
+                        Code: {currency.toCode()}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    )
+});
