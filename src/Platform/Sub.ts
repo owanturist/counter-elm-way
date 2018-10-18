@@ -37,7 +37,7 @@ export abstract class Sub<Msg> {
         return new Single(namespace, key.encode(0), tagger, executor);
     }
 
-    protected static configure<Msg>(sub: Sub<Msg>): Array<Subscriber<Msg>> {
+    protected static configure<Msg, T>(sub: Sub<Msg>): Array<Subscriber<Msg, T>> {
         return sub.configure();
     }
 

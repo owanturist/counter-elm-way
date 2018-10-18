@@ -23,6 +23,11 @@ interface Process<Msg, T = any> {
     kill(): void;
 }
 
+interface Mailbox<Msg, T> {
+    mailbox: Array<(config: T) => Msg>;
+    executor(callback: (config: T) => void): () => void;
+}
+
 abstract class InternalCmd<Msg> extends Cmd<Msg> {
     public static execute<Msg>(cmd: Cmd<Msg>): Array<Promise<Msg>> {
         return super.execute(cmd);
@@ -30,7 +35,7 @@ abstract class InternalCmd<Msg> extends Cmd<Msg> {
 }
 
 abstract class InternalSub<Msg> extends Sub<Msg> {
-    public static configure<Msg>(sub: Sub<Msg>): Array<Subscriber<Msg>> {
+    public static configure<Msg, T>(sub: Sub<Msg>): Array<Subscriber<Msg, T>> {
         return super.configure(sub);
     }
 }
@@ -126,15 +131,12 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
         return this.applyChanges(nextModel, Cmd.batch(cmds));
     }
 
-    private executeSub(sub: Sub<Msg>): void {
-        const nextProcessess: Map<string, Map<string, {
-            mailbox: Array<(config: any) => Msg>;
-            executor(callback: (config: any) => void): () => void;
-        }>> = new Map();
+    private executeSub<T>(sub: Sub<Msg>): void {
+        const nextProcessess: Map<string, Map<string, Mailbox<Msg, T>>> = new Map();
 
-        for (const subscriber of InternalSub.configure(sub)) {
+        for (const subscriber of InternalSub.configure<Msg, T>(sub)) {
             const bag = nextProcessess.get(subscriber.namespace) || new Map();
-            const process = bag.get(subscriber.key) || {
+            const process: Mailbox<Msg, T> = bag.get(subscriber.key) || {
                 mailbox: [],
                 executor: subscriber.executor
             };
@@ -183,7 +185,7 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
                 const newProcess = {
                     mailbox: processCreator.mailbox,
                     kill: processCreator.executor(
-                        (config: any): void => {
+                        (config: T): void => {
                             const msgs: Array<Msg> = [];
 
                             for (const letter of newProcess.mailbox) {
