@@ -6,10 +6,10 @@ import React from 'react';
 
 import {
     Cmd
-} from './Cmd';
+} from 'Platform/Cmd';
 import {
     Sub
-} from './Sub';
+} from 'Platform/Sub';
 
 export interface Subscriber<Msg, T = any> {
     namespace: string;
