@@ -1,11 +1,17 @@
 import React from 'react';
 
 import {
+    Maybe,
+    Nothing
+} from 'Fractal/Maybe';
+import {
     Either
 } from 'Fractal/Either';
 import {
     RemoteData,
-    Loading
+    Loading,
+    Failure,
+    Succeed
 } from 'Fractal/RemoteData';
 import {
     Dispatch
@@ -26,18 +32,29 @@ import * as Api from './Api';
 export type Msg
     = { $: 'FETCH_RATES' }
     | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
+    | { $: 'CHANGE_AMOUNT'; _0: string }
     ;
 
 interface Model {
     rates: RemoteData<Http.Error, Api.Response<Array<Currency>>>;
+    wallet: {[ currency: string ]: number };
+    currentCurrency: Maybe<string>;
+    amount: number;
 }
 
-const fetchRates: Cmd<Msg> = Api.getRatesFor([ 'GBP', 'EUR', 'USD' ])
+const fetchRates: Cmd<Msg> = Api.getRatesFor([ 'EUR', 'GBP', 'USD' ])
     .send((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: result }));
 
 export const init = (): [ Model, Cmd<Msg> ] => [
     {
-        rates: Loading()
+        rates: Loading(),
+        wallet: {
+            GBP: 58.33,
+            EUR: 116.12,
+            USD: 25.51
+        },
+        currentCurrency: Nothing(),
+        amount: 0
     },
     fetchRates
 ];
@@ -53,7 +70,25 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
         case 'FETCH_RATES_DONE': {
             return [
-                { ...model, rates: RemoteData.fromEither(msg._0) },
+                msg._0.cata({
+                    Left: (error: Http.Error) => ({
+                        ...model,
+                        rates: Failure(error)
+                    }),
+
+                    Right: (response: Api.Response<Array<Currency>>) => ({
+                        ...model,
+                        rates: Succeed(response),
+                        currentCurrency: Maybe.fromNullable(response.data[ 0 ]).map(currency => currency.toCode())
+                    })
+                }),
+                Cmd.none()
+            ];
+        }
+
+        case 'CHANGE_AMOUNT': {
+            return [
+                { ...model, amount: Number(msg._0) || 0 },
                 Cmd.none()
             ];
         }
@@ -63,6 +98,25 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 export const subscriptions = (_model: Model): Sub<Msg> => {
     return Sub.none();
 };
+
+const ViewCurrency = ({ dispatch, currency, debit, amount }: {
+    dispatch: Dispatch<Msg>;
+    currency: Currency;
+    debit: number;
+    amount: number;
+}): JSX.Element => (
+    <div>
+        <h4>{currency.toCode()}</h4>
+        <div>You have {currency.toSymbol()}{debit}</div>
+
+        <input
+            type="number"
+            value={Math.max(-debit, amount) || ''}
+            min={-debit} // @TODO max?
+            onChange={event => dispatch({ $: 'CHANGE_AMOUNT', _0: event.currentTarget.value })}
+        />
+    </div>
+);
 
 export const View = ({ dispatch, model }: {
     dispatch: Dispatch<Msg>;
@@ -96,7 +150,12 @@ export const View = ({ dispatch, model }: {
             <ul>
                 {response.data.map(currency => (
                     <li key={currency.toCode()}>
-                        Code: {currency.toCode()}
+                        <ViewCurrency
+                            dispatch={dispatch}
+                            currency={currency}
+                            debit={model.wallet[ currency.toCode() ] || 0}
+                            amount={model.amount}
+                        />
                     </li>
                 ))}
             </ul>
