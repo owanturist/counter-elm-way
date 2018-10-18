@@ -1,11 +1,10 @@
-import * as Encode from 'Json/Encode';
-
+import * as Encode from './Json/Encode';
 import {
     Task
-} from 'Task';
+} from './Task';
 import {
     Sub
-} from 'Platform/Sub';
+} from './Platform/Sub';
 
 abstract class InternalTask<E, T> extends Task<E, T> {
     public static of<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {

@@ -2,10 +2,10 @@ import {
     Either,
     Left,
     Right
-} from 'Either';
+} from './Either';
 import {
     Cmd
-} from 'Platform/Cmd';
+} from './Platform/Cmd';
 
 abstract class Internal<M> extends Cmd<M> {
     public static cons<M>(callPromise: () => Promise<M>): Cmd<M> {

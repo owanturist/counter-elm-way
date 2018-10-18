@@ -2,13 +2,13 @@ import React from 'react';
 
 import {
     Dispatch
-} from 'Platform';
+} from 'Fractal/Platform';
 import {
     Cmd
-} from 'Platform/Cmd';
+} from 'Fractal/Platform/Cmd';
 import {
     Sub
-} from 'Platform/Sub';
+} from 'Fractal/Platform/Sub';
 
 import * as Counter from './Counter';
 import * as Swapi from './Swapi';

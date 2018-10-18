@@ -6,7 +6,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 
 module.exports = {
-    entry: path.resolve('./src/client.tsx'),
+    entry: path.resolve('./src/index.tsx'),
 
     output: {
         path: path.resolve('./build'),

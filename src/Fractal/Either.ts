@@ -1,12 +1,12 @@
 import {
     DefaultCase,
     WithDefaultCase
-} from 'Basics';
+} from './Basics';
 import {
     Maybe,
     Nothing,
     Just
-} from 'Maybe';
+} from './Maybe';
 
 export type Pattern<E, T, R> = WithDefaultCase<{
     Left(error: E): R;

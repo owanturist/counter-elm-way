@@ -1,24 +1,24 @@
 import {
     DefaultCase,
     WithDefaultCase
-} from 'Basics';
+} from './Basics';
 import {
     Maybe,
     Nothing,
     Just
-} from 'Maybe';
+} from './Maybe';
 import {
     Either,
     Right
-} from 'Either';
+} from './Either';
 import {
     Task as Task_
-} from 'Task';
+} from './Task';
 import {
     Cmd
-} from 'Platform/Cmd';
-import * as Decode from 'Json/Decode';
-import * as Encode from 'Json/Encode';
+} from './Platform/Cmd';
+import * as Decode from './Json/Decode';
+import * as Encode from './Json/Encode';
 
 const queryEscape = (str: string): string => encodeURIComponent(str).replace(/%20/g, '+');
 

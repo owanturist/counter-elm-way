@@ -2,20 +2,20 @@ import React from 'react';
 
 import {
     Dispatch
-} from 'Platform';
+} from 'Fractal/Platform';
 import {
     Cmd
-} from 'Platform/Cmd';
+} from 'Fractal/Platform/Cmd';
 import {
     Maybe,
     Nothing,
     Just
-} from 'Maybe';
+} from 'Fractal/Maybe';
 import {
     Either
-} from 'Either';
-import * as Http from 'Http';
-import * as Decode from 'Json/Decode';
+} from 'Fractal/Either';
+import * as Http from 'Fractal/Http';
+import * as Decode from 'Fractal/Json/Decode';
 
 interface Person {
     name: string;

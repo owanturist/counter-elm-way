@@ -1,9 +1,9 @@
 import {
     Subscriber
-} from 'Platform';
+} from '../Platform';
 import {
     Encoder
-} from 'Json/Encode';
+} from '../Json/Encode';
 
 export abstract class Sub<Msg> {
     public static batch<Msg>(subs: Array<Sub<Msg>>): Sub<Msg> {

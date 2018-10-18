@@ -2,14 +2,14 @@ import React from 'react';
 
 import {
     Dispatch
-} from 'Platform';
+} from 'Fractal/Platform';
 import {
     Cmd
-} from 'Platform/Cmd';
+} from 'Fractal/Platform/Cmd';
 import {
     Sub
-} from 'Platform/Sub';
-import * as Time from 'Time';
+} from 'Fractal/Platform/Sub';
+import * as Time from 'Fractal/Time';
 
 export type Msg
     = { $: 'DECREMENT' }

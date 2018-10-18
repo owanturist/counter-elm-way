@@ -3,7 +3,7 @@ import {
     render
 } from 'react-dom';
 
-import * as Platform from 'Platform';
+import * as Platform from 'Fractal/Platform';
 
 import * as App from 'App';
 
