@@ -30,19 +30,10 @@ export class Currency {
     }
 
     constructor(
-        private readonly code: string,
-        private readonly symbol: string,
+        public readonly code: string,
+        public readonly symbol: string,
         protected readonly weight: number // related USD
     ) {}
-
-    public toCode(): string {
-        return this.code;
-    }
-
-    public toSymbol(): string {
-        return this.symbol;
-    }
-
     public rateWith(target: Currency): number {
         return target.weight / this.weight;
     }

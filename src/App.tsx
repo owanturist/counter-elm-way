@@ -2,7 +2,8 @@ import React from 'react';
 
 import {
     Maybe,
-    Nothing
+    Nothing,
+    Just
 } from 'Fractal/Maybe';
 import {
     Either
@@ -33,6 +34,7 @@ export type Msg
     = { $: 'FETCH_RATES' }
     | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
     | { $: 'CHANGE_AMOUNT'; _0: string; _1: string }
+    | { $: 'CHANGE_CURRENT_CURRENCY'; _0: string }
     ;
 
 interface Model {
@@ -79,7 +81,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     Right: (response: Api.Response<Array<Currency>>) => ({
                         ...model,
                         rates: Succeed(response),
-                        currentCurrency: Maybe.fromNullable(response.data[ 0 ]).map(currency => currency.toCode())
+                        currentCurrency: Maybe.fromNullable(response.data[ 0 ]).map(currency => currency.code)
                     })
                 }),
                 Cmd.none()
@@ -100,6 +102,13 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 Cmd.none()
             ];
         }
+
+        case 'CHANGE_CURRENT_CURRENCY': {
+            return [
+                { ...model, currentCurrency: Just(msg._0) },
+                Cmd.none()
+            ];
+        }
     }
 };
 
@@ -107,21 +116,21 @@ export const subscriptions = (_model: Model): Sub<Msg> => {
     return Sub.none();
 };
 
-const ViewCurrency = ({ dispatch, currency, debit, amount }: {
+const ViewChanger = ({ dispatch, currency, debit, amount }: {
     dispatch: Dispatch<Msg>;
     currency: Currency;
     debit: number;
     amount: number;
 }): JSX.Element => (
     <div>
-        <h4>{currency.toCode()}</h4>
-        <div>You have {currency.toSymbol()}{debit}</div>
+        <h4>{currency.code}</h4>
+        <div>You have {currency.symbol}{debit}</div>
 
         <input
             type="number"
             value={Math.max(-debit, amount) || ''}
             min={-debit} // @TODO max?
-            onChange={event => dispatch({ $: 'CHANGE_AMOUNT', _0: currency.toCode(), _1: event.currentTarget.value })}
+            onChange={event => dispatch({ $: 'CHANGE_AMOUNT', _0: currency.code, _1: event.currentTarget.value })}
         />
     </div>
 );
@@ -157,12 +166,16 @@ export const View = ({ dispatch, model }: {
 
             <ul>
                 {response.data.map(currency => (
-                    <li key={currency.toCode()}>
-                        <ViewCurrency
+                    <li key={currency.code}>
+                        <button
+                            disabled={model.currentCurrency.isEqual(Just(currency.code))}
+                            onClick={() => dispatch({ $: 'CHANGE_CURRENT_CURRENCY', _0: currency.code })}
+                        >Choose</button>
+                        <ViewChanger
                             dispatch={dispatch}
                             currency={currency}
-                            debit={model.wallet[ currency.toCode() ] || 0}
-                            amount={model.amounts[ currency.toCode() ] || 0}
+                            debit={model.wallet[ currency.code ] || 0}
+                            amount={model.amounts[ currency.code ] || 0}
                         />
                     </li>
                 ))}
