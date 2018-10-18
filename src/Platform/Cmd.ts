@@ -90,10 +90,10 @@ class Map<T, Msg> extends Cmd<Msg> {
 
 class None<Msg> extends Cmd<Msg> {
     public map<R>(): Cmd<R> {
-        return this;
+        return this as any as Cmd<R>;
     }
 
-    protected execute<R>(): Array<Promise<R>> {
+    protected execute(): Array<Promise<Msg>> {
         return [];
     }
 

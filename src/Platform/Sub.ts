@@ -85,12 +85,12 @@ class Single<T, Msg> extends Sub<Msg> {
     }
 }
 
-class None<T> extends Sub<T> {
+class None<Msg> extends Sub<Msg> {
     public map<R>(): Sub<R> {
         return this as any as Sub<R>;
     }
 
-    protected configure(): Array<Subscriber<T>> {
+    protected configure(): Array<Subscriber<Msg>> {
         return [];
     }
 
@@ -99,12 +99,12 @@ class None<T> extends Sub<T> {
     }
 }
 
-class Batch<T> extends Sub<T> {
-    constructor(private readonly subs: Array<Sub<T>>) {
+class Batch<Msg> extends Sub<Msg> {
+    constructor(private readonly subs: Array<Sub<Msg>>) {
         super();
     }
 
-    public map<R>(fn: (msg: T) => R): Sub<R> {
+    public map<R>(fn: (msg: Msg) => R): Sub<R> {
         const result: Array<Sub<R>> = [];
 
         for (const sub of this.subs) {
@@ -114,8 +114,8 @@ class Batch<T> extends Sub<T> {
         return new Batch(result);
     }
 
-    protected configure(): Array<Subscriber<T>> {
-        const result: Array<Subscriber<T>> = [];
+    protected configure(): Array<Subscriber<Msg>> {
+        const result: Array<Subscriber<Msg>> = [];
 
         for (const sub of this.subs) {
             result.push(...Sub.configure(sub));

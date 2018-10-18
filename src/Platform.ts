@@ -97,9 +97,7 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
             this.setState(nextModel);
         }
 
-        this.manageSubscribers(
-            InternalSub.configure(this.props.subscriptions(nextModel))
-        );
+        this.executeSub(this.props.subscriptions(nextModel));
 
         return this.executeCmd(cmd);
     }
@@ -128,13 +126,13 @@ export class Application<Msg, Model> extends React.Component<Configuration<Msg, 
         return this.applyChanges(nextModel, Cmd.batch(cmds));
     }
 
-    private readonly manageSubscribers = (subscribers: Array<Subscriber<Msg>>): void => {
+    private executeSub(sub: Sub<Msg>): void {
         const nextProcessess: Map<string, Map<string, {
             mailbox: Array<(config: any) => Msg>;
             executor(callback: (config: any) => void): () => void;
         }>> = new Map();
 
-        for (const subscriber of subscribers) {
+        for (const subscriber of InternalSub.configure(sub)) {
             const bag = nextProcessess.get(subscriber.namespace) || new Map();
             const process = bag.get(subscriber.key) || {
                 mailbox: [],
