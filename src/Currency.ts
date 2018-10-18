@@ -34,11 +34,16 @@ export class Currency {
         public readonly symbol: string,
         protected readonly weight: number // related USD
     ) {}
+
     public rateWith(target: Currency): number {
-        return target.weight / this.weight;
+        return this.weight / target.weight;
     }
 
     public convertTo(amount: number, target: Currency): number {
+        if (this.code === target.code) {
+            return amount;
+        }
+
         return amount * this.rateWith(target);
     }
 }

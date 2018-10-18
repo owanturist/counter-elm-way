@@ -33,16 +33,18 @@ import * as Api from './Api';
 export type Msg
     = { $: 'FETCH_RATES' }
     | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
-    | { $: 'CHANGE_AMOUNT'; _0: string; _1: string }
-    | { $: 'CHANGE_CURRENT_CURRENCY'; _0: string }
+    | { $: 'CHANGE_AMOUNT'; _0: string }
+    | { $: 'CHANGE_CURRENT_CURRENCY'; _0: string; _1: number }
     ;
 
 interface Model {
     rates: RemoteData<Http.Error, Api.Response<Array<Currency>>>;
     wallet: {[ currency: string ]: number };
-    currentCurrency: Maybe<string>;
-    amounts: {[ currency: string ]: number };
+    currentCurrencyCode: Maybe<string>;
+    amount: number;
 }
+
+const roundAmount = (amount: number): number => Math.round(amount * 100) / 100;
 
 const fetchRates: Cmd<Msg> = Api.getRatesFor([ 'EUR', 'GBP', 'USD' ])
     .send((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: result }));
@@ -55,8 +57,8 @@ export const init = (): [ Model, Cmd<Msg> ] => [
             EUR: 116.12,
             USD: 25.51
         },
-        currentCurrency: Nothing(),
-        amounts: {}
+        currentCurrencyCode: Nothing(),
+        amount: 0
     },
     fetchRates
 ];
@@ -81,7 +83,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     Right: (response: Api.Response<Array<Currency>>) => ({
                         ...model,
                         rates: Succeed(response),
-                        currentCurrency: Maybe.fromNullable(response.data[ 0 ]).map(currency => currency.code)
+                        currentCurrencyCode: Maybe.fromNullable(response.data[ 0 ]).map(currency => currency.code)
                     })
                 }),
                 Cmd.none()
@@ -89,23 +91,19 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'CHANGE_AMOUNT': {
-            const amount = Number(msg._1) || 0;
-
             return [
-                {
-                    ...model,
-                    amounts: {
-                        ...model.amounts,
-                        [ msg._0 ]: amount
-                    }
-                },
+                { ...model, amount: Number(msg._0) || 0 },
                 Cmd.none()
             ];
         }
 
         case 'CHANGE_CURRENT_CURRENCY': {
             return [
-                { ...model, currentCurrency: Just(msg._0) },
+                {
+                    ...model,
+                    currentCurrencyCode: Just(msg._0),
+                    amount: msg._1
+                },
                 Cmd.none()
             ];
         }
@@ -130,7 +128,7 @@ const ViewChanger = ({ dispatch, currency, debit, amount }: {
             type="number"
             value={Math.max(-debit, amount) || ''}
             min={-debit} // @TODO max?
-            onChange={event => dispatch({ $: 'CHANGE_AMOUNT', _0: currency.code, _1: event.currentTarget.value })}
+            onChange={event => dispatch({ $: 'CHANGE_AMOUNT', _0: event.currentTarget.value })}
         />
     </div>
 );
@@ -160,26 +158,47 @@ export const View = ({ dispatch, model }: {
         </div>
     ),
 
-    Succeed: response => (
-        <div>
-            <h1>Success!</h1>
+    Succeed: response => {
+        const currentCurrency: Maybe<Currency> = response.data.reduce(
+            (acc, currency) => model.currentCurrencyCode.cata({
+                Nothing: () => acc,
+                Just: code => code === currency.code ? Just(currency) : acc
+            }),
+            Nothing()
+        );
 
-            <ul>
-                {response.data.map(currency => (
-                    <li key={currency.code}>
-                        <button
-                            disabled={model.currentCurrency.isEqual(Just(currency.code))}
-                            onClick={() => dispatch({ $: 'CHANGE_CURRENT_CURRENCY', _0: currency.code })}
-                        >Choose</button>
-                        <ViewChanger
-                            dispatch={dispatch}
-                            currency={currency}
-                            debit={model.wallet[ currency.code ] || 0}
-                            amount={model.amounts[ currency.code ] || 0}
-                        />
-                    </li>
-                ))}
-            </ul>
-        </div>
-    )
+        return (
+            <div>
+                <h1>Success!</h1>
+
+                <ul>
+                    {response.data.map(currency => {
+                        const isCurrent = model.currentCurrencyCode.isEqual(Just(currency.code));
+                        const relativeAmount = currentCurrency
+                                .map(current => roundAmount(currency.convertTo(model.amount, current)))
+                                .getOrElse(0);
+
+                        return (
+                            <li key={currency.code}>
+                                <button
+                                    disabled={isCurrent}
+                                    onClick={() => dispatch({
+                                        $: 'CHANGE_CURRENT_CURRENCY',
+                                        _0: currency.code,
+                                        _1: relativeAmount
+                                    })}
+                                >Choose</button>
+                                <ViewChanger
+                                    dispatch={dispatch}
+                                    currency={currency}
+                                    debit={model.wallet[ currency.code ] || 0}
+                                    amount={relativeAmount}
+                                />
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
+        );
+    }
 });
