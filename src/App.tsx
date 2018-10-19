@@ -34,7 +34,7 @@ export type Msg
     = { $: 'FETCH_RATES' }
     | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
     | { $: 'CHANGE_WEIGHT'; _0: Maybe<number> }
-    | { $: 'CHANGE_CURRENT_CURRENCY'; _0: string }
+    | { $: 'CHANGE_CURRENT_CURRENCY'; _0: Currency }
     ;
 
 interface Model {
@@ -115,10 +115,16 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
         case 'CHANGE_CURRENT_CURRENCY': {
             return [
-                {
-                    ...model,
-                    currentCurrencyCode: Just(msg._0)
-                },
+                Maybe.fromNullable(model.wallet[ msg._0.code ]).cata({
+                    Nothing: () => model,
+                    Just: maxAmount => ({
+                        ...model,
+                        currentCurrencyCode: Just(msg._0.code),
+                        weight: model.weight.map(weight => msg._0.toWeight(
+                            Math.max(-maxAmount, msg._0.fromWeight(weight))
+                        ))
+                    })
+                }),
                 Cmd.none()
             ];
         }
@@ -193,7 +199,7 @@ export const View = ({ dispatch, model }: {
                                 disabled={isCurrent}
                                 onClick={() => dispatch({
                                     $: 'CHANGE_CURRENT_CURRENCY',
-                                    _0: currency.code
+                                    _0: currency
                                 })}
                             >Choose</button>
                             <ViewChanger
