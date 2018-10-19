@@ -46,4 +46,12 @@ export class Currency {
 
         return amount * this.rateWith(target);
     }
+
+    public toWeight(amount: number): number {
+        return amount * this.weight;
+    }
+
+    public fromWeight(weight: number): number {
+        return weight / this.weight;
+    }
 }
