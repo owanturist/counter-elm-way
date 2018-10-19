@@ -33,7 +33,7 @@ import * as Api from './Api';
 export type Msg
     = { $: 'FETCH_RATES' }
     | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
-    | { $: 'CHANGE_WEIGHT'; _0: number }
+    | { $: 'CHANGE_WEIGHT'; _0: Maybe<number> }
     | { $: 'CHANGE_CURRENT_CURRENCY'; _0: string }
     ;
 
@@ -41,10 +41,26 @@ interface Model {
     rates: RemoteData<Http.Error, Api.Response<Array<Currency>>>;
     wallet: {[ currency: string ]: number };
     currentCurrencyCode: Maybe<string>;
-    weight: number;
+    weight: Maybe<number>;
 }
 
 const roundAmount = (amount: number): number => Math.round(amount * 100) / 100;
+
+const inputToWeight = (currency: Currency, input: string): Maybe<number> => {
+    if (input.trim() === '') {
+        return Nothing();
+    }
+
+    const amount = Number(
+        input.trim().replace(/(-?\d*(,|\.)?\d{0,2})(.*)/, '$1')
+    );
+
+    if (isNaN(amount)) {
+        return Nothing();
+    }
+
+    return Just(currency.toWeight(amount));
+};
 
 const fetchRates: Cmd<Msg> = Api.getRatesFor([ 'EUR', 'GBP', 'USD' ])
     .send((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: result }));
@@ -58,7 +74,7 @@ export const init = (): [ Model, Cmd<Msg> ] => [
             USD: 25.51
         },
         currentCurrencyCode: Nothing(),
-        weight: 0
+        weight: Nothing()
     },
     fetchRates
 ];
@@ -117,27 +133,26 @@ const ViewChanger = ({ dispatch, currency, debit, weight }: {
     dispatch: Dispatch<Msg>;
     currency: Currency;
     debit: number;
-    weight: number;
-}): JSX.Element => {
-    const amount = currency.fromWeight(weight);
+    weight: Maybe<number>;
+}): JSX.Element => (
+    <div>
+        <h4>{currency.code}</h4>
+        <div>You have {currency.symbol}{debit}</div>
 
-    return (
-        <div>
-            <h4>{currency.code}</h4>
-            <div>You have {currency.symbol}{debit}</div>
-
-            <input
-                type="number"
-                value={roundAmount(Math.max(-debit, amount)) || ''}
-                min={-debit} // @TODO max?
-                onChange={event => dispatch({
-                    $: 'CHANGE_WEIGHT',
-                    _0: currency.toWeight(Number(event.currentTarget.value) || 0)
-                })}
-            />
-        </div>
-    );
-};
+        <input
+            type="number"
+            value={weight.cata({
+                Nothing: () => '',
+                Just: weight => roundAmount(Math.max(-debit, currency.fromWeight(weight))).toString()
+            })}
+            min={-debit} // @TODO max?
+            onChange={event => dispatch({
+                $: 'CHANGE_WEIGHT',
+                _0: inputToWeight(currency, event.currentTarget.value)
+            })}
+        />
+    </div>
+);
 
 export const View = ({ dispatch, model }: {
     dispatch: Dispatch<Msg>;
@@ -166,7 +181,7 @@ export const View = ({ dispatch, model }: {
 
     Succeed: response => (
         <div>
-            <h1>Success!</h1>
+            <h1>Success! {model.weight.getOrElse(0)}</h1>
 
             <ul>
                 {response.data.map(currency => {
