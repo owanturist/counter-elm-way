@@ -30,6 +30,10 @@ import {
 } from './Currency';
 import * as Api from './Api';
 
+export type Wallet = Readonly<{
+    [ currency: string ]: number;
+}>;
+
 export type Msg
     = { $: 'FETCH_RATES' }
     | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
@@ -37,9 +41,9 @@ export type Msg
     | { $: 'CHANGE_CURRENT_CURRENCY'; _0: Currency }
     ;
 
-interface Model {
+export interface Model {
     rates: RemoteData<Http.Error, Api.Response<Array<Currency>>>;
-    wallet: {[ currency: string ]: number };
+    wallet: Wallet;
     currentCurrencyCode: Maybe<string>;
     weight: Maybe<number>;
 }
