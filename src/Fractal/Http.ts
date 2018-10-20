@@ -221,7 +221,7 @@ export abstract class Body {
 
 class EmptyBody extends Body {
     public getContent(): Maybe<BodyContent> {
-        return Nothing();
+        return Nothing;
     }
 }
 
@@ -253,7 +253,7 @@ const requestWithMethodAndUrl = (method: string, url: string): Request<string> =
     headers: [],
     body: new EmptyBody(),
     expect: expectString,
-    timeout: Nothing(),
+    timeout: Nothing,
     withCredentials: false,
     queryParams: []
 });
@@ -326,7 +326,7 @@ export class Request<T> {
     public withoutTimeout(): Request<T> {
         return new Request(this.method, this.url, {
             ...this.config,
-            timeout: Nothing()
+            timeout: Nothing
         });
     }
 

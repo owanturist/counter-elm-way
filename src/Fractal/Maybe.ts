@@ -17,12 +17,12 @@ export abstract class Maybe<T> {
     public static fromNullable<T>(value: null | undefined): Maybe<T>;
     public static fromNullable<T>(value: T): Maybe<T>;
     public static fromNullable<T>(value: T | null | undefined): Maybe<T> {
-        return value == null ? Nothing() : Just(value);
+        return value == null ? Nothing : Just(value);
     }
 
     public static fromEither<E, T>(either: Either<E, T>): Maybe<T> {
         return either.cata({
-            Left: Nothing,
+            Left: () => Nothing,
             Right: Just
         }) as Maybe<T>;
     }
@@ -195,6 +195,6 @@ namespace Variations {
     }
 }
 
-export const Nothing = <T>(): Maybe<T> => new Variations.Nothing();
+export const Nothing: Maybe<any> = new Variations.Nothing();
 
 export const Just = <T>(value: T): Maybe<T> => new Variations.Just(value);

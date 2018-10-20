@@ -365,7 +365,7 @@ namespace Decode {
         }
 
         public decode(input: Value): Either<Error, T> {
-            let result = Left<Array<Error>, T>([]);
+            let result: Either<Array<Error>, T> = Left([]);
 
             for (const decoder of this.decoders) {
                 result = result.orElse(
@@ -389,7 +389,7 @@ namespace Decode {
         }
 
         public decode(input: Value): Either<Error, T> {
-            let acc = Right<Error, T>({} as T);
+            let acc: Either<Error, T> = Right({} as T);
 
             for (const key in this.config) {
                 if (this.config.hasOwnProperty(key)) {
@@ -477,13 +477,13 @@ export const succeed = <T>(value: T): Decoder<T> => new Decode.Succeed(value);
 export const oneOf = <T>(decoders: Array<Decoder<T>>): Decoder<T> => new Decode.OneOf(decoders);
 
 export const nullable = <T>(decoder: Decoder<T>): Decoder<Maybe<T>> => oneOf([
-    nill(Nothing()),
+    nill(Nothing),
     decoder.map(Just)
 ]);
 
 export const maybe = <T>(decoder: Decoder<T>): Decoder<Maybe<T>> => oneOf([
     decoder.map(Just),
-    succeed(Nothing())
+    succeed(Nothing)
 ]);
 
 export const list = <T>(decoder: Decoder<T>): Decoder<Array<T>> => new Decode.List(decoder);

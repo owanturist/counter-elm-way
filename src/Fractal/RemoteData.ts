@@ -31,7 +31,7 @@ export abstract class RemoteData<E, T> {
     }
 
     public static props<E, T extends object>(config: {[ K in keyof T ]: RemoteData<E, T[ K ]>}): RemoteData<E, T> {
-        let acc = Succeed<E, T>({} as T);
+        let acc = Succeed({} as T);
 
         for (const key in config) {
             if (config.hasOwnProperty(key)) {
@@ -150,7 +150,7 @@ namespace Variations {
         }
 
         public toMaybe(): Maybe<T> {
-            return Nothing();
+            return Nothing;
         }
     }
 
@@ -215,7 +215,7 @@ namespace Variations {
         }
 
         public toMaybe(): Maybe<T> {
-            return Nothing();
+            return Nothing;
         }
     }
 
@@ -288,7 +288,7 @@ namespace Variations {
         }
 
         public toMaybe(): Maybe<T> {
-            return Nothing();
+            return Nothing;
         }
     }
 
@@ -368,10 +368,10 @@ namespace Variations {
     }
 }
 
-export const NotAsked = <E, T>(): RemoteData<E, T> => new Variations.NotAsked();
+export const NotAsked = (): RemoteData<any, any> => new Variations.NotAsked();
 
-export const Loading = <E, T>(): RemoteData<E, T> => new Variations.Loading();
+export const Loading = (): RemoteData<any, any> => new Variations.Loading();
 
-export const Failure = <E, T>(error: E): RemoteData<E, T> => new Variations.Failure(error);
+export const Failure = <E>(error: E): RemoteData<E, any> => new Variations.Failure(error);
 
-export const Succeed = <E, T>(value: T): RemoteData<E, T> => new Variations.Succeed(value);
+export const Succeed = <T>(value: T): RemoteData<any, T> => new Variations.Succeed(value);
