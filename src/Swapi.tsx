@@ -48,7 +48,7 @@ const fetchPeopleById = (peopleId: string): Cmd<Msg> => {
 export const init = (peopleId: string): [ Model, Cmd<Msg> ] => [
     {
         id: peopleId,
-        person: Nothing()
+        person: Nothing
     },
     fetchPeopleById(peopleId)
 ];
@@ -59,7 +59,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             return [
                 {
                     ...model,
-                    person: Nothing()
+                    person: Nothing
                 },
                 fetchPeopleById(model.id)
             ];
