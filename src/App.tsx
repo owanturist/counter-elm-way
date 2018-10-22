@@ -6,14 +6,13 @@ import {
     Just
 } from 'Fractal/Maybe';
 import {
-    Either
+    Either,
+    Left,
+    Right
 } from 'Fractal/Either';
 import {
-    RemoteData,
-    Loading,
-    Failure,
-    Succeed
-} from 'Fractal/RemoteData';
+    Task
+} from 'Fractal/Task';
 import {
     Dispatch
 } from 'Fractal/Platform';
@@ -29,193 +28,222 @@ import {
     Currency
 } from './Currency';
 import * as Api from './Api';
+import * as Changer from './Changer';
 
-export type Wallet = Readonly<{
-    [ currency: string ]: number;
-}>;
+enum Changers {
+    FROM = 'from',
+    TO = 'to'
+}
 
 export type Msg
-    = { $: 'FETCH_RATES' }
-    | { $: 'FETCH_RATES_DONE'; _0: Either<Http.Error, Api.Response<Array<Currency>>> }
-    | { $: 'CHANGE_WEIGHT'; _0: Maybe<number> }
-    | { $: 'CHANGE_CURRENT_CURRENCY'; _0: Currency }
+    = { $: 'NOOP' }
+    | { $: 'FETCH_RATES' }
+    | { $: 'FETCH_RATES_DONE'; _0: string; _1: Either<Http.Error, Array<[ string, number ]>> }
+    | { $: 'CHANGER_MSG'; _0: Changers; _1: Changer.Msg }
     ;
 
 export interface Model {
-    rates: RemoteData<Http.Error, Api.Response<Array<Currency>>>;
-    wallet: Wallet;
-    currentCurrencyCode: Maybe<string>;
-    weight: Maybe<number>;
+    cancelRequest: Maybe<Cmd<Msg>>;
+    currencies: Array<Currency>;
+    amount: Either<Maybe<number>, Maybe<number>>;
+    changers: {
+        [ Key in Changers ]: Changer.Model
+    };
 }
 
-const roundAmount = (amount: number): number => Math.round(amount * 100) / 100;
-
-const inputToWeight = (currency: Currency, input: string): Maybe<number> => {
-    if (input.trim() === '') {
-        return Nothing();
+function find<T>(predicate: (value: T) => boolean, arr: Array<T>): Maybe<T> {
+    for (const item of arr) {
+        if (predicate(item)) {
+            return Just(item);
+        }
     }
 
-    const amount = Number(
-        input.trim().replace(/(-?\d*(,|\.)?\d{0,2})(.*)/, '$1')
-    );
+    return Nothing;
+}
 
-    if (isNaN(amount)) {
-        return Nothing();
-    }
+const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
+    const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
 
-    return Just(currency.toWeight(amount));
+    return [
+        Task.perform((): Msg => ({ $: 'NOOP' }), cancel),
+        request.attempt((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: base, _1: result }))
+    ];
 };
 
-const fetchRates: Cmd<Msg> = Api.getRatesFor([ 'EUR', 'GBP', 'USD' ])
-    .send((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: result }));
+export const init = (): [ Model, Cmd<Msg> ] => {
+    const initialModel: Model = {
+        cancelRequest: Nothing,
+        currencies: [
+            Currency.of('USD', '$', 25.51),
+            Currency.of('EUR', '€', 116.12),
+            Currency.of('GBP', '£', 58.33)
+        ],
+        amount: Right(Nothing),
+        /* There should be a checking for length of list with
+         * extracting the values of first and second currencies
+         * but we skip it now.
+         */
+        changers: {
+            from: Changer.init('USD'),
+            to: Changer.init('EUR')
+        }
+    };
+    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+        initialModel.changers.from.currency,
+        initialModel.currencies.map(currency => currency.code)
+    );
 
-export const init = (): [ Model, Cmd<Msg> ] => [
-    {
-        rates: Loading(),
-        wallet: {
-            GBP: 58.33,
-            EUR: 116.12,
-            USD: 25.51
-        },
-        currentCurrencyCode: Nothing(),
-        weight: Nothing()
-    },
-    fetchRates
-];
+    return [
+        { ...initialModel, cancelRequest: Just(cancelRequestCmd) },
+        fetchRatesCmd
+    ];
+};
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     switch (msg.$) {
+        case 'NOOP': {
+            return [ model, Cmd.none ];
+        }
+
         case 'FETCH_RATES': {
+            const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+                model.changers.from.currency,
+                model.currencies.map(currency => currency.code)
+            );
+
             return [
-                { ...model, rates: Loading() },
-                fetchRates
+                {
+                    ...model,
+                    cancelRequest: Just(cancelRequestCmd)
+                },
+                fetchRatesCmd
             ];
         }
 
         case 'FETCH_RATES_DONE': {
             return [
-                msg._0.cata({
-                    Left: (error: Http.Error) => ({
-                        ...model,
-                        rates: Failure(error)
-                    }),
+                msg._1.cata({
+                    Left: (_error: Http.Error) => {
+                        // handle this arror as you want to
 
-                    Right: (response: Api.Response<Array<Currency>>) => ({
+                        return { ...model, cancelRequest: Nothing };
+                    },
+
+                    Right: (rates: Array<[ string, number ]>) => ({
                         ...model,
-                        rates: Succeed(response),
-                        currentCurrencyCode: Maybe.fromNullable(response.data[ 0 ]).map(currency => currency.code)
+                        cancelRequest: Nothing,
+                        currencies: model.currencies.map(currency => {
+                            if (currency.code !== msg._0) {
+                                return currency;
+                            }
+
+                            return currency.registerRates(rates);
+                        })
                     })
                 }),
-                Cmd.none()
+                Cmd.none
             ];
         }
 
-        case 'CHANGE_WEIGHT': {
-            return [
-                { ...model, weight: msg._0 },
-                Cmd.none()
-            ];
-        }
+        case 'CHANGER_MSG': {
+            const stage = Changer.update(msg._1, msg._0 === Changers.FROM ? model.changers.from : model.changers.to);
 
-        case 'CHANGE_CURRENT_CURRENCY': {
-            return [
-                Maybe.fromNullable(model.wallet[ msg._0.code ]).cata({
-                    Nothing: () => model,
-                    Just: maxAmount => ({
+            switch (stage.$) {
+                case 'UPDATED': {
+                    const [ nextFrom, nextTo ] = msg._0 === Changers.FROM
+                        ? [ stage._0, model.changers.to ]
+                        : [ model.changers.from, stage._0 ];
+                    const nextModel = {
                         ...model,
-                        currentCurrencyCode: Just(msg._0.code),
-                        weight: model.weight.map(weight => msg._0.toWeight(
-                            Math.max(-maxAmount, msg._0.fromWeight(weight))
-                        ))
-                    })
-                }),
-                Cmd.none()
-            ];
+                        changers: {
+                            from: nextFrom,
+                            to: nextTo
+                        }
+                    };
+                    const currencyHasBeenChanged = nextFrom.currency !== model.changers.from.currency
+                        || nextTo.currency !== model.changers.to.currency;
+
+
+                    if (currencyHasBeenChanged && nextFrom.currency !== nextTo.currency) {
+                        const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(nextFrom.currency, [ nextTo.currency ]);
+
+                        return [
+                            {
+                                ...nextModel,
+                                cancelRequest: Just(cancelRequestCmd)
+                            },
+                            Cmd.batch([
+                                model.cancelRequest.getOrElse(Cmd.none),
+                                fetchRatesCmd
+                            ])
+                        ];
+                    }
+
+                    return [ nextModel, Cmd.none ];
+                }
+
+                case 'AMOUNT_CHANGED': {
+                    return [
+                        {
+                            ...model,
+                            amount: msg._0 === Changers.FROM ? Right(stage._0) : Left(stage._0)
+                        },
+                        Cmd.none
+                    ];
+                }
+
+                default: {
+                    throw new Error('TS WAT?');
+                }
+            }
         }
     }
 };
 
 export const subscriptions = (_model: Model): Sub<Msg> => {
-    return Sub.none();
+    return Sub.none;
 };
-
-const ViewChanger = ({ dispatch, currency, debit, weight }: {
-    dispatch: Dispatch<Msg>;
-    currency: Currency;
-    debit: number;
-    weight: Maybe<number>;
-}): JSX.Element => (
-    <div>
-        <h4>{currency.code}</h4>
-        <div>You have {currency.symbol}{debit}</div>
-
-        <input
-            type="number"
-            value={weight.cata({
-                Nothing: () => '',
-                Just: weight => roundAmount(Math.max(-debit, currency.fromWeight(weight))).toString()
-            })}
-            min={-debit} // @TODO max?
-            onChange={event => dispatch({
-                $: 'CHANGE_WEIGHT',
-                _0: inputToWeight(currency, event.currentTarget.value)
-            })}
-        />
-    </div>
-);
 
 export const View = ({ dispatch, model }: {
     dispatch: Dispatch<Msg>;
     model: Model;
-}): JSX.Element => model.rates.cata({
-    NotAsked: () => (
-        <h1>It's an impossible situation here</h1>
-    ),
+}): JSX.Element => (
+    <div>
+        <h1>Amount: {model.amount.cata({
+            Left: maybe => maybe.getOrElse(0),
+            Right: maybe => maybe.getOrElse(0)
+        })}</h1>
 
-    Loading: () => (
-        <h1>Loading...</h1>
-    ),
+        <h2>{model.amount.isRight() && '*'}From:</h2>
 
-    Failure: () => (
-        <div>
-            <h1>
-                Wow-wow... something went wrong
-            </h1>
-            <button
-                onClick={() => dispatch({ $: 'FETCH_RATES' })}
-            >
-                Try again
-            </button>
-        </div>
-    ),
+        <Changer.View
+            amount={model.amount.cata({
+                Left: (amount: Maybe<number>) => Maybe.props({
+                    amount,
+                    to: find(currency => currency.code === model.changers.to.currency, model.currencies),
+                    from: find(currency => currency.code === model.changers.from.currency, model.currencies)
+                }).chain(acc => acc.to.convertFrom(acc.amount, acc.from)),
+                Right: (amount: Maybe<number>) => amount
+            })}
+            rates={model.currencies}
+            model={model.changers.from}
+            dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.FROM, _1: msg })}
+        />
 
-    Succeed: response => (
-        <div>
-            <h1>Success! {model.weight.getOrElse(0)}</h1>
+        <h2>{model.amount.isLeft() && '*'}To:</h2>
 
-            <ul>
-                {response.data.map(currency => {
-                    const isCurrent = model.currentCurrencyCode.isEqual(Just(currency.code));
-
-                    return (
-                        <li key={currency.code}>
-                            <button
-                                disabled={isCurrent}
-                                onClick={() => dispatch({
-                                    $: 'CHANGE_CURRENT_CURRENCY',
-                                    _0: currency
-                                })}
-                            >Choose</button>
-                            <ViewChanger
-                                dispatch={dispatch}
-                                currency={currency}
-                                debit={model.wallet[ currency.code ] || 0}
-                                weight={model.weight}
-                            />
-                        </li>
-                    );
-                })}
-            </ul>
-        </div>
-    )
-});
+        <Changer.View
+            amount={model.amount.cata({
+                Left: (amount: Maybe<number>) => amount,
+                Right: (amount: Maybe<number>) => Maybe.props({
+                    amount,
+                    to: find(currency => currency.code === model.changers.to.currency, model.currencies),
+                    from: find(currency => currency.code === model.changers.from.currency, model.currencies)
+                }).chain(acc => acc.from.convertTo(acc.amount, acc.to))
+            })}
+            rates={model.currencies}
+            model={model.changers.to}
+            dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.TO, _1: msg })}
+        />
+    </div>
+);

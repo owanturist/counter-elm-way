@@ -1,57 +1,51 @@
 import {
     Maybe,
-    Nothing,
     Just
 } from 'Fractal/Maybe';
 
-const codeToSymbol = (code: string): Maybe<string> => {
-    switch (code) {
-        case 'USD': {
-            return Just('$');
-        }
-
-        case 'EUR': {
-            return Just('€');
-        }
-
-        case 'GBP': {
-            return Just('£');
-        }
-
-        default: {
-            return Nothing();
-        }
-    }
-};
-
 export class Currency {
-    public static of(code: string, weight: number) {
-        return codeToSymbol(code).map((symbol: string) => new Currency(code, symbol, weight));
+    public static of(code: string, symbol: string, amount: number) {
+        return new Currency(code, symbol, amount, {});
     }
 
     constructor(
         public readonly code: string,
         public readonly symbol: string,
-        protected readonly weight: number // related USD
+        public readonly amount: number,
+        private readonly rates: {
+            readonly [ code: string ]: number;
+        }
     ) {}
 
-    public rateWith(target: Currency): number {
-        return this.weight / target.weight;
-    }
+    public registerRates(pairs: Array<[ string, number ]>): Currency {
+        const foreignPairs = pairs.filter(([ code ]) => code !== this.code);
 
-    public convertTo(amount: number, target: Currency): number {
-        if (this.code === target.code) {
-            return amount;
+        if (foreignPairs.length === 0) {
+            return this;
         }
 
-        return amount * this.rateWith(target);
+        const newRates: {[ code: string ]: number } = {};
+
+        for (const [ code, rate ] of foreignPairs) {
+            newRates[ code ] = rate;
+        }
+
+        return new Currency(this.code, this.symbol, this.amount, { ...this.rates, ...newRates });
     }
 
-    public toWeight(amount: number): number {
-        return amount * this.weight;
+    public convertTo(amount: number, foreign: Currency): Maybe<number> {
+        if (this.code === foreign.code) {
+            return Just(amount);
+        }
+
+        return Maybe.fromNullable(this.rates[ foreign.code ]).map(rate => amount * rate);
     }
 
-    public fromWeight(weight: number): number {
-        return weight / this.weight;
+    public convertFrom(amount: number, foreign: Currency): Maybe<number> {
+        if (this.code === foreign.code) {
+            return Just(amount);
+        }
+
+        return Maybe.fromNullable(foreign.rates[ this.code ]).map(foreignRate => amount / foreignRate);
     }
 }

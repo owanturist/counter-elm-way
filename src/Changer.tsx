@@ -6,35 +6,18 @@ import {
     Just
 } from 'Fractal/Maybe';
 import {
-    Either
-} from 'Fractal/Either';
-import {
     Dispatch
 } from 'Fractal/Platform';
-import {
-    Cmd
-} from 'Fractal/Platform/Cmd';
-import {
-    Sub
-} from 'Fractal/Platform/Sub';
 
-import {
-    Wallet
-} from './App';
 import {
     Currency
 } from './Currency';
 
-export type Msg
-    = { $: 'CHANGE_WEIGHT'; _0: Maybe<number> }
-    | { $: 'CHANGE_CURRENT_CURRENCY'; _0: Currency }
-    ;
-
 const roundAmount = (amount: number): number => Math.round(amount * 100) / 100;
 
-const inputToWeight = (currency: Currency, input: string): Maybe<number> => {
+const stringToAmount = (input: string): Maybe<number> => {
     if (input.trim() === '') {
-        return Nothing();
+        return Nothing;
     }
 
     const amount = Number(
@@ -42,8 +25,90 @@ const inputToWeight = (currency: Currency, input: string): Maybe<number> => {
     );
 
     if (isNaN(amount)) {
-        return Nothing();
+        return Nothing;
     }
 
-    return Just(currency.toWeight(amount));
+    return Just(amount);
 };
+
+export interface Model {
+    currency: string;
+}
+
+export const init = (currency: string): Model => ({
+    currency
+});
+
+export type Msg
+    = { $: 'CHANGE_CURRENCY'; _0: string }
+    | { $: 'CHANGE_AMOUNT'; _0: Maybe<number> }
+    ;
+
+export type Stage
+    = { $: 'UPDATED'; _0: Model }
+    | { $: 'AMOUNT_CHANGED'; _0: Maybe<number> }
+    ;
+
+export const update = (msg: Msg, model: Model): Stage => {
+    switch (msg.$) {
+        case 'CHANGE_CURRENCY': {
+            return {
+                $: 'UPDATED',
+                _0: { ...model, currency: msg._0 }
+            };
+        }
+
+        case 'CHANGE_AMOUNT': {
+            return {
+                $: 'AMOUNT_CHANGED',
+                _0: msg._0
+            };
+        }
+    }
+};
+
+export const View = ({ dispatch, model, amount, rates }: {
+    dispatch: Dispatch<Msg>;
+    model: Model;
+    amount: Maybe<number>;
+    rates: Array<Currency>;
+}): JSX.Element => (
+    <div>
+        {Maybe.fromNullable(rates.find((currency: Currency) => currency.code === model.currency)).cata({
+            Nothing: () => null,
+            Just: (currency: Currency) => (
+                <div>
+                    <h4>{currency.code}</h4>
+                    <p>You have {currency.symbol}{currency.amount}</p>
+
+                    <input
+                        type="number"
+                        min={-currency.amount}
+                        value={amount.cata({
+                            Nothing: () => '',
+                            Just: (amount: number) => roundAmount(amount).toString()
+                        })}
+                        onChange={event => dispatch({
+                            $: 'CHANGE_AMOUNT',
+                            _0: stringToAmount(event.currentTarget.value)
+                        })}
+                    />
+                </div>
+            )
+        })}
+
+        <ul>
+            {rates.map((currency: Currency) => (
+                <li key={currency.code}>
+                    <button
+                        disabled={currency.code === model.currency}
+                        onClick={() => dispatch({
+                            $: 'CHANGE_CURRENCY',
+                            _0: currency.code
+                        })}
+                    >Choose {currency.code}</button>
+                </li>
+            ))}
+        </ul>
+    </div>
+);
