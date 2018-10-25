@@ -6,9 +6,7 @@ import {
     Just
 } from 'Fractal/Maybe';
 import {
-    Either,
-    Left,
-    Right
+    Either
 } from 'Fractal/Either';
 import {
     Task
@@ -22,6 +20,7 @@ import {
 import {
     Sub
 } from 'Fractal/Platform/Sub';
+import * as Time from 'Fractal/Time';
 import * as Http from 'Fractal/Http';
 
 import {
@@ -45,7 +44,10 @@ export type Msg
 export interface Model {
     cancelRequest: Maybe<Cmd<Msg>>;
     currencies: Array<Currency>;
-    amount: Either<Maybe<number>, Maybe<number>>;
+    amount: {
+        source: Changers;
+        value: Maybe<number>;
+    };
     changers: {
         [ Key in Changers ]: Changer.Model
     };
@@ -60,6 +62,21 @@ function find<T>(predicate: (value: T) => boolean, arr: Array<T>): Maybe<T> {
 
     return Nothing;
 }
+
+const extractFormatedAmountFor = (source: Changers, model: Model): string => {
+    if (model.amount.source === source) {
+        return model.amount.value.map(amount => amount.toString()).getOrElse('');
+    }
+
+    return Maybe.props({
+        amount: model.amount.value,
+        to: find(currency => currency.code === model.changers.to.currency, model.currencies),
+        from: find(currency => currency.code === model.changers.from.currency, model.currencies)
+    }).chain(acc => source === Changers.FROM
+        ? acc.from.convertTo(acc.amount, acc.to)
+        : acc.to.convertFrom(acc.amount, acc.from)
+    ).map(amount => amount.toFixed(2)).getOrElse('');
+};
 
 const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
     const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
@@ -78,7 +95,10 @@ export const init = (): [ Model, Cmd<Msg> ] => {
             Currency.of('EUR', '€', 116.12),
             Currency.of('GBP', '£', 58.33)
         ],
-        amount: Right(Nothing),
+        amount: {
+            source: Changers.FROM,
+            value: Nothing
+        },
         /* There should be a checking for length of list with
          * extracting the values of first and second currencies
          * but we skip it now.
@@ -108,7 +128,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'FETCH_RATES': {
             const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
                 model.changers.from.currency,
-                model.currencies.map(currency => currency.code)
+                [ model.changers.to.currency ]
             );
 
             return [
@@ -146,47 +166,52 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'CHANGER_MSG': {
-            const stage = Changer.update(msg._1, msg._0 === Changers.FROM ? model.changers.from : model.changers.to);
+            const stage = Changer.update(msg._1, model.changers[ msg._0 ]);
 
             switch (stage.$) {
                 case 'UPDATED': {
-                    const [ nextFrom, nextTo ] = msg._0 === Changers.FROM
-                        ? [ stage._0, model.changers.to ]
-                        : [ model.changers.from, stage._0 ];
                     const nextModel = {
                         ...model,
                         changers: {
-                            from: nextFrom,
-                            to: nextTo
+                            ...model.changers,
+                            [ msg._0 ]: stage._0
                         }
                     };
-                    const currencyHasBeenChanged = nextFrom.currency !== model.changers.from.currency
-                        || nextTo.currency !== model.changers.to.currency;
 
-
-                    if (currencyHasBeenChanged && nextFrom.currency !== nextTo.currency) {
-                        const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(nextFrom.currency, [ nextTo.currency ]);
-
-                        return [
-                            {
-                                ...nextModel,
-                                cancelRequest: Just(cancelRequestCmd)
-                            },
-                            Cmd.batch([
-                                model.cancelRequest.getOrElse(Cmd.none),
-                                fetchRatesCmd
-                            ])
-                        ];
+                    if (
+                        nextModel.changers.to.currency === nextModel.changers.from.currency
+                        || (model.changers.from.currency === nextModel.changers.from.currency
+                            && model.changers.to.currency === nextModel.changers.to.currency
+                        )
+                    ) {
+                        return [ nextModel, Cmd.none ];
                     }
 
-                    return [ nextModel, Cmd.none ];
+                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+                        nextModel.changers.from.currency,
+                        [ nextModel.changers.to.currency ]
+                    );
+
+                    return [
+                        {
+                            ...nextModel,
+                            cancelRequest: Just(cancelRequestCmd)
+                        },
+                        Cmd.batch([
+                            model.cancelRequest.getOrElse(Cmd.none),
+                            fetchRatesCmd
+                        ])
+                    ];
                 }
 
                 case 'AMOUNT_CHANGED': {
                     return [
                         {
                             ...model,
-                            amount: msg._0 === Changers.FROM ? Right(stage._0) : Left(stage._0)
+                            amount: {
+                                source: msg._0,
+                                value: stage._0
+                            }
                         },
                         Cmd.none
                     ];
@@ -200,47 +225,31 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     }
 };
 
-export const subscriptions = (_model: Model): Sub<Msg> => {
-    return Sub.none;
-};
+export const subscriptions = (model: Model): Sub<Msg> => model.cancelRequest.fold(
+    () => Time.every(10000, (): Msg => ({ $: 'FETCH_RATES' })),
+    () => Sub.none
+);
 
 export const View = ({ dispatch, model }: {
     dispatch: Dispatch<Msg>;
     model: Model;
 }): JSX.Element => (
     <div>
-        <h1>Amount: {model.amount.cata({
-            Left: maybe => maybe.getOrElse(0),
-            Right: maybe => maybe.getOrElse(0)
-        })}</h1>
+        <h1>Amount: {model.amount.value.getOrElse(0)}</h1>
 
-        <h2>{model.amount.isRight() && '*'}From:</h2>
+        <h2>{model.amount.source === Changers.FROM && '*'}From:</h2>
 
         <Changer.View
-            amount={model.amount.cata({
-                Left: (amount: Maybe<number>) => Maybe.props({
-                    amount,
-                    to: find(currency => currency.code === model.changers.to.currency, model.currencies),
-                    from: find(currency => currency.code === model.changers.from.currency, model.currencies)
-                }).chain(acc => acc.to.convertFrom(acc.amount, acc.from)),
-                Right: (amount: Maybe<number>) => amount
-            })}
+            amount={extractFormatedAmountFor(Changers.FROM, model)}
             rates={model.currencies}
             model={model.changers.from}
             dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.FROM, _1: msg })}
         />
 
-        <h2>{model.amount.isLeft() && '*'}To:</h2>
+        <h2>{model.amount.source === Changers.TO && '*'}To:</h2>
 
         <Changer.View
-            amount={model.amount.cata({
-                Left: (amount: Maybe<number>) => amount,
-                Right: (amount: Maybe<number>) => Maybe.props({
-                    amount,
-                    to: find(currency => currency.code === model.changers.to.currency, model.currencies),
-                    from: find(currency => currency.code === model.changers.from.currency, model.currencies)
-                }).chain(acc => acc.from.convertTo(acc.amount, acc.to))
-            })}
+            amount={extractFormatedAmountFor(Changers.TO, model)}
             rates={model.currencies}
             model={model.changers.to}
             dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.TO, _1: msg })}

@@ -13,8 +13,6 @@ import {
     Currency
 } from './Currency';
 
-const roundAmount = (amount: number): number => Math.round(amount * 100) / 100;
-
 const stringToAmount = (input: string): Maybe<number> => {
     if (input.trim() === '') {
         return Nothing;
@@ -70,7 +68,7 @@ export const update = (msg: Msg, model: Model): Stage => {
 export const View = ({ dispatch, model, amount, rates }: {
     dispatch: Dispatch<Msg>;
     model: Model;
-    amount: Maybe<number>;
+    amount: string;
     rates: Array<Currency>;
 }): JSX.Element => (
     <div>
@@ -84,10 +82,7 @@ export const View = ({ dispatch, model, amount, rates }: {
                     <input
                         type="number"
                         min={-currency.amount}
-                        value={amount.cata({
-                            Nothing: () => '',
-                            Just: (amount: number) => roundAmount(amount).toString()
-                        })}
+                        value={amount}
                         onChange={event => dispatch({
                             $: 'CHANGE_AMOUNT',
                             _0: stringToAmount(event.currentTarget.value)
