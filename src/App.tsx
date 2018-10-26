@@ -71,7 +71,7 @@ const normalize = (model: Model): Model => {
                 to: Utils.find(currency => currency.code === model.changers.to.currency, model.currencies),
                 from: Utils.find(currency => currency.code === model.changers.from.currency, model.currencies)
             }).chain(
-                acc => acc.from.convertTo(acc.amount, acc.to)
+                acc => acc.from.convertTo(-acc.amount, acc.to)
             ).map(amount => Number(amount.toFixed(2)))
         }
     };
