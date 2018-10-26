@@ -21,14 +21,11 @@ export abstract class Maybe<T> {
     }
 
     public static fromEither<E, T>(either: Either<E, T>): Maybe<T> {
-        return either.cata({
-            Left: () => Nothing,
-            Right: Just
-        }) as Maybe<T>;
+        return either.fold(() => Nothing, Just);
     }
 
     public static props<T extends object>(config: {[ K in keyof T ]: Maybe<T[ K ]>}): Maybe<T> {
-        let acc = Just({} as T);
+        let acc: Maybe<T> = Just({} as T);
 
         for (const key in config) {
             if (config.hasOwnProperty(key)) {
@@ -195,6 +192,6 @@ namespace Variations {
     }
 }
 
-export const Nothing: Maybe<any> = new Variations.Nothing();
+export const Nothing: Maybe<never> = new Variations.Nothing();
 
 export const Just = <T>(value: T): Maybe<T> => new Variations.Just(value);

@@ -17,8 +17,8 @@ export abstract class Cmd<Msg> {
         }
     }
 
-    public static none(): Cmd<any> {
-        return new None();
+    public static get none(): Cmd<never> {
+        return none;
     }
 
     protected static of<Msg>(callPromise: () => Promise<Msg>): Cmd<Msg> {
@@ -101,6 +101,8 @@ class None<Msg> extends Cmd<Msg> {
         return true;
     }
 }
+
+const none: Cmd<never> = new None();
 
 class Batch<Msg> extends Cmd<Msg> {
     constructor(private readonly cmds: Array<Cmd<Msg>>) {

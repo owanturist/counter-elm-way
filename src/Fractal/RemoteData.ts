@@ -20,18 +20,15 @@ export type Pattern<E, T, R> = WithDefaultCase<{
 
 export abstract class RemoteData<E, T> {
     public static fromMaybe<E, T>(error: E, maybe: Maybe<T>): RemoteData<E, T> {
-        return maybe.cata({
-            Nothing: (): RemoteData<E, T> => Failure(error),
-            Just: Succeed
-        }) as RemoteData<E, T>;
+        return maybe.fold((): RemoteData<E, T> => Failure(error), Succeed);
     }
 
     public static fromEither<E, T>(either: Either<E, T>): RemoteData<E, T> {
-        return either.fold(Failure, Succeed) as RemoteData<E, T>;
+        return either.fold(Failure as ((error: E) => RemoteData<E, T>), Succeed);
     }
 
     public static props<E, T extends object>(config: {[ K in keyof T ]: RemoteData<E, T[ K ]>}): RemoteData<E, T> {
-        let acc = Succeed({} as T);
+        let acc: RemoteData<E, T> = Succeed({} as T);
 
         for (const key in config) {
             if (config.hasOwnProperty(key)) {
@@ -368,10 +365,10 @@ namespace Variations {
     }
 }
 
-export const NotAsked = (): RemoteData<any, any> => new Variations.NotAsked();
+export const NotAsked: RemoteData<never, never> = new Variations.NotAsked();
 
-export const Loading = (): RemoteData<any, any> => new Variations.Loading();
+export const Loading: RemoteData<never, never> = new Variations.Loading();
 
-export const Failure = <E>(error: E): RemoteData<E, any> => new Variations.Failure(error);
+export const Failure = <E>(error: E): RemoteData<E, never> => new Variations.Failure(error);
 
-export const Succeed = <T>(value: T): RemoteData<any, T> => new Variations.Succeed(value);
+export const Succeed = <T>(value: T): RemoteData<never, T> => new Variations.Succeed(value);

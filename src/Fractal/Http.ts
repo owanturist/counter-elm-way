@@ -26,6 +26,10 @@ abstract class InternalTask<E, T> extends Task<E, T> {
     }
 }
 
+const noop = () => {
+    // do nothing
+};
+
 const queryEscape = (str: string): string => encodeURIComponent(str).replace(/%20/g, '+');
 
 const queryPair = ([ key, value ]: [ string, string ]): string => queryEscape(key) + '=' + queryEscape(value);
@@ -378,79 +382,102 @@ export class Request<T> {
         return this.withExpect(expectJson(decoder));
     }
 
-    public toTask(): Task<Error, T> {
-        return InternalTask.of((succeed: (value: T) => void, fail: (error: Error) => void): void => {
-            const xhr = new XMLHttpRequest();
+    public toCancelableTask(): [ Task<never, void>, Task<Error, T> ] {
+        let abortRequest = noop;
 
-            xhr.addEventListener('error', () => {
-                fail(Error.NetworkError());
-            });
+        return [
+            InternalTask.of((succeed: (value: void) => void): void => {
+                abortRequest();
 
-            xhr.addEventListener('timeout', () => {
-                fail(Error.Timeout());
-            });
+                succeed(undefined);
+            }),
+            InternalTask.of((succeed: (value: T) => void, fail: (error: Error) => void): void => {
+                const xhr = new XMLHttpRequest();
 
-            xhr.addEventListener('load', () => {
-                const stringResponse: Response<string> = {
-                    url: xhr.responseURL,
-                    status: {
-                        code: xhr.status,
-                        message: xhr.statusText
-                    },
-                    headers: parseHeaders(xhr.getAllResponseHeaders()),
-                    body: xhr.responseText
-                };
-
-                if (xhr.status < 200 || xhr.status >= 300) {
-                    return fail(Error.BadStatus(stringResponse));
-                }
-
-                this.config.expect.responseToResult({
-                    ...stringResponse,
-                    body: xhr.response as string
-                }).cata({
-                    Left(decodeError: Decode.Error): void {
-                        fail(Error.BadPayload(decodeError, stringResponse));
-                    },
-
-                    Right: succeed
+                xhr.addEventListener('error', () => {
+                    abortRequest = noop;
+                    fail(Error.NetworkError());
                 });
-            });
 
-            try {
-                xhr.open(this.method, buildUrlWithQuery(this.url, this.config.queryParams), true);
-            } catch (e) {
-                return fail(Error.BadUrl(this.url));
-            }
+                xhr.addEventListener('timeout', () => {
+                    abortRequest = noop;
+                    fail(Error.Timeout());
+                });
 
-            for (const requestHeader of this.config.headers) {
-                xhr.setRequestHeader(requestHeader.name, requestHeader.value);
-            }
+                xhr.addEventListener('load', () => {
+                    abortRequest = noop;
 
-            xhr.responseType = this.config.expect.responseType;
-            xhr.withCredentials = this.config.withCredentials;
+                    const stringResponse: Response<string> = {
+                        url: xhr.responseURL,
+                        status: {
+                            code: xhr.status,
+                            message: xhr.statusText
+                        },
+                        headers: parseHeaders(xhr.getAllResponseHeaders()),
+                        body: xhr.responseText
+                    };
 
-            this.config.timeout.cata({
-                Nothing(): void {
-                    // do nothing
-                },
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        return fail(Error.BadStatus(stringResponse));
+                    }
 
-                Just(timeout: number): void {
-                    xhr.timeout = timeout;
+                    this.config.expect.responseToResult({
+                        ...stringResponse,
+                        body: xhr.response as string
+                    }).cata({
+                        Left(decodeError: Decode.Error): void {
+                            fail(Error.BadPayload(decodeError, stringResponse));
+                        },
+
+                        Right: succeed
+                    });
+                });
+
+                try {
+                    xhr.open(this.method, buildUrlWithQuery(this.url, this.config.queryParams), true);
+                } catch (e) {
+                    return fail(Error.BadUrl(this.url));
                 }
-            });
 
-            this.config.body.getContent().cata({
-                Nothing(): void {
-                    xhr.send();
-                },
-
-                Just({ type, value }: BodyContent): void {
-                    xhr.setRequestHeader('Content-Type', type);
-                    xhr.send(value);
+                for (const requestHeader of this.config.headers) {
+                    xhr.setRequestHeader(requestHeader.name, requestHeader.value);
                 }
-            });
-        });
+
+                xhr.responseType = this.config.expect.responseType;
+                xhr.withCredentials = this.config.withCredentials;
+
+                this.config.timeout.cata({
+                    Nothing(): void {
+                        // do nothing
+                    },
+
+                    Just(timeout: number): void {
+                        xhr.timeout = timeout;
+                    }
+                });
+
+                this.config.body.getContent().cata({
+                    Nothing(): void {
+                        xhr.send();
+                    },
+
+                    Just({ type, value }: BodyContent): void {
+                        xhr.setRequestHeader('Content-Type', type);
+                        xhr.send(value);
+                    }
+                });
+
+                abortRequest = () => {
+                    xhr.abort();
+                };
+            })
+        ];
+    }
+
+    public toTask(): Task<Error, T> {
+        const [ , task ] = this.toCancelableTask();
+
+        return task;
     }
 
     public send<R>(tagger: (result: Either<Error, T>) => R): Cmd<R> {

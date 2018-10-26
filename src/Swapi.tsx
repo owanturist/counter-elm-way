@@ -71,7 +71,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     ...model,
                     person: Just(msg._0)
                 },
-                Cmd.none()
+                Cmd.none
             ];
         }
     }

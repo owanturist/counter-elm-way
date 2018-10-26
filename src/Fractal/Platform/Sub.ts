@@ -24,8 +24,8 @@ export abstract class Sub<Msg> {
         }
     }
 
-    public static none(): Sub<any> {
-        return new None();
+    public static get none(): Sub<never> {
+        return none;
     }
 
     protected static of<T, Msg>(
@@ -98,6 +98,8 @@ class None<Msg> extends Sub<Msg> {
         return true;
     }
 }
+
+const none: Sub<never> = new None();
 
 class Batch<Msg> extends Sub<Msg> {
     constructor(private readonly subs: Array<Sub<Msg>>) {

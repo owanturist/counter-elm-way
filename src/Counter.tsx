@@ -33,7 +33,7 @@ export const init = (count: number): [ Model, Cmd<Msg> ] => [
         count,
         auto: false
     },
-    Cmd.none()
+    Cmd.none
 ];
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
@@ -41,14 +41,14 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'DECREMENT': {
             return [
                 { ...model, count: model.count - 1 },
-                Cmd.none()
+                Cmd.none
             ];
         }
 
         case 'INCREMENT': {
             return [
                 { ...model, count: model.count + 1 },
-                Cmd.none()
+                Cmd.none
             ];
         }
 
@@ -62,7 +62,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'SET_AUTO': {
             return [
                 { ...model, auto: msg._0 },
-                Cmd.none()
+                Cmd.none
             ];
         }
     }
@@ -73,7 +73,7 @@ export const subscription = (model: Model): Sub<Msg> => {
         return Time.every(100, (): Msg => ({ $: 'INCREMENT' }));
     }
 
-    return Sub.none();
+    return Sub.none;
 };
 
 const Button = styled.button`

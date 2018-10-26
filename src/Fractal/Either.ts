@@ -21,10 +21,7 @@ export abstract class Either<E, T> {
     }
 
     public static fromMaybe<E, T>(error: E, maybe: Maybe<T>): Either<E, T> {
-        return maybe.cata({
-            Nothing: (): Either<E, T> => Left(error),
-            Just: Right
-        }) as Either<E, T>;
+        return maybe.fold((): Either<E, T> => Left(error), Right);
     }
 
     public static props<E, T extends object>(config: {[ K in keyof T ]: Either<E, T[ K ]>}): Either<E, T> {
@@ -238,6 +235,6 @@ namespace Variations {
     }
 }
 
-export const Left = <E>(error: E): Either<E, any> => new Variations.Left(error);
+export const Left = <E>(error: E): Either<E, never> => new Variations.Left(error);
 
-export const Right = <T>(value: T): Either<any, T> => new Variations.Right(value);
+export const Right = <T>(value: T): Either<never, T> => new Variations.Right(value);

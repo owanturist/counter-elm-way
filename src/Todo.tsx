@@ -53,7 +53,7 @@ export const initial: [ Model, Cmd<Msg> ] = [
         input: '',
         todos: []
     },
-    Cmd.none()
+    Cmd.none
 ];
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
@@ -61,14 +61,14 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'CHANGE_FILTER': {
             return [
                 { ...model, filter: msg._0 },
-                Cmd.none()
+                Cmd.none
             ];
         }
 
         case 'CHANGE_INPUT': {
             return [
                 { ...model, input: msg._0 },
-                Cmd.none()
+                Cmd.none
             ];
         }
 
@@ -115,7 +115,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
             return [
                 { ...model, todos: nextTodos },
-                Cmd.none()
+                Cmd.none
             ];
         }
 
@@ -126,7 +126,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
             return [
                 { ...model, todos: nextTodos },
-                Cmd.none()
+                Cmd.none
             ];
         }
 
@@ -155,7 +155,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         swapiCmd
                     ]: [ Swapi.Model, Cmd<Swapi.Msg> ] = nextCounterModel.auto
                         || nextCounterModel.count === todo.counter.count
-                        ? [ todo.swapi, Cmd.none() ]
+                        ? [ todo.swapi, Cmd.none ]
                         : Swapi.init(nextCounterModel.count.toString())
                         ;
 
@@ -175,7 +175,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 },
                 {
                     todos: [],
-                    cmd: Cmd.none()
+                    cmd: Cmd.none
                 }
             );
 
@@ -214,7 +214,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 },
                 {
                     todos: [],
-                    cmd: Cmd.none()
+                    cmd: Cmd.none
                 }
             );
 
@@ -256,7 +256,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 },
                 {
                     todos: [],
-                    cmd: Cmd.none()
+                    cmd: Cmd.none
                 }
             );
 
