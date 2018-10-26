@@ -85,8 +85,8 @@ export const init = (): [ Model, Cmd<Msg> ] => {
 
 const areChangersSame = (model: Model): boolean => Changer.isSame(model.changers.from, model.changers.to);
 
-const getCurrencyByCode = (key: Changers, model: Model): Maybe<Currency> => {
-    return Utils.find(currency => currency.code === model.changers[ key ].currency, model.currencies);
+const getCurrencyOfChanger = (source: Changers, model: Model): Maybe<Currency> => {
+    return Utils.find(currency => currency.code === model.changers[ source ].currency, model.currencies);
 };
 
 const normalize = (model: Model): Model => {
@@ -100,8 +100,8 @@ const normalize = (model: Model): Model => {
             source: Changers.FROM,
             value: Maybe.props({
                 amount: model.amount.value,
-                to: getCurrencyByCode(Changers.TO, model),
-                from: getCurrencyByCode(Changers.FROM, model)
+                to: getCurrencyOfChanger(Changers.TO, model),
+                from: getCurrencyOfChanger(Changers.FROM, model)
             }).chain(
                 acc => acc.from.convertTo(-acc.amount, acc.to)
             ).map(amount => Utils.round(2, amount))
@@ -110,7 +110,7 @@ const normalize = (model: Model): Model => {
 };
 
 const limit = (model: Model): Model => model.amount.value.map(amount => {
-    const minimum = getCurrencyByCode(model.amount.source, model).map(
+    const minimum = getCurrencyOfChanger(model.amount.source, model).map(
         currency => Utils.round(2, -currency.amount)
     ).getOrElse(amount);
 
@@ -139,8 +139,8 @@ const limit = (model: Model): Model => model.amount.value.map(amount => {
     }
 
     const maximum = Maybe.props({
-        to: getCurrencyByCode(Changers.TO, model),
-        from: getCurrencyByCode(Changers.FROM, model)
+        to: getCurrencyOfChanger(Changers.TO, model),
+        from: getCurrencyOfChanger(Changers.FROM, model)
     }).chain(
         acc => model.amount.source === Changers.FROM
             ? acc.from.convertTo(acc.to.amount, acc.to)
@@ -321,8 +321,8 @@ const extractFormatedAmountFor = (source: Changers, model: Model): string => {
 
     return Maybe.props({
         amount: model.amount.value,
-        to: getCurrencyByCode(Changers.TO, model),
-        from: getCurrencyByCode(Changers.FROM, model)
+        to: getCurrencyOfChanger(Changers.TO, model),
+        from: getCurrencyOfChanger(Changers.FROM, model)
     }).chain(acc => source === Changers.FROM
         ? acc.from.convertTo(-acc.amount, acc.to)
         : acc.to.convertFrom(-acc.amount, acc.from)
@@ -340,7 +340,8 @@ export const View = ({ dispatch, model }: {
 
         <Changer.View
             amount={extractFormatedAmountFor(Changers.FROM, model)}
-            rates={model.currencies}
+            currencies={model.currencies}
+            donor={Nothing}
             model={model.changers.from}
             dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.FROM, _1: msg })}
         />
@@ -349,7 +350,8 @@ export const View = ({ dispatch, model }: {
 
         <Changer.View
             amount={extractFormatedAmountFor(Changers.TO, model)}
-            rates={model.currencies}
+            currencies={model.currencies}
+            donor={areChangersSame(model) ? Nothing : getCurrencyOfChanger(Changers.FROM, model)}
             model={model.changers.to}
             dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.TO, _1: msg })}
         />

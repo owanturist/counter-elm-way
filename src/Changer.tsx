@@ -12,6 +12,7 @@ import {
 import {
     Currency
 } from './Currency';
+import * as Utils from './Utils';
 
 /**
  * M O D E L
@@ -83,14 +84,15 @@ const stringToAmount = (input: string): Maybe<number> => {
     return Just(amount);
 };
 
-export const View = ({ dispatch, model, amount, rates }: {
+export const View = ({ dispatch, model, amount, currencies, donor }: {
     dispatch: Dispatch<Msg>;
     model: Model;
     amount: string;
-    rates: Array<Currency>;
+    currencies: Array<Currency>;
+    donor: Maybe<Currency>;
 }): JSX.Element => (
     <div>
-        {Maybe.fromNullable(rates.find((currency: Currency) => currency.code === model.currency)).cata({
+        {Maybe.fromNullable(currencies.find((currency: Currency) => currency.code === model.currency)).cata({
             Nothing: () => null,
             Just: (currency: Currency) => (
                 <div>
@@ -106,12 +108,25 @@ export const View = ({ dispatch, model, amount, rates }: {
                             _0: stringToAmount(event.currentTarget.value)
                         })}
                     />
+
+                    {donor.chain(
+                        donorCurrency => donorCurrency
+                            .convertTo(1, currency)
+                            .map(rate => ([ donorCurrency.symbol, Utils.round(2, rate) ]))
+                    ).cata({
+                        Nothing: () => null,
+                        Just: ([ symbol, rate ]) => (
+                            <p>
+                                {currency.symbol}1 = {symbol}{rate}
+                            </p>
+                        )
+                    })}
                 </div>
             )
         })}
 
         <ul>
-            {rates.map((currency: Currency) => (
+            {currencies.map((currency: Currency) => (
                 <li key={currency.code}>
                     <button
                         disabled={currency.code === model.currency}
