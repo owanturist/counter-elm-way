@@ -85,10 +85,6 @@ export const init = (): [ Model, Cmd<Msg> ] => {
 
 const areChangersSame = (model: Model): boolean => Changer.isSame(model.changers.from, model.changers.to);
 
-const hasChangersBeenChanged = (prev: Model, next: Model): boolean => (
-    Changer.isSame(prev.changers.from, next.changers.from) || Changer.isSame(prev.changers.to, next.changers.to)
-);
-
 const getCurrencyByCode = (key: Changers, model: Model): Maybe<Currency> => {
     return Utils.find(currency => currency.code === model.changers[ key ].currency, model.currencies);
 };
@@ -236,15 +232,28 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
             switch (stage.$) {
                 case 'UPDATED': {
+                    if (!stage._0) {
+                        return [
+                            {
+                                ...model,
+                                changers: {
+                                    ...model.changers,
+                                    [ msg._0 ]: stage._1
+                                }
+                            },
+                            Cmd.none
+                        ];
+                    }
+
                     const nextModel = limit({
                         ...normalize(model),
                         changers: {
                             ...model.changers,
-                            [ msg._0 ]: stage._0
+                            [ msg._0 ]: stage._1
                         }
                     });
 
-                    if (areChangersSame(nextModel) || !hasChangersBeenChanged(model, nextModel)) {
+                    if (areChangersSame(nextModel)) {
                         return [ nextModel, Cmd.none ];
                     }
 

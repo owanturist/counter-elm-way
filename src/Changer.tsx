@@ -37,7 +37,7 @@ export type Msg
     ;
 
 export type Stage
-    = { $: 'UPDATED'; _0: Model }
+    = { $: 'UPDATED'; _0: boolean; _1: Model }
     | { $: 'AMOUNT_CHANGED'; _0: Maybe<number> }
     ;
 
@@ -46,7 +46,11 @@ export const update = (msg: Msg, model: Model): Stage => {
         case 'CHANGE_CURRENCY': {
             return {
                 $: 'UPDATED',
-                _0: { ...model, currency: msg._0 }
+                _0: true,
+                _1: {
+                    ...model,
+                    currency: msg._0
+                }
             };
         }
 
