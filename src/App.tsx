@@ -63,6 +63,26 @@ function find<T>(predicate: (value: T) => boolean, arr: Array<T>): Maybe<T> {
     return Nothing;
 }
 
+const normalize = (model: Model): Model => {
+    if (model.amount.source === Changers.FROM) {
+        return model;
+    }
+
+    return {
+        ...model,
+        amount: {
+            source: Changers.FROM,
+            value: Maybe.props({
+                amount: model.amount.value,
+                to: find(currency => currency.code === model.changers.to.currency, model.currencies),
+                from: find(currency => currency.code === model.changers.from.currency, model.currencies)
+            }).chain(
+                acc => acc.from.convertTo(acc.amount, acc.to)
+            ).map(amount => Number(amount.toFixed(2)))
+        }
+    };
+};
+
 const extractFormatedAmountFor = (source: Changers, model: Model): string => {
     if (model.amount.source === source) {
         return model.amount.value.map(amount => amount.toString()).getOrElse('');
@@ -143,8 +163,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'FETCH_RATES_DONE': {
             return [
                 msg._1.cata({
-                    Left: (_error: Http.Error) => {
-                        // handle this arror as you want to
+                    Left: (error: Http.Error) => {
+                        console.log(error); // tslint:disable-line:no-console
 
                         return { ...model, cancelRequest: Nothing };
                     },
@@ -171,7 +191,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             switch (stage.$) {
                 case 'UPDATED': {
                     const nextModel = {
-                        ...model,
+                        ...normalize(model),
                         changers: {
                             ...model.changers,
                             [ msg._0 ]: stage._0

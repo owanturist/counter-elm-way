@@ -38,7 +38,7 @@ export class Currency {
             return Just(amount);
         }
 
-        return Maybe.fromNullable(this.rates[ foreign.code ]).map(rate => amount * rate);
+        return Maybe.fromNullable(this.rates[ foreign.code ]).map(rate => amount / rate);
     }
 
     public convertFrom(amount: number, foreign: Currency): Maybe<number> {
@@ -46,6 +46,6 @@ export class Currency {
             return Just(amount);
         }
 
-        return Maybe.fromNullable(foreign.rates[ this.code ]).map(foreignRate => amount / foreignRate);
+        return Maybe.fromNullable(foreign.rates[ this.code ]).map(foreignRate => amount * foreignRate);
     }
 }
