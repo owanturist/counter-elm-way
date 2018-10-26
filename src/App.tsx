@@ -1,4 +1,5 @@
-import React from 'react';
+import * as React from 'react';
+import styled from 'styled-components';
 
 import {
     Maybe,
@@ -28,6 +29,7 @@ import {
 } from './Currency';
 import * as Api from './Api';
 import * as Changer from './Changer';
+import * as CurrencySelector from './CurrencySelector';
 import * as Utils from './Utils';
 
 /**
@@ -329,31 +331,126 @@ const extractFormatedAmountFor = (source: Changers, model: Model): string => {
     ).map(amount => amount.toFixed(2)).getOrElse('');
 };
 
-export const View = ({ dispatch, model }: {
+const Root = styled.div`
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    font: 14px/${(20 / 14).toFixed(3)} Helvetica;
+    background: rgb(45, 120, 245);
+`;
+
+const Header = styled.header`
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+`;
+
+const MenuButtonContainer = styled.div<{
+    align: 'left' | 'right';
+}>`
+    flex: 1 0 auto;
+    line-height: 1;
+    text-align: ${props => props.align};
+`;
+
+const MenuCurrencySelectorContainer = styled.div`
+    flex: 1 0 auto;
+`;
+
+const MenuButton = styled.button`
+    padding: .5em;
+    border: none;
+    outline: none;
+    color: #fff;
+    background: transparent;
+    font-weight: 300;
+`;
+
+const Content = styled.div`
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+`;
+
+const ChangerContainer = styled.div<{
+    source: Changers;
+}>`
+    flex: 1 0 50%;
+    position: relative;
+    background: ${props => props.source === Changers.TO ? 'rgba(0, 0, 0, .25)' : null};
+    ${props => props.source === Changers.FROM ? `
+        padding-bottom: 15px;
+        ` : `
+        &:before,
+        &:after {
+            content: "";
+            position: absolute;
+            bottom: 100%;
+            height: 1em;
+            border: 0 solid rgba(0, 0, 0, .25);
+        }
+
+        &:before {
+            right: 50%;
+            left: 0;
+            border-right-color: transparent;
+            border-width: 0 15px 15px 0;
+        }
+
+        &:after {
+            right: 0;
+            left: 50%;
+            border-left-color: transparent;
+            border-width: 0 0 15px 15px;
+        }
+    `}
+`;
+
+export const View: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
     model: Model;
-}): JSX.Element => (
-    <div>
-        <h1>Amount: {model.amount.value.getOrElse(0)}</h1>
+}> = ({ dispatch, model }) => (
+    <Root>
+        <Header>
+            <MenuButtonContainer align="left">
+                <MenuButton>Cancel</MenuButton>
+            </MenuButtonContainer>
 
-        <h2>{model.amount.source === Changers.FROM && '*'}From:</h2>
+            <MenuCurrencySelectorContainer>
+                {Maybe.props({
+                    from: getCurrencyOfChanger(Changers.FROM, model),
+                    to: getCurrencyOfChanger(Changers.TO, model)
+                }).cata({
+                    Nothing: () => null,
+                    Just: acc => <CurrencySelector.View from={acc.from} to={acc.to} />
+                })}
+            </MenuCurrencySelectorContainer>
 
-        <Changer.View
-            amount={extractFormatedAmountFor(Changers.FROM, model)}
-            currencies={model.currencies}
-            donor={Nothing}
-            model={model.changers.from}
-            dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.FROM, _1: msg })}
-        />
+            <MenuButtonContainer align="right">
+                <MenuButton>Exchange</MenuButton>
+            </MenuButtonContainer>
+        </Header>
 
-        <h2>{model.amount.source === Changers.TO && '*'}To:</h2>
+        <Content>
+            <ChangerContainer source={Changers.FROM}>
+                <Changer.View
+                    amount={extractFormatedAmountFor(Changers.FROM, model)}
+                    currencies={model.currencies}
+                    donor={Nothing}
+                    model={model.changers.from}
+                    dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.FROM, _1: msg })}
+                />
+            </ChangerContainer>
 
-        <Changer.View
-            amount={extractFormatedAmountFor(Changers.TO, model)}
-            currencies={model.currencies}
-            donor={areChangersSame(model) ? Nothing : getCurrencyOfChanger(Changers.FROM, model)}
-            model={model.changers.to}
-            dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.TO, _1: msg })}
-        />
-    </div>
+            <ChangerContainer source={Changers.TO}>
+                <Changer.View
+                    amount={extractFormatedAmountFor(Changers.TO, model)}
+                    currencies={model.currencies}
+                    donor={areChangersSame(model) ? Nothing : getCurrencyOfChanger(Changers.FROM, model)}
+                    model={model.changers.to}
+                    dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.TO, _1: msg })}
+                />
+            </ChangerContainer>
+        </Content>
+    </Root>
 );

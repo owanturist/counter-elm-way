@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 
 import {
     Maybe,
@@ -84,13 +84,13 @@ const stringToAmount = (input: string): Maybe<number> => {
     return Just(amount);
 };
 
-export const View = ({ dispatch, model, amount, currencies, donor }: {
+export const View: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
     model: Model;
     amount: string;
     currencies: Array<Currency>;
     donor: Maybe<Currency>;
-}): JSX.Element => (
+}> = ({ dispatch, model, amount, currencies, donor }) => (
     <div>
         {Maybe.fromNullable(currencies.find((currency: Currency) => currency.code === model.currency)).cata({
             Nothing: () => null,
