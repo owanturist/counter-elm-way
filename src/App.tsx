@@ -215,7 +215,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         return { ...model, cancelRequest: Nothing };
                     },
 
-                    Right: (rates: Array<[ string, number ]>) => ({
+                    Right: (rates: Array<[ string, number ]>) => limit({
                         ...model,
                         cancelRequest: Nothing,
                         currencies: model.currencies.map(currency => {

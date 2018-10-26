@@ -13,3 +13,5 @@ export const find = <T>(predicate: (value: T) => boolean, arr: Array<T>): Maybe<
 
     return Nothing;
 };
+
+export const round = (fractionDigits: number, num: number): number => Number(num.toFixed(fractionDigits));
