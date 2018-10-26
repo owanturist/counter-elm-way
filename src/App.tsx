@@ -28,18 +28,16 @@ import {
 } from './Currency';
 import * as Api from './Api';
 import * as Changer from './Changer';
+import * as Utils from './Utils';
+
+/**
+ * M O D E L
+ */
 
 enum Changers {
     FROM = 'from',
     TO = 'to'
 }
-
-export type Msg
-    = { $: 'NOOP' }
-    | { $: 'FETCH_RATES' }
-    | { $: 'FETCH_RATES_DONE'; _0: string; _1: Either<Http.Error, Array<[ string, number ]>> }
-    | { $: 'CHANGER_MSG'; _0: Changers; _1: Changer.Msg }
-    ;
 
 export interface Model {
     cancelRequest: Maybe<Cmd<Msg>>;
@@ -53,15 +51,11 @@ export interface Model {
     };
 }
 
-function find<T>(predicate: (value: T) => boolean, arr: Array<T>): Maybe<T> {
-    for (const item of arr) {
-        if (predicate(item)) {
-            return Just(item);
-        }
-    }
+const areChangersSame = (model: Model): boolean => Changer.isSame(model.changers.from, model.changers.to);
 
-    return Nothing;
-}
+const hasChangersBeenChanged = (prev: Model, next: Model): boolean => (
+    Changer.isSame(prev.changers.from, next.changers.from) || Changer.isSame(prev.changers.to, next.changers.to)
+);
 
 const normalize = (model: Model): Model => {
     if (model.amount.source === Changers.FROM) {
@@ -74,22 +68,13 @@ const normalize = (model: Model): Model => {
             source: Changers.FROM,
             value: Maybe.props({
                 amount: model.amount.value,
-                to: find(currency => currency.code === model.changers.to.currency, model.currencies),
-                from: find(currency => currency.code === model.changers.from.currency, model.currencies)
+                to: Utils.find(currency => currency.code === model.changers.to.currency, model.currencies),
+                from: Utils.find(currency => currency.code === model.changers.from.currency, model.currencies)
             }).chain(
                 acc => acc.from.convertTo(acc.amount, acc.to)
             ).map(amount => Number(amount.toFixed(2)))
         }
     };
-};
-
-const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
-    const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
-
-    return [
-        Task.perform((): Msg => ({ $: 'NOOP' }), cancel),
-        request.attempt((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: base, _1: result }))
-    ];
 };
 
 export const init = (): [ Model, Cmd<Msg> ] => {
@@ -124,6 +109,26 @@ export const init = (): [ Model, Cmd<Msg> ] => {
     ];
 };
 
+/**
+ * U P D A T E
+ */
+
+export type Msg
+    = { $: 'NOOP' }
+    | { $: 'FETCH_RATES' }
+    | { $: 'FETCH_RATES_DONE'; _0: string; _1: Either<Http.Error, Array<[ string, number ]>> }
+    | { $: 'CHANGER_MSG'; _0: Changers; _1: Changer.Msg }
+    ;
+
+const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
+    const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
+
+    return [
+        Task.perform((): Msg => ({ $: 'NOOP' }), cancel),
+        request.attempt((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: base, _1: result }))
+    ];
+};
+
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     switch (msg.$) {
         case 'NOOP': {
@@ -149,6 +154,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             return [
                 msg._1.cata({
                     Left: (error: Http.Error) => {
+                        // handle the error as you want to
                         console.log(error); // tslint:disable-line:no-console
 
                         return { ...model, cancelRequest: Nothing };
@@ -183,12 +189,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         }
                     };
 
-                    if (
-                        nextModel.changers.to.currency === nextModel.changers.from.currency
-                        || (model.changers.from.currency === nextModel.changers.from.currency
-                            && model.changers.to.currency === nextModel.changers.to.currency
-                        )
-                    ) {
+                    if (areChangersSame(nextModel) || !hasChangersBeenChanged(model, nextModel)) {
                         return [ nextModel, Cmd.none ];
                     }
 
@@ -230,8 +231,12 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     }
 };
 
+/**
+ * S U B S C R I P T I O N S
+ */
+
 export const subscriptions = (model: Model): Sub<Msg> => {
-    if (model.changers.from.currency === model.changers.to.currency) {
+    if (areChangersSame(model)) {
         return Sub.none;
     }
 
@@ -241,6 +246,10 @@ export const subscriptions = (model: Model): Sub<Msg> => {
     });
 };
 
+/**
+ * V I E W
+ */
+
 const extractFormatedAmountFor = (source: Changers, model: Model): string => {
     if (model.amount.source === source) {
         return model.amount.value.map(amount => amount.toString()).getOrElse('');
@@ -248,8 +257,8 @@ const extractFormatedAmountFor = (source: Changers, model: Model): string => {
 
     return Maybe.props({
         amount: model.amount.value,
-        to: find(currency => currency.code === model.changers.to.currency, model.currencies),
-        from: find(currency => currency.code === model.changers.from.currency, model.currencies)
+        to: Utils.find(currency => currency.code === model.changers.to.currency, model.currencies),
+        from: Utils.find(currency => currency.code === model.changers.from.currency, model.currencies)
     }).chain(acc => source === Changers.FROM
         ? acc.from.convertTo(-acc.amount, acc.to)
         : acc.to.convertFrom(-acc.amount, acc.from)

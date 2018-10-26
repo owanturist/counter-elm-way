@@ -13,29 +13,23 @@ import {
     Currency
 } from './Currency';
 
-const stringToAmount = (input: string): Maybe<number> => {
-    if (input.trim() === '') {
-        return Nothing;
-    }
-
-    const amount = Number(
-        input.trim().replace(/(-?\d*(,|\.)?\d{0,2})(.*)/, '$1')
-    );
-
-    if (isNaN(amount)) {
-        return Nothing;
-    }
-
-    return Just(amount);
-};
+/**
+ * M O D E L
+ */
 
 export interface Model {
     currency: string;
 }
 
+export const isSame = (left: Model, right: Model): boolean => left.currency === right.currency;
+
 export const init = (currency: string): Model => ({
     currency
 });
+
+/**
+ * U P D A T E
+ */
 
 export type Msg
     = { $: 'CHANGE_CURRENCY'; _0: string }
@@ -63,6 +57,26 @@ export const update = (msg: Msg, model: Model): Stage => {
             };
         }
     }
+};
+
+/**
+ * V I E W
+ */
+
+const stringToAmount = (input: string): Maybe<number> => {
+    if (input.trim() === '') {
+        return Nothing;
+    }
+
+    const amount = Number(
+        input.trim().replace(/(-?\d*(,|\.)?\d{0,2})(.*)/, '$1')
+    );
+
+    if (isNaN(amount)) {
+        return Nothing;
+    }
+
+    return Just(amount);
 };
 
 export const View = ({ dispatch, model, amount, rates }: {
