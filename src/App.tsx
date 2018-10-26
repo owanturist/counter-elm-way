@@ -83,21 +83,6 @@ const normalize = (model: Model): Model => {
     };
 };
 
-const extractFormatedAmountFor = (source: Changers, model: Model): string => {
-    if (model.amount.source === source) {
-        return model.amount.value.map(amount => amount.toString()).getOrElse('');
-    }
-
-    return Maybe.props({
-        amount: model.amount.value,
-        to: find(currency => currency.code === model.changers.to.currency, model.currencies),
-        from: find(currency => currency.code === model.changers.from.currency, model.currencies)
-    }).chain(acc => source === Changers.FROM
-        ? acc.from.convertTo(acc.amount, acc.to)
-        : acc.to.convertFrom(acc.amount, acc.from)
-    ).map(amount => amount.toFixed(2)).getOrElse('');
-};
-
 const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
     const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
 
@@ -254,6 +239,21 @@ export const subscriptions = (model: Model): Sub<Msg> => {
         Nothing: () => Time.every(10000, (): Msg => ({ $: 'FETCH_RATES' })),
         Just: () => Sub.none
     });
+};
+
+const extractFormatedAmountFor = (source: Changers, model: Model): string => {
+    if (model.amount.source === source) {
+        return model.amount.value.map(amount => amount.toString()).getOrElse('');
+    }
+
+    return Maybe.props({
+        amount: model.amount.value,
+        to: find(currency => currency.code === model.changers.to.currency, model.currencies),
+        from: find(currency => currency.code === model.changers.from.currency, model.currencies)
+    }).chain(acc => source === Changers.FROM
+        ? acc.from.convertTo(-acc.amount, acc.to)
+        : acc.to.convertFrom(-acc.amount, acc.from)
+    ).map(amount => amount.toFixed(2)).getOrElse('');
 };
 
 export const View = ({ dispatch, model }: {
