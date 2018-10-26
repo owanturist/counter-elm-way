@@ -51,32 +51,6 @@ export interface Model {
     };
 }
 
-const areChangersSame = (model: Model): boolean => Changer.isSame(model.changers.from, model.changers.to);
-
-const hasChangersBeenChanged = (prev: Model, next: Model): boolean => (
-    Changer.isSame(prev.changers.from, next.changers.from) || Changer.isSame(prev.changers.to, next.changers.to)
-);
-
-const normalize = (model: Model): Model => {
-    if (model.amount.source === Changers.FROM) {
-        return model;
-    }
-
-    return {
-        ...model,
-        amount: {
-            source: Changers.FROM,
-            value: Maybe.props({
-                amount: model.amount.value,
-                to: Utils.find(currency => currency.code === model.changers.to.currency, model.currencies),
-                from: Utils.find(currency => currency.code === model.changers.from.currency, model.currencies)
-            }).chain(
-                acc => acc.from.convertTo(-acc.amount, acc.to)
-            ).map(amount => Number(amount.toFixed(2)))
-        }
-    };
-};
-
 export const init = (): [ Model, Cmd<Msg> ] => {
     const initialModel: Model = {
         cancelRequest: Nothing,
@@ -108,6 +82,87 @@ export const init = (): [ Model, Cmd<Msg> ] => {
         fetchRatesCmd
     ];
 };
+
+const areChangersSame = (model: Model): boolean => Changer.isSame(model.changers.from, model.changers.to);
+
+const hasChangersBeenChanged = (prev: Model, next: Model): boolean => (
+    Changer.isSame(prev.changers.from, next.changers.from) || Changer.isSame(prev.changers.to, next.changers.to)
+);
+
+const getCurrencyByCode = (key: Changers, model: Model): Maybe<Currency> => {
+    return Utils.find(currency => currency.code === model.changers[ key ].currency, model.currencies);
+};
+
+const normalize = (model: Model): Model => {
+    if (model.amount.source === Changers.FROM) {
+        return model;
+    }
+
+    return {
+        ...model,
+        amount: {
+            source: Changers.FROM,
+            value: Maybe.props({
+                amount: model.amount.value,
+                to: getCurrencyByCode(Changers.TO, model),
+                from: getCurrencyByCode(Changers.FROM, model)
+            }).chain(
+                acc => acc.from.convertTo(-acc.amount, acc.to)
+            ).map(amount => Utils.round(2, amount))
+        }
+    };
+};
+
+const limit = (model: Model): Model => model.amount.value.map(amount => {
+    const minimum = getCurrencyByCode(model.amount.source, model).map(
+        currency => Utils.round(2, -currency.amount)
+    ).getOrElse(0);
+
+    if (amount < minimum) {
+        return {
+            ...model,
+            amount: {
+                ...model.amount,
+                value: Just(minimum)
+            }
+        };
+    }
+
+    if (areChangersSame(model)) {
+        if (amount <= -minimum /* aka maximum */) {
+            return model;
+        }
+
+        return {
+            ...model,
+            amount: {
+                ...model.amount,
+                value: Just(-minimum)
+            }
+        };
+    }
+
+    const maximum = Maybe.props({
+        to: getCurrencyByCode(Changers.TO, model),
+        from: getCurrencyByCode(Changers.FROM, model)
+    }).chain(
+        acc => model.amount.source === Changers.FROM
+            ? acc.from.convertTo(acc.to.amount, acc.to)
+            : acc.to.convertFrom(acc.from.amount, acc.from)
+    ).map(max => Utils.round(2, max)).getOrElse(0);
+
+    if (amount > maximum) {
+        return {
+            ...model,
+            amount: {
+                ...model.amount,
+                value: Just(maximum)
+            }
+        };
+    }
+
+    return model;
+}).getOrElse(model);
 
 /**
  * U P D A T E
@@ -181,13 +236,13 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
             switch (stage.$) {
                 case 'UPDATED': {
-                    const nextModel = {
+                    const nextModel = limit({
                         ...normalize(model),
                         changers: {
                             ...model.changers,
                             [ msg._0 ]: stage._0
                         }
-                    };
+                    });
 
                     if (areChangersSame(nextModel) || !hasChangersBeenChanged(model, nextModel)) {
                         return [ nextModel, Cmd.none ];
@@ -212,13 +267,13 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
                 case 'AMOUNT_CHANGED': {
                     return [
-                        {
+                        limit({
                             ...model,
                             amount: {
                                 source: msg._0,
                                 value: stage._0
                             }
-                        },
+                        }),
                         Cmd.none
                     ];
                 }
@@ -257,8 +312,8 @@ const extractFormatedAmountFor = (source: Changers, model: Model): string => {
 
     return Maybe.props({
         amount: model.amount.value,
-        to: Utils.find(currency => currency.code === model.changers.to.currency, model.currencies),
-        from: Utils.find(currency => currency.code === model.changers.from.currency, model.currencies)
+        to: getCurrencyByCode(Changers.TO, model),
+        from: getCurrencyByCode(Changers.FROM, model)
     }).chain(acc => source === Changers.FROM
         ? acc.from.convertTo(-acc.amount, acc.to)
         : acc.to.convertFrom(-acc.amount, acc.from)
