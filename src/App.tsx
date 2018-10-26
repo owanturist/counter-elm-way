@@ -116,7 +116,7 @@ const normalize = (model: Model): Model => {
 const limit = (model: Model): Model => model.amount.value.map(amount => {
     const minimum = getCurrencyByCode(model.amount.source, model).map(
         currency => Utils.round(2, -currency.amount)
-    ).getOrElse(0);
+    ).getOrElse(amount);
 
     if (amount < minimum) {
         return {
@@ -149,7 +149,7 @@ const limit = (model: Model): Model => model.amount.value.map(amount => {
         acc => model.amount.source === Changers.FROM
             ? acc.from.convertTo(acc.to.amount, acc.to)
             : acc.to.convertFrom(acc.from.amount, acc.from)
-    ).map(max => Utils.round(2, max)).getOrElse(0);
+    ).map(max => Utils.round(2, max)).getOrElse(amount);
 
     if (amount > maximum) {
         return {
