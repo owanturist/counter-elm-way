@@ -245,10 +245,16 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     }
 };
 
-export const subscriptions = (model: Model): Sub<Msg> => model.cancelRequest.fold(
-    () => Time.every(10000, (): Msg => ({ $: 'FETCH_RATES' })),
-    () => Sub.none
-);
+export const subscriptions = (model: Model): Sub<Msg> => {
+    if (model.changers.from.currency === model.changers.to.currency) {
+        return Sub.none;
+    }
+
+    return model.cancelRequest.cata({
+        Nothing: () => Time.every(10000, (): Msg => ({ $: 'FETCH_RATES' })),
+        Just: () => Sub.none
+    });
+};
 
 export const View = ({ dispatch, model }: {
     dispatch: Dispatch<Msg>;
