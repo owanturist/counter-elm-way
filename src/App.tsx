@@ -397,6 +397,7 @@ const ChangerContainer = styled.div<{
     source: Changers;
 }>`
     flex: 1 0 50%;
+    display: flex;
     position: relative;
     background: ${props => props.source === Changers.TO ? 'rgba(0, 0, 0, .25)' : null};
     ${props => props.source === Changers.FROM ? `

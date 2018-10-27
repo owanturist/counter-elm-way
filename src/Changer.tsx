@@ -88,6 +88,7 @@ const stringToAmount = (input: string): Maybe<number> => {
 const Root = styled.div`
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     padding: 1em 2em;
     color: #fff;
 `;
@@ -155,6 +156,8 @@ export const View: React.StatelessComponent<{
     donor: Maybe<Currency>;
 }> = ({ dispatch, model, amount, currencies, donor }) => (
     <Root>
+        <div></div>
+
         {Utils.find(currency => currency.code === model.currency, currencies).cata({
             Nothing: () => null,
             Just: (currency: Currency) => (
