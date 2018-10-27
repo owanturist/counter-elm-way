@@ -31,7 +31,7 @@ const Select = styled.button`
 `;
 
 const Small = styled.small`
-    font-size: .75em;
+    font-size: .8em;
 `;
 
 const matchDecimals = (rate: number): Maybe<[ string, string ]> => {
