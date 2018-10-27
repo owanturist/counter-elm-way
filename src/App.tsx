@@ -449,19 +449,25 @@ export const View: React.StatelessComponent<{
                 </MenuItemContainer>
 
                 <MenuItemContainer align="flex-end">
-                    {Maybe.props({ from, to, amount: model.amount.value }).chain(
-                        acc => model.amount.source === Changers.FROM
-                            ? Just({
+                    {Maybe.props({ from, to, amount: model.amount.value }).chain(acc => {
+                        if (acc.amount === 0) {
+                            return Nothing;
+                        }
+
+                        if (model.amount.source === Changers.FROM) {
+                            return Just({
                                 from: acc.from.code,
                                 to: acc.to.code,
                                 amount: acc.amount
-                            })
-                            : acc.from.convertTo(-acc.amount, acc.to).map(amount => ({
-                                from: acc.from.code,
-                                to: acc.to.code,
-                                amount: Utils.round(2, amount)
-                            }))
-                    ).cata({
+                            });
+                        }
+
+                        return acc.from.convertTo(-acc.amount, acc.to).map(amount => ({
+                            from: acc.from.code,
+                            to: acc.to.code,
+                            amount: Utils.round(2, amount)
+                        }));
+                    }).cata({
                         Nothing: () => (
                             <MenuButton disabled>Exchange</MenuButton>
                         ),
