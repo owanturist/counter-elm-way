@@ -11,12 +11,27 @@ import {
     Currency
 } from './Currency';
 
-const Select = styled.div`
+const Select = styled.button`
+    display: inline-block;
+    padding: .2em .4em;
+    font-weight: 300;
+    font-size: 16px;
+    letter-spacing: .05em;
     color: #fff;
+    background: rgba(0, 0, 0, .1);
+    border: 1px solid rgba(255, 255, 255, .5);
+    border-radius: .35em;
+    outline: none;
+
+    &:after {
+        content: "▾";
+        margin-left: .25em;
+        font-size: .8em;
+    }
 `;
 
-const SmallText = styled.small`
-    font-size: .8em;
+const Small = styled.small`
+    font-size: .75em;
 `;
 
 const matchDecimals = (rate: number): Maybe<[ string, string ]> => {
@@ -38,7 +53,7 @@ export const View: React.StatelessComponent<{
     Nothing: () => null,
     Just: ([ first, second ]) => (
         <Select>
-            {from.symbol}1 = {to.symbol}{first}<SmallText>{second}</SmallText>
+            <Small>{from.symbol}</Small>1 = <Small>{to.symbol}</Small>{first}<Small>{second}</Small>
         </Select>
     )
 });
