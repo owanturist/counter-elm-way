@@ -42,7 +42,7 @@ export const init = (currency: string): Model => ({
 
 export type Msg
     = { $: 'CHANGE_CURRENCY'; _0: string }
-    | { $: 'CHANGE_AMOUNT'; _0: Maybe<number> }
+    | { $: 'CHANGE_AMOUNT'; _0: Maybe<string> }
     | { $: 'DRAG_START'; _0: number }
     | { $: 'DRAGGING'; _0: number; _1: number }
     | { $: 'DRAG_END' }
@@ -50,7 +50,7 @@ export type Msg
 
 export type Stage
     = { $: 'UPDATED'; _0: boolean; _1: Model }
-    | { $: 'AMOUNT_CHANGED'; _0: Maybe<number> }
+    | { $: 'AMOUNT_CHANGED'; _0: Maybe<string> }
     ;
 
 
@@ -110,6 +110,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                         start: msg._0,
                         delta: model.dragging.chain(dragging => dragging.delta).cata({
                             Nothing: () => luft(50, msg._1 - msg._0),
+                            // don't luft when delta already exists
                             Just: () => Just(msg._1 - msg._0)
                         })
                     })
@@ -134,20 +135,10 @@ export const update = (msg: Msg, model: Model): Stage => {
  * V I E W
  */
 
-const stringToAmount = (input: string): Maybe<number> => {
-    if (input.trim() === '') {
-        return Nothing;
-    }
+const stringToAmount = (input: string): Maybe<string> => {
+    const result = input.trim().replace(/^(-|\+)?(-|\+)*(0*(?=\d+))?(\d*(\.|,)?\d{0,2})(.*)$/, '$1$4');
 
-    const amount = Number(
-        input.trim().replace(/(-?\d*(,|\.)?\d{0,2})(.*)/, '$1')
-    );
-
-    if (isNaN(amount)) {
-        return Nothing;
-    }
-
-    return Just(amount);
+    return result === '' ? Nothing : Just(result);
 };
 
 const Root = styled.div`

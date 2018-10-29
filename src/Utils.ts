@@ -31,4 +31,10 @@ export const filterMap = <T, R>(predicate: (value: T) => Maybe<R>, arr: Array<T>
     return result;
 };
 
+export const stringToNumber = (str: string): Maybe<number> => {
+    const result = Number(str);
+
+    return isNaN(result) ? Nothing : Just(result);
+};
+
 export const round = (fractionDigits: number, num: number): number => Number(num.toFixed(fractionDigits));
