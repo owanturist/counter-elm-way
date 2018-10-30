@@ -170,15 +170,6 @@ const Carousel = styled.div.attrs<CarouselProps, CarouselAttrs>({
     display: flex;
 `;
 
-const Slide = styled.label`
-    box-sizing: border-box;
-    flex: 1 0 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 0 2em;
-`;
-
 const Main = styled.div`
     display: flex;
     align-items: center;
@@ -272,13 +263,15 @@ const calculateStep = (amount: string): number => {
     return 1;
 };
 
-const ViewSlide: React.StatelessComponent<{
+
+const Slide = styled<{
     dispatch: Dispatch<Msg>;
     amount: string;
     currency: Currency;
     donor: Maybe<Currency>;
-}> = ({ dispatch, currency, amount, donor }) => (
-    <Slide>
+    className?: string;
+}>(({ dispatch, currency, amount, donor, className }) => (
+    <label className={className}>
         <Main>
             {currency.code}
 
@@ -304,8 +297,15 @@ const ViewSlide: React.StatelessComponent<{
             ))
             ).getOrElse(<span></span>)}
         </Info>
-    </Slide>
-);
+    </label>
+))`
+    box-sizing: border-box;
+    flex: 1 0 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 2em;
+`;
 
 export const View: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
@@ -319,7 +319,7 @@ export const View: React.StatelessComponent<{
             Nothing: () => null,
             Just: (currency: Currency) => (
                 <Carousel shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}>
-                    <ViewSlide
+                    <Slide
                         dispatch={dispatch}
                         amount={amount}
                         currency={currency}
