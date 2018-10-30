@@ -36,80 +36,6 @@ export const init = (currency: string): Model => ({
 
 export const isSame = (left: Model, right: Model): boolean => left.currency === right.currency;
 
-const extractCurrencies = (currencies: Array<Currency>, model: Model): Maybe<{
-    shift: number;
-    current: Currency;
-    prev: Maybe<Currency>;
-    next: Maybe<Currency>;
-}> => Utils.find(currency => currency.code === model.currency, currencies).map(
-    current => model.dragging.chain(dragging => dragging.delta).map(delta => ({
-        shift: delta,
-        current,
-        prev: delta <= 0 ? Nothing : currencies.reduce(
-            (acc, currency) => {
-                if (acc.final) {
-                    return acc;
-                }
-
-                if (currency.code === current.code) {
-                    return { final: true, prev: acc.prev };
-                }
-
-                return {
-                    final: false,
-                    prev: Just(currency)
-                };
-            },
-            {
-                final: false,
-                prev: Nothing
-            }
-        ).prev,
-        next: delta >= 0 ? Nothing : currencies.reduce(
-            (acc, currency) => {
-                if (currency.code === current.code) {
-                    return { final: true, next: acc.next };
-                }
-
-                if (acc.final) {
-                    return {
-                        final: false,
-                        next: Just(currency)
-                    };
-                }
-
-                return acc;
-            },
-            {
-                final: false,
-                next: Nothing
-            }
-        ).next
-    })).map(acc => {
-        if (acc.prev.isNothing()) {
-            return {
-                ...acc,
-                shift: Math.min(0, acc.shift)
-            };
-        }
-
-        if (acc.next.isNothing()) {
-            return {
-                ...acc,
-                shift: Math.max(0, acc.shift)
-            };
-        }
-
-        return acc;
-    }).getOrElse({
-        shift: 0,
-        current,
-        next: Nothing,
-        prev: Nothing
-    })
-);
-
-
 /**
  * U P D A T E
  */
@@ -118,7 +44,7 @@ export type Msg
     = { $: 'CHANGE_CURRENCY'; _0: string }
     | { $: 'CHANGE_AMOUNT'; _0: Maybe<string> }
     | { $: 'DRAG_START'; _0: number }
-    | { $: 'DRAGGING'; _0: number; _1: number }
+    | { $: 'DRAGGING'; _0: number }
     | { $: 'DRAG_END' }
     ;
 
@@ -180,14 +106,10 @@ export const update = (msg: Msg, model: Model): Stage => {
                 _0: false,
                 _1: {
                     ...model,
-                    dragging: Just({
-                        start: msg._0,
-                        delta: model.dragging.chain(dragging => dragging.delta).cata({
-                            Nothing: () => luft(50, msg._1 - msg._0),
-                            // don't luft when delta already exists
-                            Just: () => Just(msg._1 - msg._0)
-                        })
-                    })
+                    dragging: model.dragging.map(dragging => ({
+                        ...dragging,
+                        delta: luft(50, msg._0 - dragging.start)
+                    }))
                 }
             };
         }
@@ -208,12 +130,6 @@ export const update = (msg: Msg, model: Model): Stage => {
 /**
  * V I E W
  */
-
-const stringToAmount = (input: string): Maybe<string> => {
-    const result = input.trim().replace(/^(-|\+)?(-|\+)*(0*(?=\d+))?(\d*(\.|,)?\d{0,2})(.*)$/, '$1$4');
-
-    return result === '' ? Nothing : Just(result);
-};
 
 const Root = styled.div`
     flex-grow: 1;
@@ -305,6 +221,7 @@ const Point = styled.li<{
         content: "•"
     }
 `;
+
 const calculateStep = (amount: string): number => {
     if (/(\.|,)\d[1-9]\d*/.test(amount)) {
         return 0.01;
@@ -317,6 +234,11 @@ const calculateStep = (amount: string): number => {
     return 1;
 };
 
+const stringToAmount = (input: string): Maybe<string> => {
+    const result = input.trim().replace(/^(-|\+)?(-|\+)*(0*(?=\d+))?(\d*(\.|,)?\d{0,2})(.*)$/, '$1$4');
+
+    return result === '' ? Nothing : Just(result);
+};
 
 const Slide = styled<{
     dispatch: Dispatch<Msg>;
@@ -361,6 +283,79 @@ const Slide = styled<{
     padding: 0 2em;
 `;
 
+const extractCurrencies = (currencies: Array<Currency>, model: Model): Maybe<{
+    shift: number;
+    current: Currency;
+    prev: Maybe<Currency>;
+    next: Maybe<Currency>;
+}> => Utils.find(currency => currency.code === model.currency, currencies).map(
+    current => model.dragging.chain(dragging => dragging.delta).map(delta => ({
+        shift: delta,
+        current,
+        prev: delta <= 0 ? Nothing : currencies.reduce(
+            (acc, currency) => {
+                if (acc.final) {
+                    return acc;
+                }
+
+                if (currency.code === current.code) {
+                    return { final: true, prev: acc.prev };
+                }
+
+                return {
+                    final: false,
+                    prev: Just(currency)
+                };
+            },
+            {
+                final: false,
+                prev: Nothing
+            }
+        ).prev,
+        next: delta >= 0 ? Nothing : currencies.reduce(
+            (acc, currency) => {
+                if (currency.code === current.code) {
+                    return { final: true, next: acc.next };
+                }
+
+                if (acc.final) {
+                    return {
+                        final: false,
+                        next: Just(currency)
+                    };
+                }
+
+                return acc;
+            },
+            {
+                final: false,
+                next: Nothing
+            }
+        ).next
+    })).map(acc => {
+        if (acc.prev.isNothing()) {
+            return {
+                ...acc,
+                shift: Math.min(0, acc.shift)
+            };
+        }
+
+        if (acc.next.isNothing()) {
+            return {
+                ...acc,
+                shift: Math.max(0, acc.shift)
+            };
+        }
+
+        return acc;
+    }).getOrElse({
+        shift: 0,
+        current,
+        next: Nothing,
+        prev: Nothing
+    })
+);
+
 interface DraggingMouseEvents<T> {
     onMouseDown?(event: React.MouseEvent<T>): void;
     onMouseMove?(event: React.MouseEvent<T>): void;
@@ -373,8 +368,8 @@ function buildDraggingMouseEvents<T>(dispatch: Dispatch<Msg>, dragging: Maybe<Dr
         Nothing: () => ({
             onMouseDown: event => dispatch({ $: 'DRAG_START', _0: event.screenX })
         }),
-        Just: ({ start }) => ({
-            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: start, _1: event.screenX }),
+        Just: () => ({
+            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: event.screenX }),
             onMouseUp: () => dispatch({ $: 'DRAG_END' }),
             onMouseLeave: () => dispatch({ $: 'DRAG_END' })
         })

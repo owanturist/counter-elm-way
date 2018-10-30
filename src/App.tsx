@@ -44,7 +44,7 @@ enum Changers {
 interface Amount {
     source: Changers;
     value: Maybe<string>;
-};
+}
 
 export interface Model {
     cancelRequest: Maybe<Cmd<Msg>>;
