@@ -29,12 +29,86 @@ export interface Model {
     dragging: Maybe<Dragging>;
 }
 
-export const isSame = (left: Model, right: Model): boolean => left.currency === right.currency;
-
 export const init = (currency: string): Model => ({
     currency,
     dragging: Nothing
 });
+
+export const isSame = (left: Model, right: Model): boolean => left.currency === right.currency;
+
+const extractCurrencies = (currencies: Array<Currency>, model: Model): Maybe<{
+    shift: number;
+    current: Currency;
+    prev: Maybe<Currency>;
+    next: Maybe<Currency>;
+}> => Utils.find(currency => currency.code === model.currency, currencies).map(
+    current => model.dragging.chain(dragging => dragging.delta).map(delta => ({
+        shift: delta,
+        current,
+        prev: delta <= 0 ? Nothing : currencies.reduce(
+            (acc, currency) => {
+                if (acc.final) {
+                    return acc;
+                }
+
+                if (currency.code === current.code) {
+                    return { final: true, prev: acc.prev };
+                }
+
+                return {
+                    final: false,
+                    prev: Just(currency)
+                };
+            },
+            {
+                final: false,
+                prev: Nothing
+            }
+        ).prev,
+        next: delta >= 0 ? Nothing : currencies.reduce(
+            (acc, currency) => {
+                if (currency.code === current.code) {
+                    return { final: true, next: acc.next };
+                }
+
+                if (acc.final) {
+                    return {
+                        final: false,
+                        next: Just(currency)
+                    };
+                }
+
+                return acc;
+            },
+            {
+                final: false,
+                next: Nothing
+            }
+        ).next
+    })).map(acc => {
+        if (acc.prev.isNothing()) {
+            return {
+                ...acc,
+                shift: Math.min(0, acc.shift)
+            };
+        }
+
+        if (acc.next.isNothing()) {
+            return {
+                ...acc,
+                shift: Math.max(0, acc.shift)
+            };
+        }
+
+        return acc;
+    }).getOrElse({
+        shift: 0,
+        current,
+        next: Nothing,
+        prev: Nothing
+    })
+);
+
 
 /**
  * U P D A T E
@@ -152,7 +226,7 @@ const Root = styled.div`
 `;
 
 interface CarouselProps {
-    shift?: number;
+    shift: number;
 }
 
 interface CarouselAttrs {
@@ -163,11 +237,12 @@ interface CarouselAttrs {
 
 const Carousel = styled.div.attrs<CarouselProps, CarouselAttrs>({
     style: props => ({
-        transform: `translateX(${props.shift || 0}px)`
+        transform: `translateX(${props.shift}px)`
     })
 })`
     flex: 1 0 auto;
     display: flex;
+    justify-content: ${props => props.shift > 0 ? 'flex-end' : 'flex-start'};
 `;
 
 const Main = styled.div`
@@ -230,27 +305,6 @@ const Point = styled.li<{
         content: "•"
     }
 `;
-
-interface DraggingMouseEvents<T> {
-    onMouseDown?(event: React.MouseEvent<T>): void;
-    onMouseMove?(event: React.MouseEvent<T>): void;
-    onMouseUp?(event: React.MouseEvent<T>): void;
-    onMouseLeave?(event: React.MouseEvent<T>): void;
-}
-
-function buildDraggingMouseEvents<T>(dispatch: Dispatch<Msg>, dragging: Maybe<Dragging>): DraggingMouseEvents<T> {
-    return dragging.cata<DraggingMouseEvents<T>>({
-        Nothing: () => ({
-            onMouseDown: event => dispatch({ $: 'DRAG_START', _0: event.screenX })
-        }),
-        Just: ({ start }) => ({
-            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: start, _1: event.screenX }),
-            onMouseUp: () => dispatch({ $: 'DRAG_END' }),
-            onMouseLeave: () => dispatch({ $: 'DRAG_END' })
-        })
-    });
-}
-
 const calculateStep = (amount: string): number => {
     if (/(\.|,)\d[1-9]\d*/.test(amount)) {
         return 0.01;
@@ -307,6 +361,26 @@ const Slide = styled<{
     padding: 0 2em;
 `;
 
+interface DraggingMouseEvents<T> {
+    onMouseDown?(event: React.MouseEvent<T>): void;
+    onMouseMove?(event: React.MouseEvent<T>): void;
+    onMouseUp?(event: React.MouseEvent<T>): void;
+    onMouseLeave?(event: React.MouseEvent<T>): void;
+}
+
+function buildDraggingMouseEvents<T>(dispatch: Dispatch<Msg>, dragging: Maybe<Dragging>): DraggingMouseEvents<T> {
+    return dragging.cata<DraggingMouseEvents<T>>({
+        Nothing: () => ({
+            onMouseDown: event => dispatch({ $: 'DRAG_START', _0: event.screenX })
+        }),
+        Just: ({ start }) => ({
+            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: start, _1: event.screenX }),
+            onMouseUp: () => dispatch({ $: 'DRAG_END' }),
+            onMouseLeave: () => dispatch({ $: 'DRAG_END' })
+        })
+    });
+}
+
 export const View: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
     model: Model;
@@ -315,16 +389,43 @@ export const View: React.StatelessComponent<{
     donor: Maybe<Currency>;
 }> = ({ dispatch, model, amount, currencies, donor }) => (
     <Root {...buildDraggingMouseEvents(dispatch, model.dragging)}>
-        {Utils.find(currency => currency.code === model.currency, currencies).cata({
+        {extractCurrencies(currencies, model).cata({
             Nothing: () => null,
-            Just: (currency: Currency) => (
-                <Carousel shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}>
+            Just: acc => (
+                <Carousel shift={acc.shift}>
+                    {acc.prev.cata({
+                        Nothing: () => null,
+                        Just: prev => (
+                            <Slide
+                                dispatch={dispatch}
+                                amount=""
+                                currency={prev}
+                                donor={donor}
+                                key={prev.code}
+                            />
+                        )
+                    })}
+
                     <Slide
                         dispatch={dispatch}
                         amount={amount}
-                        currency={currency}
+                        currency={acc.current}
                         donor={donor}
+                        key={acc.current.code}
                     />
+
+                    {acc.next.cata({
+                        Nothing: () => null,
+                        Just: next => (
+                            <Slide
+                                dispatch={dispatch}
+                                amount=""
+                                currency={next}
+                                donor={donor}
+                                key={next.code}
+                            />
+                        )
+                    })}
                 </Carousel>
             )
         })}

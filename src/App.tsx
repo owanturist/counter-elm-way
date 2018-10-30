@@ -41,13 +41,15 @@ enum Changers {
     TO = 'to'
 }
 
+interface Amount {
+    source: Changers;
+    value: Maybe<string>;
+};
+
 export interface Model {
     cancelRequest: Maybe<Cmd<Msg>>;
     currencies: Array<Currency>;
-    amount: {
-        source: Changers;
-        value: Maybe<string>;
-    };
+    amount: Amount;
     changers: {
         [ Key in Changers ]: Changer.Model
     };
@@ -135,7 +137,7 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
             ...model,
             amount: {
                 ...model.amount,
-                value: Just('-' + minimum)
+                value: Just((-minimum).toString())
             }
         };
     }
@@ -334,22 +336,62 @@ export const subscriptions = (model: Model): Sub<Msg> => {
  * V I E W
  */
 
-const extractFormatedAmountFor = (source: Changers, model: Model): string => {
-    if (model.amount.source === source) {
-        return model.amount.value.getOrElse('');
+const extractFormatedAmountFor = (
+    source: Changers,
+    from: Maybe<Currency>,
+    to: Maybe<Currency>,
+    amount: Amount
+): string => {
+    if (amount.source === source) {
+        return amount.value.getOrElse('');
     }
 
     return Maybe.props({
-        amount: model.amount.value.chain(Utils.stringToNumber),
-        to: getCurrencyOfChanger(Changers.TO, model),
-        from: getCurrencyOfChanger(Changers.FROM, model)
+        to,
+        from,
+        amount: amount.value.chain(Utils.stringToNumber)
     }).chain(acc => source === Changers.FROM
         ? acc.from.convertTo(-acc.amount, acc.to)
         : acc.to.convertFrom(-acc.amount, acc.from)
     ).map(amount => amount.toFixed(2)).getOrElse('');
 };
 
-const Root = styled.div`
+const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: Amount): Maybe<{
+    from: Currency;
+    to: Currency;
+    amountFrom: number;
+    amountTo: number;
+}> => Maybe.props({
+    from,
+    to,
+    amount: amount.value.chain(Utils.stringToNumber)
+}).chain(acc => {
+    if (acc.amount === 0) {
+        return Nothing;
+    }
+
+    if (acc.from.code === acc.to.code) {
+        return Nothing;
+    }
+
+    if (amount.source === Changers.FROM) {
+        return acc.to.convertFrom(-acc.amount, acc.from).map(amountTo => ({
+            from: acc.from,
+            to: acc.to,
+            amountFrom: Utils.round(2, acc.amount),
+            amountTo: Utils.round(2, amountTo)
+        }));
+    }
+
+    return acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
+        from: acc.from,
+        to: acc.to,
+        amountFrom: Utils.round(2, amountFrom),
+        amountTo: Utils.round(2, acc.amount)
+    }));
+});
+
+const Root = styled.form`
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -382,8 +424,10 @@ const MenuButton = styled.button<{
     color: #fff;
     background: transparent;
     font-weight: 300;
+    cursor: pointer;
     ${({ disabled = false }) => disabled ? `
         opacity: .4;
+        cursor: not-allowed;
     ` : null}
 `;
 
@@ -434,9 +478,25 @@ export const View: React.StatelessComponent<{
 }> = ({ dispatch, model }) => {
     const from = getCurrencyOfChanger(Changers.FROM, model);
     const to = getCurrencyOfChanger(Changers.TO, model);
+    const exchangeResult = getExchangeResult(from, to, model.amount);
 
     return (
-        <Root>
+        <Root onSubmit={event => {
+            exchangeResult.cata({
+                Nothing: () => {
+                    // do nothing
+                },
+                Just: result => dispatch({
+                    $: 'EXCHANGE',
+                    _0: result.from,
+                    _1: result.to,
+                    _2: result.amountFrom,
+                    _3: result.amountTo
+                })
+            });
+
+            event.preventDefault();
+        }}>
             <Header>
                 <MenuItemContainer align="flex-start">
                     <MenuButton>Cancel</MenuButton>
@@ -450,51 +510,17 @@ export const View: React.StatelessComponent<{
                 </MenuItemContainer>
 
                 <MenuItemContainer align="flex-end">
-                    {Maybe.props({
-                        from,
-                        to,
-                        amount: model.amount.value.chain(Utils.stringToNumber)
-                    }).chain(acc => {
-                        if (acc.amount === 0) {
-                            return Nothing;
-                        }
-
-                        if (model.amount.source === Changers.FROM) {
-                            return Just({
-                                from: acc.from,
-                                to: acc.to,
-                                amount: acc.amount
-                            });
-                        }
-
-                        return acc.from.convertTo(-acc.amount, acc.to).map(amount => ({
-                            from: acc.from,
-                            to: acc.to,
-                            amount: Utils.round(2, amount)
-                        }));
-                    }).cata({
-                        Nothing: () => (
-                            <MenuButton disabled>Exchange</MenuButton>
-                        ),
-                        Just: acc => (
-                            <MenuButton
-                                onClick={() => dispatch({
-                                    $: 'EXCHANGE',
-                                    _0: acc.from,
-                                    _1: acc.to,
-                                    _2: acc.amount,
-                                    _3: acc.to.convertFrom(-acc.amount, acc.from).getOrElse(0)
-                                })}
-                            >Exchange</MenuButton>
-                        )
-                    })}
+                    <MenuButton
+                        type="submit"
+                        disabled={exchangeResult.isNothing()}
+                    >Exchange</MenuButton>
                 </MenuItemContainer>
             </Header>
 
             <Content>
                 <ChangerContainer source={Changers.FROM}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.FROM, model)}
+                        amount={extractFormatedAmountFor(Changers.FROM, from, to, model.amount)}
                         currencies={model.currencies}
                         donor={Nothing}
                         model={model.changers.from}
@@ -504,7 +530,7 @@ export const View: React.StatelessComponent<{
 
                 <ChangerContainer source={Changers.TO}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.TO, model)}
+                        amount={extractFormatedAmountFor(Changers.TO, from, to, model.amount)}
                         currencies={model.currencies}
                         donor={areChangersSame(model) ? Nothing : from}
                         model={model.changers.to}
