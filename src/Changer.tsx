@@ -20,6 +20,7 @@ import * as Utils from './Utils';
  */
 
 interface Dragging {
+    ref: React.RefObject<HTMLDivElement>;
     start: number;
     delta: Maybe<number>;
 }
@@ -27,11 +28,13 @@ interface Dragging {
 export interface Model {
     currency: string;
     dragging: Maybe<Dragging>;
+    slide: Maybe<number>;
 }
 
 export const init = (currency: string): Model => ({
     currency,
-    dragging: Nothing
+    dragging: Nothing,
+    slide: Nothing
 });
 
 export const isSame = (left: Model, right: Model): boolean => left.currency === right.currency;
@@ -93,6 +96,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                 _1: {
                     ...model,
                     dragging: Just({
+                        ref: React.createRef() as React.RefObject<HTMLDivElement>,
                         start: msg._0,
                         delta: Nothing
                     })
@@ -101,17 +105,33 @@ export const update = (msg: Msg, model: Model): Stage => {
         }
 
         case 'DRAGGING': {
-            return {
+            return model.dragging.chain(
+                dragging => Maybe.fromNullable(dragging.ref.current).chain(
+                    node => luft(50, msg._0 - dragging.start).map(
+                        (delta): Stage => Math.abs(delta) > node.offsetWidth / 3
+                            ? {
+                                $: 'UPDATED',
+                                _0: false,
+                                _1: model
+                            }
+                            : {
+                                $: 'UPDATED',
+                                _0: false,
+                                _1: {
+                                    ...model,
+                                    dragging: Just({
+                                        ...dragging,
+                                        delta: Just(delta)
+                                    })
+                                }
+                            }
+                    )
+                )
+            ).getOrElse({
                 $: 'UPDATED',
                 _0: false,
-                _1: {
-                    ...model,
-                    dragging: model.dragging.map(dragging => ({
-                        ...dragging,
-                        delta: luft(50, msg._0 - dragging.start)
-                    }))
-                }
-            };
+                _1: model
+            });
         }
 
         case 'DRAG_END': {
@@ -289,70 +309,81 @@ const extractCurrencies = (currencies: Array<Currency>, model: Model): Maybe<{
     prev: Maybe<Currency>;
     next: Maybe<Currency>;
 }> => Utils.find(currency => currency.code === model.currency, currencies).map(
-    current => model.dragging.chain(dragging => dragging.delta).map(delta => ({
-        shift: delta,
-        current,
-        prev: delta <= 0 ? Nothing : currencies.reduce(
-            (acc, currency) => {
-                if (acc.final) {
-                    return acc;
-                }
+    current => model.dragging.chain(dragging => dragging.delta).cata({
+        Nothing: () => ({
+            shift: 0,
+            current,
+            next: Nothing,
+            prev: Nothing
+        }),
+        Just: delta => {
+            if (delta > 0) {
+                const { prev } = currencies.reduce(
+                    (acc, currency) => {
+                        if (acc.final) {
+                            return acc;
+                        }
 
-                if (currency.code === current.code) {
-                    return { final: true, prev: acc.prev };
-                }
+                        if (currency.code === current.code) {
+                            return { final: true, prev: acc.prev };
+                        }
+
+                        return {
+                            final: false,
+                            prev: Just(currency)
+                        };
+                    },
+                    {
+                        final: false,
+                        prev: Nothing
+                    }
+                );
 
                 return {
-                    final: false,
-                    prev: Just(currency)
+                    shift: prev.isNothing() ? 0 : delta,
+                    current,
+                    prev,
+                    next: Nothing
                 };
-            },
-            {
-                final: false,
-                prev: Nothing
             }
-        ).prev,
-        next: delta >= 0 ? Nothing : currencies.reduce(
-            (acc, currency) => {
-                if (currency.code === current.code) {
-                    return { final: true, next: acc.next };
-                }
 
-                if (acc.final) {
-                    return {
+            if (delta < 0) {
+                const { next } = currencies.reduce(
+                    (acc, currency) => {
+                        if (currency.code === current.code) {
+                            return { final: true, next: acc.next };
+                        }
+
+                        if (acc.final) {
+                            return {
+                                final: false,
+                                next: Just(currency)
+                            };
+                        }
+
+                        return acc;
+                    },
+                    {
                         final: false,
-                        next: Just(currency)
-                    };
-                }
+                        next: Nothing
+                    }
+                );
 
-                return acc;
-            },
-            {
-                final: false,
-                next: Nothing
+                return {
+                    shift: next.isNothing() ? 0 : delta,
+                    current,
+                    prev: Nothing,
+                    next
+                };
             }
-        ).next
-    })).map(acc => {
-        if (acc.prev.isNothing()) {
+
             return {
-                ...acc,
-                shift: Math.min(0, acc.shift)
+                shift: 0,
+                current,
+                prev: Nothing,
+                next: Nothing
             };
         }
-
-        if (acc.next.isNothing()) {
-            return {
-                ...acc,
-                shift: Math.max(0, acc.shift)
-            };
-        }
-
-        return acc;
-    }).getOrElse({
-        shift: 0,
-        current,
-        next: Nothing,
-        prev: Nothing
     })
 );
 
@@ -368,7 +399,8 @@ function buildDraggingMouseEvents<T>(dispatch: Dispatch<Msg>, dragging: Maybe<Dr
         Nothing: () => ({
             onMouseDown: event => dispatch({ $: 'DRAG_START', _0: event.screenX })
         }),
-        Just: () => ({
+        Just: ({ ref }) => ({
+            ref,
             onMouseMove: event => dispatch({ $: 'DRAGGING', _0: event.screenX }),
             onMouseUp: () => dispatch({ $: 'DRAG_END' }),
             onMouseLeave: () => dispatch({ $: 'DRAG_END' })
@@ -383,11 +415,14 @@ export const View: React.StatelessComponent<{
     currencies: Array<Currency>;
     donor: Maybe<Currency>;
 }> = ({ dispatch, model, amount, currencies, donor }) => (
-    <Root {...buildDraggingMouseEvents(dispatch, model.dragging)}>
+    <Root>
         {extractCurrencies(currencies, model).cata({
             Nothing: () => null,
             Just: acc => (
-                <Carousel shift={acc.shift}>
+                <Carousel
+                    shift={acc.shift}
+                    {...buildDraggingMouseEvents(dispatch, model.dragging)}
+                >
                     {acc.prev.cata({
                         Nothing: () => null,
                         Just: prev => (
