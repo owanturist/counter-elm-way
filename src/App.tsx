@@ -525,6 +525,7 @@ export const View: React.StatelessComponent<{
                         donor={Nothing}
                         model={model.changers.from}
                         dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.FROM, _1: msg })}
+                        autoFocus
                     />
                 </ChangerContainer>
 

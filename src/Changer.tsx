@@ -107,7 +107,7 @@ export const update = (msg: Msg, model: Model): Stage => {
         case 'DRAGGING': {
             return model.dragging.chain(
                 dragging => Maybe.fromNullable(dragging.ref.current).chain(
-                    node => luft(50, msg._0 - dragging.start).map(
+                    node => luft(20, msg._0 - dragging.start).map(
                         (delta): Stage => Math.abs(delta) > node.offsetWidth / 3
                             ? {
                                 $: 'UPDATED',
@@ -266,7 +266,8 @@ const Slide = styled<{
     currency: Currency;
     donor: Maybe<Currency>;
     className?: string;
-}>(({ dispatch, currency, amount, donor, className }) => (
+    autoFocus?: boolean;
+}>(({ dispatch, currency, amount, donor, className, autoFocus }) => (
     <label className={className}>
         <Main>
             {currency.code}
@@ -275,6 +276,7 @@ const Slide = styled<{
                 type="number"
                 value={amount}
                 step={calculateStep(amount).toString()}
+                autoFocus={autoFocus}
                 onChange={event => dispatch({
                     $: 'CHANGE_AMOUNT',
                     _0: stringToAmount(event.currentTarget.value)
@@ -414,7 +416,8 @@ export const View: React.StatelessComponent<{
     amount: string;
     currencies: Array<Currency>;
     donor: Maybe<Currency>;
-}> = ({ dispatch, model, amount, currencies, donor }) => (
+    autoFocus?: boolean;
+}> = ({ dispatch, model, amount, currencies, donor, autoFocus }) => (
     <Root>
         {extractCurrencies(currencies, model).cata({
             Nothing: () => null,
@@ -441,6 +444,7 @@ export const View: React.StatelessComponent<{
                         amount={amount}
                         currency={acc.current}
                         donor={donor}
+                        autoFocus={autoFocus}
                         key={acc.current.code}
                     />
 
