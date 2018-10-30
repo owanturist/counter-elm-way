@@ -198,7 +198,7 @@ const Info = styled.div`
 
 const Input = styled.input`
     width: 100%;
-    padding: 0;
+    padding: 0 0 0 1em;
     border: none;
     background: transparent;
     font: inherit;
@@ -260,6 +260,18 @@ function buildDraggingMouseEvents<T>(dispatch: Dispatch<Msg>, dragging: Maybe<Dr
     });
 }
 
+const calculateStep = (amount: string): number => {
+    if (/(\.|,)\d[1-9]\d*/.test(amount)) {
+        return 0.01;
+    }
+
+    if (/(\.|,)[1-9]\d*/.test(amount)) {
+        return 0.1;
+    }
+
+    return 1;
+};
+
 const ViewSlide: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
     amount: string;
@@ -273,7 +285,7 @@ const ViewSlide: React.StatelessComponent<{
             <Input
                 type="number"
                 value={amount}
-                step="0.01"
+                step={calculateStep(amount).toString()}
                 onChange={event => dispatch({
                     $: 'CHANGE_AMOUNT',
                     _0: stringToAmount(event.currentTarget.value)
@@ -286,7 +298,7 @@ const ViewSlide: React.StatelessComponent<{
 
             {donor.chain(donorCurrency => donorCurrency.convertTo(1, currency).map(rate => (
                 <span>
-                    <Small>{currency.symbol}</Small>1 =
+                    <Small>{currency.symbol}</Small>1&nbsp;=&nbsp;
                     <Small>{donorCurrency.symbol}</Small>{Utils.round(2, rate)}
                 </span>
             ))
