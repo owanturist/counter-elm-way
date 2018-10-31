@@ -29,7 +29,7 @@ const DRAGGING_LUFT_GAP = 20;
 interface Dragging {
     ref: React.RefObject<HTMLDivElement>;
     start: number;
-    delta: number;
+    delta: Maybe<number>;
 }
 
 interface Sliding {
@@ -80,6 +80,18 @@ export type Stage
     | { $: 'AMOUNT_CHANGED'; _0: Maybe<string> }
     ;
 
+const luft = (gap: number, delta: number): Maybe<number> => {
+    if (delta > 0) {
+        return delta - gap > 0 ? Just(delta - gap) : Nothing;
+    }
+
+    if (delta < 0) {
+        return delta + gap < 0 ? Just(delta + gap) : Nothing;
+    }
+
+    return Nothing;
+};
+
 export const update = (msg: Msg, model: Model): Stage => {
     switch (msg.$) {
         case 'CHANGE_CURRENCY': {
@@ -109,7 +121,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                     dragging: Just({
                         ref: React.createRef() as React.RefObject<HTMLDivElement>,
                         start: msg._0,
-                        delta: 0
+                        delta: Nothing
                     })
                 }
             };
@@ -118,9 +130,8 @@ export const update = (msg: Msg, model: Model): Stage => {
         case 'DRAGGING': {
             return model.dragging.chain(
                 dragging => Maybe.fromNullable(dragging.ref.current).map(
-                    ({ offsetWidth }): Stage => {
-                        const delta = msg._2 - dragging.start;
-                        const border = Utils.clamp(100, 300, offsetWidth / 3);
+                    node => luft(DRAGGING_LUFT_GAP, msg._2 - dragging.start).map((delta): Stage => {
+                        const border = Utils.clamp(100, 300, node.offsetWidth / 3);
 
                         if (delta < -border) {
                             return msg._1.map((next): Stage => ({
@@ -132,8 +143,8 @@ export const update = (msg: Msg, model: Model): Stage => {
                                     dragging: Nothing,
                                     sliding: Just({
                                         currency: Just(model.currency),
-                                        duration: calcSlidingDuration(offsetWidth + delta),
-                                        destination: -offsetWidth
+                                        duration: calcSlidingDuration(node.offsetWidth + delta),
+                                        destination: -node.offsetWidth
                                     })
                                 }
                             })).getOrElse({
@@ -161,8 +172,8 @@ export const update = (msg: Msg, model: Model): Stage => {
                                     dragging: Nothing,
                                     sliding: Just({
                                         currency: Just(model.currency),
-                                        duration: calcSlidingDuration(offsetWidth - delta),
-                                        destination: offsetWidth
+                                        duration: calcSlidingDuration(node.offsetWidth - delta),
+                                        destination: node.offsetWidth
                                     })
                                 }
                             })).getOrElse({
@@ -185,10 +196,23 @@ export const update = (msg: Msg, model: Model): Stage => {
                             _0: false,
                             _1: {
                                 ...model,
-                                dragging: Just({ ...dragging, delta })
+                                dragging: Just({
+                                    ...dragging,
+                                    delta: Just(delta)
+                                })
                             }
                         };
-                    }
+                    }).getOrElse({
+                        $: 'UPDATED',
+                        _0: false,
+                        _1: {
+                            ...model,
+                            dragging: Just({
+                                ...dragging,
+                                delta: Nothing
+                            })
+                        }
+                    })
                 )
             ).getOrElse({
                 $: 'UPDATED',
@@ -204,15 +228,21 @@ export const update = (msg: Msg, model: Model): Stage => {
             return {
                 $: 'UPDATED',
                 _0: false,
-                _1: model.dragging.map((dragging): Model => ({
-                    ...model,
-                    dragging: Nothing,
-                    sliding: Just({
-                        currency: Nothing,
-                        duration: calcSlidingDuration(dragging.delta),
-                        destination: 0
+                _1: model.dragging.chain(dragging => dragging.delta).cata({
+                    Nothing: () => ({
+                        ...model,
+                        dragging: Nothing
+                    }),
+                    Just: delta => ({
+                        ...model,
+                        dragging: Nothing,
+                        sliding: Just({
+                            currency: Nothing,
+                            duration: calcSlidingDuration(delta),
+                            destination: 0
+                        })
                     })
-                })).getOrElse(model)
+                })
             };
         }
 
@@ -259,18 +289,18 @@ interface CarouselProps {
 
 interface CarouselAttrs {
     style: {
-        transform: string;
+        [ property: string ]: string;
     };
 }
 
 const Carousel = styled.div.attrs<CarouselProps, CarouselAttrs>({
     style: props => props.sliding.cata({
         Nothing: () => ({
-            transform: `translateX(${props.shift}px)`
+            transform: `translate3d(${props.shift}px, 0, 0)`
         }),
 
         Just: sliding => ({
-            transform: `translateX(${sliding.destination}px)`,
+            transform: `translate3d(${sliding.destination}px, 0, 0)`,
             transition: `transform ${sliding.duration}ms ease-out`
         })
     })
@@ -316,6 +346,7 @@ const Input = styled.input`
     color: inherit;
     outline: none;
     text-align: right;
+    -moz-appearance: textfield;
 
     &::-webkit-inner-spin-button,
     &::-webkit-outer-spin-button {
@@ -446,18 +477,6 @@ const extractCurrencies = (currencies: Array<Currency>, currentCode: string): Ma
     }));
 };
 
-const luft = (gap: number, delta: number): Maybe<number> => {
-    if (delta > 0) {
-        return delta - gap > 0 ? Just(delta - gap) : Nothing;
-    }
-
-    if (delta < 0) {
-        return delta + gap < 0 ? Just(delta + gap) : Nothing;
-    }
-
-    return Nothing;
-};
-
 interface DraggingMouseEvents<T> {
     onMouseDown?(event: React.MouseEvent<T>): void;
     onMouseMove?(event: React.MouseEvent<T>): void;
@@ -500,9 +519,7 @@ export const View: React.StatelessComponent<{
             Nothing: () => null,
             Just: ({ prev, current, next }) => (
                 <Carousel
-                    shift={model.dragging
-                            .chain(dragging => luft(DRAGGING_LUFT_GAP, dragging.delta))
-                            .getOrElse(0)}
+                    shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}
                     sliding={model.sliding}
                     prev={prev}
                     next={next}
