@@ -234,8 +234,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'EXCHANGE': {
-            // tslint:disable-next-line:no-console
-            console.log(`Exchange ${msg._2.toFixed(2)} of ${msg._0.code} to ${msg._3.toFixed(2)} ${msg._1.code}`);
+            alert(`Exchange ${msg._2.toFixed(2)} of ${msg._0.code} to ${msg._3.toFixed(2)} ${msg._1.code}`);
 
             return [
                 {
@@ -488,7 +487,7 @@ export const View: React.StatelessComponent<{
     const exchangeResult = getExchangeResult(from, to, model.amount);
 
     return (
-        <Root onSubmit={event => {
+        <Root noValidate onSubmit={event => {
             exchangeResult.cata({
                 Nothing: () => {
                     // do nothing

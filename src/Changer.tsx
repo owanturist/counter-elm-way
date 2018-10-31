@@ -407,8 +407,15 @@ const Slide = styled<{
     donor: Maybe<Currency>;
     preventClicking: boolean;
     className?: string;
-    autoFocus?: boolean;
-}>(({ dispatch, currency, amount, donor, className, autoFocus, preventClicking }) => (
+} & React.InputHTMLAttributes<HTMLInputElement>>(({
+    dispatch,
+    currency,
+    amount,
+    donor,
+    className,
+    preventClicking,
+    ...inputProps
+}) => (
     <label className={className} onClick={event => {
         if (preventClicking) {
             event.preventDefault();
@@ -421,11 +428,11 @@ const Slide = styled<{
                 type="number"
                 value={amount}
                 step={calcStep(amount).toString()}
-                autoFocus={autoFocus}
                 onChange={event => dispatch({
                     $: 'CHANGE_AMOUNT',
                     _0: stringToAmount(event.currentTarget.value)
                 })}
+                {...inputProps}
             />
         </Main>
 
@@ -547,6 +554,7 @@ export const View: React.StatelessComponent<{
                                 currency={currency}
                                 donor={donor}
                                 preventClicking={model.sliding.isJust()}
+                                disabled
                                 key={currency.code}
                             />
                         )
@@ -571,6 +579,7 @@ export const View: React.StatelessComponent<{
                                 currency={currency}
                                 donor={donor}
                                 preventClicking={model.sliding.isJust()}
+                                disabled
                                 key={currency.code}
                             />
                         )
