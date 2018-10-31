@@ -323,7 +323,7 @@ const Carousel = styled.div.attrs<CarouselProps, CarouselAttrs>({
 const Main = styled.div`
     display: flex;
     align-items: center;
-    font-size: 2.4em;
+    font-size: 3em;
     font-weight: 300;
     line-height: 1;
 `;
@@ -332,8 +332,7 @@ const Info = styled.div`
     flex: 0 1 auto;
     display: flex;
     justify-content: space-between;
-    margin-top: 1em;
-    font-weight: 300;
+    margin-top: .5em;
     opacity: .6;
 `;
 

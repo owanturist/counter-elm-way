@@ -24,9 +24,13 @@ const Select = styled.button`
     outline: none;
 
     &:after {
-        content: "▾";
-        margin-left: .25em;
-        font-size: .8em;
+        content: "";
+        display: inline-block;
+        margin-left: .3em;
+        border: 0 solid transparent;
+        border-width: .3em .3em 0
+        border-top-color: #fff;
+        vertical-align: middle;
     }
 `;
 
