@@ -210,17 +210,15 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'CHANGER_MSG': {
-            const stage = Changer.update(msg.changerMsg, model.changers[ msg.source ]);
-
-            switch (stage.type) {
-                case 'UPDATED': {
-                    if (!stage.currencyChanged) {
+            return msg.changerMsg.update(model.changers[ msg.source ]).cata({
+                Updated(currencyChanged: boolean, nextChanger: Changer.Model): [ Model, Cmd<Msg> ] {
+                    if (!currencyChanged) {
                         return [
                             {
                                 ...model,
                                 changers: {
                                     ...model.changers,
-                                    [ msg.source ]: stage.model
+                                    [ msg.source ]: nextChanger
                                 }
                             },
                             Cmd.none
@@ -231,7 +229,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         ...model,
                         changers: {
                             ...model.changers,
-                            [ msg.source ]: stage.model
+                            [ msg.source ]: nextChanger
                         }
                     });
 
@@ -251,13 +249,13 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                             fetchRatesCmd
                         ])
                     ];
-                }
+                },
 
-                case 'AMOUNT_CHANGED': {
+                AmountChanged(amount: string): [ Model, Cmd<Msg> ] {
                     const nextModel = limit({
                         ...model,
                         active: msg.source,
-                        amount: stage.amount
+                        amount
                     });
 
                     const [ from, to ] = getChangersRoles(model);
@@ -283,11 +281,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         ])
                     ];
                 }
-
-                default: {
-                    throw new Error('TS WAT?');
-                }
-            }
+            });
         }
     }
 };

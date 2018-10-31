@@ -68,34 +68,49 @@ export const isSame = (first: Model, second: Model) => first.currency.isEqual(se
  * U P D A T E
  */
 
-export type Msg
-    = { type: 'CHANGE_CURRENCY'; currency: Currency.ID }
-    | { type: 'CHANGE_AMOUNT'; amount: string }
-    | { type: 'DRAG_START'; start: number }
-    | { type: 'DRAG'; prev: Maybe<Currency.ID>; next: Maybe<Currency.ID>; end: number; width: number }
-    | { type: 'DRAG_END' }
-    | { type: 'SLIDE_END' }
-    ;
+export abstract class Msg {
+    public abstract update(model: Model): Stage;
+}
 
-const ChangeCurrency = (currency: Currency.ID): Msg => ({ type: 'CHANGE_CURRENCY', currency });
-const ChangeAmount = (amount: string): Msg => ({ type: 'CHANGE_AMOUNT', amount });
-const DragStart = (start: number): Msg => ({ type: 'DRAG_START', start });
-const Drag = (
-    prev: Maybe<Currency.ID>,
-    next: Maybe<Currency.ID>,
-    end: number,
-    width: number
-): Msg => ({ type: 'DRAG', prev, next, end, width });
-const DragEnd: Msg = { type: 'DRAG_END' };
-const SlideEnd: Msg = { type: 'SLIDE_END' };
+class ChangeCurrency extends Msg {
+    constructor(private readonly currency: Currency.ID) {
+        super();
+    }
 
-export type Stage
-    = { type: 'UPDATED'; currencyChanged: boolean; model: Model }
-    | { type: 'AMOUNT_CHANGED'; amount: string }
-    ;
+    public update(model: Model): Stage {
+        return new Updated(true, {
+            ...model,
+            currency: this.currency
+        });
+    }
+}
 
-const Updated = (currencyChanged: boolean, model: Model): Stage => ({ type: 'UPDATED', currencyChanged, model });
-const AmountChanged = (amount: string): Stage => ({ type: 'AMOUNT_CHANGED', amount });
+class ChangeAmount extends Msg {
+    constructor(private readonly amount: string) {
+        super();
+    }
+
+    public update(): Stage {
+        return new AmountChanged(this.amount);
+    }
+}
+
+class DragStart extends Msg {
+    constructor(private readonly start: number) {
+        super();
+    }
+
+    public update(model: Model): Stage {
+        return new Updated(false, {
+            ...model,
+            dragging: Just({
+                ref: React.createRef() as React.RefObject<HTMLDivElement>,
+                start: this.start,
+                delta: Nothing
+            })
+        });
+    }
+}
 
 const luft = (gap: number, delta: number): Maybe<number> => {
     if (delta - gap > 0) {
@@ -109,141 +124,162 @@ const luft = (gap: number, delta: number): Maybe<number> => {
     return Nothing;
 };
 
-export const update = (msg: Msg, model: Model): Stage => {
-    switch (msg.type) {
-        case 'CHANGE_CURRENCY': {
-            return Updated(true, {
-                ...model,
-                currency: msg.currency
-            });
-        }
+class Drag extends Msg {
+    constructor(
+        private readonly prev: Maybe<Currency.ID>,
+        private readonly next: Maybe<Currency.ID>,
+        private readonly end: number,
+        private readonly width: number
+    ) {
+        super();
+    }
 
-        case 'CHANGE_AMOUNT': {
-            return AmountChanged(msg.amount);
-        }
+    public update(model: Model): Stage {
+        return model.dragging.map(
+            dragging => luft(DRAGGING_LUFT_GAP, this.end - dragging.start).cata({
+                Nothing: () => new Updated(false, {
+                    ...model,
+                    dragging: Just({
+                        ...dragging,
+                        delta: Nothing
+                    })
+                }),
 
-        case 'DRAG_START': {
-            return Updated(false, {
-                ...model,
-                dragging: Just({
-                    ref: React.createRef<HTMLDivElement>(),
-                    start: msg.start,
-                    delta: Nothing
-                })
-            });
-        }
+                Just: delta => {
+                    const border = Utils.clamp(100, 300, this.width / 3);
 
-        case 'DRAG': {
-            return model.dragging.map(
-                dragging => luft(DRAGGING_LUFT_GAP, msg.end - dragging.start).cata({
-                    Nothing: () => Updated(false, {
-                        ...model,
-                        dragging: Just({
-                            ...dragging,
-                            delta: Nothing
-                        })
-                    }),
-
-                    Just: delta => {
-                        const border = Utils.clamp(100, 300, msg.width / 3);
-
-                        if (delta < -border) {
-                            return msg.next.cata({
-                                Nothing: () => Updated(false, {
-                                    ...model,
-                                    dragging: Nothing,
-                                    sliding: Just({
-                                        currency: Nothing,
-                                        duration: calcSlidingDuration(delta),
-                                        destination: 0
-                                    })
-                                }),
-
-                                Just: next => Updated(true, {
-                                    ...model,
-                                    currency: next,
-                                    dragging: Nothing,
-                                    sliding: Just({
-                                        currency: Just(model.currency),
-                                        duration: calcSlidingDuration(msg.width + delta),
-                                        destination: -msg.width
-                                    })
+                    if (delta < -border) {
+                        return this.next.cata({
+                            Nothing: () => new Updated(false, {
+                                ...model,
+                                dragging: Nothing,
+                                sliding: Just({
+                                    currency: Nothing,
+                                    duration: calcSlidingDuration(delta),
+                                    destination: 0
                                 })
-                            });
-                        }
+                            }),
 
-                        if (delta > border) {
-                            return msg.prev.cata({
-                                Nothing: () => Updated(false, {
-                                    ...model,
-                                    dragging: Nothing,
-                                    sliding: Just({
-                                        currency: Nothing,
-                                        duration: calcSlidingDuration(delta),
-                                        destination: 0
-                                    })
-                                }),
-
-                                Just: prev => Updated(true, {
-                                    ...model,
-                                    currency: prev,
-                                    dragging: Nothing,
-                                    sliding: Just({
-                                        currency: Just(model.currency),
-                                        duration: calcSlidingDuration(msg.width - delta),
-                                        destination: msg.width
-                                    })
+                            Just: next => new Updated(true, {
+                                ...model,
+                                currency: next,
+                                dragging: Nothing,
+                                sliding: Just({
+                                    currency: Just(model.currency),
+                                    duration: calcSlidingDuration(this.width + delta),
+                                    destination: -this.width
                                 })
-                            });
-                        }
-
-                        return Updated(false, {
-                            ...model,
-                            dragging: Just({
-                                ...dragging,
-                                delta: Just(delta)
                             })
                         });
                     }
-                })
-            ).getOrElse(Updated(false, {
+
+                    if (delta > border) {
+                        return this.prev.cata({
+                            Nothing: () => new Updated(false, {
+                                ...model,
+                                dragging: Nothing,
+                                sliding: Just({
+                                    currency: Nothing,
+                                    duration: calcSlidingDuration(delta),
+                                    destination: 0
+                                })
+                            }),
+
+                            Just: prev => new Updated(true, {
+                                ...model,
+                                currency: prev,
+                                dragging: Nothing,
+                                sliding: Just({
+                                    currency: Just(model.currency),
+                                    duration: calcSlidingDuration(this.width - delta),
+                                    destination: this.width
+                                })
+                            })
+                        });
+                    }
+
+                    return new Updated(false, {
+                        ...model,
+                        dragging: Just({
+                            ...dragging,
+                            delta: Just(delta)
+                        })
+                    });
+                }
+            })
+        ).getOrElse(new Updated(false, {
+            ...model,
+            dragging: Nothing
+        }));
+    }
+}
+
+class DragEnd extends Msg {
+    public update(model: Model): Stage {
+        return new Updated(false, model.dragging.chain(dragging => dragging.delta).cata({
+            Nothing: () => ({
                 ...model,
                 dragging: Nothing
-            }));
-        }
+            }),
 
-        case 'DRAG_END': {
-            return Updated(false, model.dragging.chain(dragging => dragging.delta).cata({
-                Nothing: () => ({
-                    ...model,
-                    dragging: Nothing
-                }),
-
-                Just: delta => ({
-                    ...model,
-                    dragging: Nothing,
-                    sliding: Just({
-                        currency: Nothing,
-                        duration: calcSlidingDuration(delta),
-                        destination: 0
-                    })
-                })
-            }));
-        }
-
-        case 'SLIDE_END': {
-            return Updated(false, {
+            Just: delta => ({
                 ...model,
-                sliding: Nothing
-            });
-        }
+                dragging: Nothing,
+                sliding: Just({
+                    currency: Nothing,
+                    duration: calcSlidingDuration(delta),
+                    destination: 0
+                })
+            })
+        }));
     }
-};
+}
+
+class SlideEnd extends Msg {
+    public update(model: Model): Stage {
+        return new Updated(false, {
+            ...model,
+            sliding: Nothing
+        });
+    }
+}
+
+export interface Pattern<R> {
+    Updated(wasCurrencyChanged: boolean, model: Model): R;
+    AmountChanged(amount: string): R;
+}
+
+export abstract class Stage {
+    public abstract cata<R>(pattern: Pattern<R>): R;
+}
+
+class Updated extends Stage {
+    constructor(
+        private readonly wasCurrencyChanged: boolean,
+        private readonly model: Model
+    ) {
+        super();
+    }
+
+    public cata<R>(pattern: Pattern<R>): R {
+        return pattern.Updated(this.wasCurrencyChanged, this.model);
+    }
+}
+
+class AmountChanged extends Stage {
+    constructor(private readonly amount: string) {
+        super();
+    }
+
+    public cata<R>(pattern: Pattern<R>): R {
+        return pattern.AmountChanged(this.amount);
+    }
+}
 
 export const subscriptions = (model: Model): Sub<Msg> => {
     return model.sliding.cata({
         Nothing: () => Sub.none,
-        Just: sliding => Time.every(sliding.duration, () => SlideEnd)
+        Just: sliding => Time.every(sliding.duration, () => new SlideEnd())
     });
 };
 
@@ -422,10 +458,10 @@ const Slide = styled<{
                 type="text"
                 inputMode="numeric"
                 value={amount}
-                onChange={event => dispatch(ChangeAmount(stringToAmount(event.currentTarget.value)))}
+                onChange={event => dispatch(new ChangeAmount(stringToAmount(event.currentTarget.value)))}
                 onKeyPress={event => {
                     if (event.key === '-') {
-                        dispatch(ChangeAmount(negateAmount(amount)));
+                        dispatch(new ChangeAmount(negateAmount(amount)));
 
                         event.preventDefault();
                     }
@@ -518,8 +554,8 @@ function buildDraggingMouseEvents<T>(
         Nothing: () => ({
             onTouchStart: event => dispatch(
                 Maybe.fromNullable(event.touches[ 0 ]).cata({
-                    Nothing: () => DragEnd,
-                    Just: touch => DragStart(touch.screenX)
+                    Nothing: () => new DragEnd(),
+                    Just: touch => new DragStart(touch.screenX)
                 })
             )
         }),
@@ -530,11 +566,11 @@ function buildDraggingMouseEvents<T>(
                     touch: Maybe.fromNullable(event.touches[ 0 ]),
                     node: Maybe.fromNullable(ref.current)
                 }).cata({
-                    Nothing: () => DragEnd,
-                    Just: ({ touch, node }) => Drag(prev, next, touch.screenX, node.clientWidth)
+                    Nothing: () => new DragEnd(),
+                    Just: ({ touch, node }) => new Drag(prev, next, touch.screenX, node.clientWidth)
                 })
             ),
-            onTouchEnd: () => dispatch(DragEnd)
+            onTouchEnd: () => dispatch(new DragEnd())
         })
     });
 }
@@ -598,7 +634,7 @@ export const View: React.StatelessComponent<{
             {currencies.map(currency => (
                 <Point
                     active={currency.code.isEqual(model.currency)}
-                    onClick={() => dispatch(ChangeCurrency(currency.code))}
+                    onClick={() => dispatch(new ChangeCurrency(currency.code))}
                     key={currency.code.toString()}
                 />
             ))}
