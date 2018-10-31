@@ -530,64 +530,54 @@ export const View: React.StatelessComponent<{
     currencies: Array<Currency>;
     donor: Maybe<Currency>;
     autoFocus?: boolean;
-}> = ({ dispatch, model, amount, currencies, donor, autoFocus }) => (
-    <Root>
-        {extractCurrencies(
-            currencies,
-            model.sliding.chain(sliding => sliding.currency).getOrElse(model.currency)
-        ).cata({
-            Nothing: () => null,
-            Just: ({ prev, current, next }) => (
-                <Carousel
-                    shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}
-                    sliding={model.sliding}
-                    prev={prev}
-                    next={next}
-                    {...model.sliding.isJust() ? {} : buildDraggingMouseEvents(dispatch, prev, next, model.dragging)}
-                >
-                    {prev.cata({
-                        Nothing: () => null,
-                        Just: currency => (
-                            <Slide
-                                dispatch={dispatch}
-                                amount=""
-                                currency={currency}
-                                donor={donor}
-                                preventClicking={model.sliding.isJust()}
-                                disabled
-                                key={currency.code}
-                            />
-                        )
-                    })}
-
+}> = ({ dispatch, model, amount, currencies, donor, autoFocus }) => extractCurrencies(
+    currencies,
+    model.sliding.chain(sliding => sliding.currency).getOrElse(model.currency)
+).fold(() => null, ({ prev, current, next }) => (
+    <Root {...model.sliding.isJust() ? {} : buildDraggingMouseEvents(dispatch, prev, next, model.dragging)}>
+        <Carousel
+            shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}
+            sliding={model.sliding}
+            prev={prev}
+            next={next}
+        >
+            {prev.cata({
+                Nothing: () => null,
+                Just: currency => (
                     <Slide
                         dispatch={dispatch}
-                        amount={amount}
-                        currency={current}
+                        amount=""
+                        currency={currency}
                         donor={donor}
-                        autoFocus={autoFocus}
                         preventClicking={model.sliding.isJust()}
-                        key={current.code}
+                        disabled
                     />
+                )
+            })}
 
-                    {next.cata({
-                        Nothing: () => null,
-                        Just: currency => (
-                            <Slide
-                                dispatch={dispatch}
-                                amount=""
-                                currency={currency}
-                                donor={donor}
-                                preventClicking={model.sliding.isJust()}
-                                disabled
-                                key={currency.code}
-                            />
-                        )
-                    })}
-                </Carousel>
-            )
-        })}
+            <Slide
+                dispatch={dispatch}
+                amount={amount}
+                currency={current}
+                donor={donor}
+                autoFocus={autoFocus}
+                preventClicking={model.sliding.isJust()}
+            />
 
+            {next.cata({
+                Nothing: () => null,
+                Just: currency => (
+                    <Slide
+                        dispatch={dispatch}
+                        amount=""
+                        currency={currency}
+                        donor={donor}
+                        preventClicking={model.sliding.isJust()}
+                        disabled
+                    />
+                )
+            })}
+        </Carousel>
         <Line>
             {currencies.map(currency => (
                 <Point
@@ -598,4 +588,4 @@ export const View: React.StatelessComponent<{
             ))}
         </Line>
     </Root>
-);
+));
