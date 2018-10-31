@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "scripts": {
     "clean": "rm -rf build",
-    "prebuild": "yarn run clean",
+    "prebuild": "npm run clean",
     "build": "webpack",
     "lint": "tslint -p tsconfig.json \"src/**/**.ts*\"",
     "dev": "webpack-dev-server --port 3000 --host 0.0.0.0"
