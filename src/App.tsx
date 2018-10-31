@@ -169,24 +169,38 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
  */
 
 export type Msg
-    = { $: 'NOOP' }
-    | { $: 'FETCH_RATES' }
-    | { $: 'FETCH_RATES_DONE'; _0: string; _1: Either<Http.Error, Array<[ string, number ]>> }
-    | { $: 'EXCHANGE'; _0: Currency; _1: Currency; _2: number; _3: number }
-    | { $: 'CHANGER_MSG'; _0: Changers; _1: Changer.Msg }
+    = { type: 'NOOP' }
+    | { type: 'FETCH_RATES' }
+    | { type: 'FETCH_RATES_DONE'; base: string; result: Either<Http.Error, Array<[ string, number ]>> }
+    | { type: 'EXCHANGE'; from: Currency; amountFrom: number; to: Currency; amountTo: number }
+    | { type: 'CHANGER_MSG'; source: Changers; changerMsg: Changer.Msg }
     ;
+
+const NoOp: Msg = { type: 'NOOP' };
+const FetchRates: Msg = { type: 'FETCH_RATES' };
+const FetchRatesDone = (
+    base: string,
+    result: Either<Http.Error, Array<[ string, number ]>>
+): Msg => ({ type: 'FETCH_RATES_DONE', base, result });
+const Exchange = (
+    from: Currency,
+    amountFrom: number,
+    to: Currency,
+    amountTo: number
+): Msg => ({ type: 'EXCHANGE', from, amountFrom, to, amountTo });
+const ChangerMsg = (source: Changers, changerMsg: Changer.Msg): Msg => ({ type: 'CHANGER_MSG', source, changerMsg });
 
 const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
     const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
 
     return [
-        Task.perform((): Msg => ({ $: 'NOOP' }), cancel),
-        request.attempt((result): Msg => ({ $: 'FETCH_RATES_DONE', _0: base, _1: result }))
+        Task.perform(() => NoOp, cancel),
+        request.attempt(result => FetchRatesDone(base, result))
     ];
 };
 
 export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
-    switch (msg.$) {
+    switch (msg.type) {
         case 'NOOP': {
             return [ model, Cmd.none ];
         }
@@ -208,7 +222,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
         case 'FETCH_RATES_DONE': {
             return [
-                msg._1.cata({
+                msg.result.cata({
                     Left: (error: Http.Error) => {
                         // handle the error as you want to
                         // tslint:disable-next-line:no-console
@@ -221,7 +235,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         ...model,
                         cancelRequest: Nothing,
                         currencies: model.currencies.map(currency => {
-                            if (currency.code !== msg._0) {
+                            if (currency.code !== msg.base) {
                                 return currency;
                             }
 
@@ -234,7 +248,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'EXCHANGE': {
-            alert(`Exchange ${msg._2.toFixed(2)} of ${msg._0.code} to ${msg._3.toFixed(2)} ${msg._1.code}`);
+            alert(`
+                Exchange ${msg.amountFrom.toFixed(2)} of ${msg.from.code}
+                to ${msg.amountTo.toFixed(2)} ${msg.to.code}
+            `);
 
             return [
                 {
@@ -249,7 +266,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'CHANGER_MSG': {
-            const stage = Changer.update(msg._1, model.changers[ msg._0 ]);
+            const stage = Changer.update(msg.changerMsg, model.changers[ msg.source ]);
 
             switch (stage.type) {
                 case 'UPDATED': {
@@ -259,7 +276,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                                 ...model,
                                 changers: {
                                     ...model.changers,
-                                    [ msg._0 ]: stage.model
+                                    [ msg.source ]: stage.model
                                 }
                             },
                             Cmd.none
@@ -270,7 +287,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         ...normalize(model),
                         changers: {
                             ...model.changers,
-                            [ msg._0 ]: stage.model
+                            [ msg.source ]: stage.model
                         }
                     });
 
@@ -300,7 +317,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         limit({
                             ...model,
                             amount: {
-                                source: msg._0,
+                                source: msg.source,
                                 value: stage.amount
                             }
                         }),
@@ -321,18 +338,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
  */
 
 export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
-    Changer.subscriptions(model.changers.from).map((msg): Msg => ({
-        $: 'CHANGER_MSG',
-        _0: Changers.FROM,
-        _1: msg
-    })),
-    Changer.subscriptions(model.changers.to).map((msg): Msg => ({
-        $: 'CHANGER_MSG',
-        _0: Changers.TO,
-        _1: msg
-    })),
+    Changer.subscriptions(model.changers.from).map(changerMsg => ChangerMsg(Changers.FROM, changerMsg)),
+    Changer.subscriptions(model.changers.to).map(changerMsg => ChangerMsg(Changers.TO, changerMsg)),
     areChangersSame(model) ? Sub.none : model.cancelRequest.cata({
-        Nothing: () => Time.every(10000, (): Msg => ({ $: 'FETCH_RATES' })),
+        Nothing: () => Time.every(10000, () => FetchRates),
         Just: () => Sub.none
     })
 ]);
@@ -492,13 +501,7 @@ export const View: React.StatelessComponent<{
                 Nothing: () => {
                     // do nothing
                 },
-                Just: result => dispatch({
-                    $: 'EXCHANGE',
-                    _0: result.from,
-                    _1: result.to,
-                    _2: result.amountFrom,
-                    _3: result.amountTo
-                })
+                Just: result => dispatch(Exchange(result.from, result.amountFrom, result.to, result.amountTo))
             });
 
             event.preventDefault();
@@ -530,7 +533,7 @@ export const View: React.StatelessComponent<{
                         currencies={model.currencies}
                         donor={Nothing}
                         model={model.changers.from}
-                        dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.FROM, _1: msg })}
+                        dispatch={changerMsg => dispatch(ChangerMsg(Changers.FROM, changerMsg))}
                         autoFocus
                     />
                 </ChangerContainer>
@@ -541,7 +544,7 @@ export const View: React.StatelessComponent<{
                         currencies={model.currencies}
                         donor={areChangersSame(model) ? Nothing : from}
                         model={model.changers.to}
-                        dispatch={msg => dispatch({ $: 'CHANGER_MSG', _0: Changers.TO, _1: msg })}
+                        dispatch={changerMsg => dispatch(ChangerMsg(Changers.TO, changerMsg))}
                     />
                 </ChangerContainer>
             </Content>
