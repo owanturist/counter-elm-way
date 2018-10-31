@@ -19,7 +19,6 @@ import {
 import * as Utils from './Utils';
 import * as Time from 'Fractal/Time';
 
-const SLIDING_SPEED = 1; // ps/millisecond
 
 /**
  * M O D E L
@@ -36,6 +35,16 @@ interface Sliding {
     duration: number;
     destination: number;
 }
+
+const SLIDING_SPEED = 1; // ps/millisecond
+const SLIDING_DURATION_MIN = 50; // millisecond
+const SLIDING_DURATION_MAX = 300; // millisecond
+
+const calcSlidingDuration = (distance: number): number => Utils.clamp(
+    SLIDING_DURATION_MIN,
+    SLIDING_DURATION_MAX,
+    Math.abs(distance / SLIDING_SPEED)
+);
 
 export interface Model {
     currency: string;
@@ -68,26 +77,6 @@ export type Stage
     = { $: 'UPDATED'; _0: boolean; _1: Model }
     | { $: 'AMOUNT_CHANGED'; _0: Maybe<string> }
     ;
-
-const limit = (luft: number, prev: Maybe<Currency>, next: Maybe<Currency>, delta: number): Maybe<number> => {
-    if (delta > 0) {
-        if (prev.isNothing()) {
-            return Nothing;
-        }
-
-        return delta - luft > 0 ? Just(delta - luft) : Nothing;
-    }
-
-    if (delta < 0) {
-        if (next.isNothing()) {
-            return Nothing;
-        }
-
-        return delta + luft < 0 ? Just(delta + luft) : Nothing;
-    }
-
-    return Nothing;
-};
 
 export const update = (msg: Msg, model: Model): Stage => {
     switch (msg.$) {
@@ -127,72 +116,80 @@ export const update = (msg: Msg, model: Model): Stage => {
         case 'DRAGGING': {
             return model.dragging.chain(
                 dragging => Maybe.fromNullable(dragging.ref.current).map(
-                    node => limit(20, msg._0, msg._1, msg._2 - dragging.start).chain(
-                        delta => {
-                            const border = Utils.clamp(100, 300, node.offsetWidth / 3);
-                            const duration = Utils.clamp(
-                                50,
-                                300,
-                                (node.offsetWidth - Math.abs(delta)) / SLIDING_SPEED
-                            );
+                    ({ offsetWidth }): Stage => {
+                        const delta = msg._2 - dragging.start;
+                        const border = Utils.clamp(100, 300, offsetWidth / 3);
 
-                            if (delta < -border) {
-                                return msg._1.map((next): Stage => ({
-                                    $: 'UPDATED',
-                                    _0: true,
-                                    _1: {
-                                        ...model,
-                                        currency: next.code,
-                                        dragging: Nothing,
-                                        sliding: Just({
-                                            currency: model.currency,
-                                            duration,
-                                            destination: -node.offsetWidth
-                                        })
-                                    }
-                                }));
-                            }
-
-                            if (delta > border) {
-                                return msg._0.map((prev): Stage => ({
-                                    $: 'UPDATED',
-                                    _0: true,
-                                    _1: {
-                                        ...model,
-                                        currency: prev.code,
-                                        dragging: Nothing,
-                                        sliding: Just({
-                                            currency: model.currency,
-                                            duration,
-                                            destination: node.offsetWidth
-                                        })
-                                    }
-                                }));
-                            }
-
-                            return Just<Stage>({
+                        if (delta < -border) {
+                            return msg._1.map((next): Stage => ({
+                                $: 'UPDATED',
+                                _0: true,
+                                _1: {
+                                    ...model,
+                                    currency: next.code,
+                                    dragging: Nothing,
+                                    sliding: Just({
+                                        currency: model.currency,
+                                        duration: calcSlidingDuration(offsetWidth + delta),
+                                        destination: -offsetWidth
+                                    })
+                                }
+                            })).getOrElse({
                                 $: 'UPDATED',
                                 _0: false,
                                 _1: {
                                     ...model,
-                                    dragging: Just({
-                                        ...dragging,
-                                        delta: Just(delta)
+                                    dragging: Nothing,
+                                    sliding: Just({
+                                        currency: model.currency,
+                                        duration: calcSlidingDuration(delta),
+                                        destination: 0
                                     })
                                 }
                             });
                         }
-                    ).getOrElse({
-                        $: 'UPDATED',
-                        _0: false,
-                        _1: {
-                            ...model,
-                            dragging: Just({
-                                ...dragging,
-                                delta: Nothing
-                            })
+
+                        if (delta > border) {
+                            return msg._0.map((prev): Stage => ({
+                                $: 'UPDATED',
+                                _0: true,
+                                _1: {
+                                    ...model,
+                                    currency: prev.code,
+                                    dragging: Nothing,
+                                    sliding: Just({
+                                        currency: model.currency,
+                                        duration: calcSlidingDuration(offsetWidth - delta),
+                                        destination: offsetWidth
+                                    })
+                                }
+                            })).getOrElse({
+                                $: 'UPDATED',
+                                _0: false,
+                                _1: {
+                                    ...model,
+                                    dragging: Nothing,
+                                    sliding: Just({
+                                        currency: model.currency,
+                                        duration: calcSlidingDuration(delta),
+                                        destination: 0
+                                    })
+                                }
+                            });
                         }
-                    })
+
+                        return {
+                            $: 'UPDATED',
+                            _0: false,
+                            _1: {
+                                ...model,
+                                dragging: Just({
+                                    ...dragging,
+                                    delta: Just(delta)
+                                })
+                            }
+                        };
+                    }
                 )
             ).getOrElse({
                 $: 'UPDATED',
@@ -350,7 +347,7 @@ const Point = styled.li<{
     }
 `;
 
-const calculateStep = (amount: string): number => {
+const calcStep = (amount: string): number => {
     if (/(\.|,)\d[1-9]\d*/.test(amount)) {
         return 0.01;
     }
@@ -383,7 +380,7 @@ const Slide = styled<{
             <Input
                 type="number"
                 value={amount}
-                step={calculateStep(amount).toString()}
+                step={calcStep(amount).toString()}
                 autoFocus={autoFocus}
                 onChange={event => dispatch({
                     $: 'CHANGE_AMOUNT',
@@ -445,6 +442,18 @@ const extractCurrencies = (currencies: Array<Currency>, currentCode: string): Ma
     }));
 };
 
+const luft = (gap: number, delta: number): Maybe<number> => {
+    if (delta > 0) {
+        return delta - gap > 0 ? Just(delta - gap) : Nothing;
+    }
+
+    if (delta < 0) {
+        return delta + gap < 0 ? Just(delta + gap) : Nothing;
+    }
+
+    return Nothing;
+};
+
 interface DraggingMouseEvents<T> {
     onMouseDown?(event: React.MouseEvent<T>): void;
     onMouseMove?(event: React.MouseEvent<T>): void;
@@ -487,7 +496,7 @@ export const View: React.StatelessComponent<{
             Nothing: () => null,
             Just: ({ prev, current, next }) => (
                 <Carousel
-                    shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}
+                    shift={model.dragging.chain(dragging => dragging.delta).chain(delta => luft(20, delta)).getOrElse(0)}
                     sliding={model.sliding}
                     prev={prev}
                     next={next}
