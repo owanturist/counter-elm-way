@@ -9,11 +9,15 @@ import {
 import {
     Dispatch
 } from 'Fractal/Platform';
+import {
+    Sub
+} from 'Fractal/Platform/Sub';
 
 import {
     Currency
 } from './Currency';
 import * as Utils from './Utils';
+import * as Time from 'Fractal/Time';
 
 /**
  * M O D E L
@@ -28,13 +32,13 @@ interface Dragging {
 export interface Model {
     currency: string;
     dragging: Maybe<Dragging>;
-    slide: Maybe<number>;
+    sliding: Maybe<number>;
 }
 
 export const init = (currency: string): Model => ({
     currency,
     dragging: Nothing,
-    slide: Nothing
+    sliding: Nothing
 });
 
 export const isSame = (left: Model, right: Model): boolean => left.currency === right.currency;
@@ -47,8 +51,9 @@ export type Msg
     = { $: 'CHANGE_CURRENCY'; _0: string }
     | { $: 'CHANGE_AMOUNT'; _0: Maybe<string> }
     | { $: 'DRAG_START'; _0: number }
-    | { $: 'DRAGGING'; _0: number }
+    | { $: 'DRAGGING'; _0: Maybe<Currency>; _1: Maybe<Currency>; _2: number }
     | { $: 'DRAG_END' }
+    | { $: 'SLIDE_END' }
     ;
 
 export type Stage
@@ -68,6 +73,48 @@ const luft = (limit: number, delta: number): Maybe<number> => {
 
     return Nothing;
 };
+
+const findPrevCurrency = (currencies: Array<Currency>, current: string): Maybe<Currency> => currencies.reduce(
+    (acc, currency) => {
+        if (acc.final) {
+            return acc;
+        }
+
+        if (currency.code === current) {
+            return { final: true, prev: acc.prev };
+        }
+
+        return {
+            final: false,
+            prev: Just(currency)
+        };
+    },
+    {
+        final: false,
+        prev: Nothing
+    }
+).prev;
+
+const findNextCurrency = (currencies: Array<Currency>, current: string): Maybe<Currency> => currencies.reduce(
+    (acc, currency) => {
+        if (currency.code === current) {
+            return { final: true, next: acc.next };
+        }
+
+        if (acc.final) {
+            return {
+                final: false,
+                next: Just(currency)
+            };
+        }
+
+        return acc;
+    },
+    {
+        final: false,
+        next: Nothing
+    }
+).next;
 
 export const update = (msg: Msg, model: Model): Stage => {
     switch (msg.$) {
@@ -107,14 +154,55 @@ export const update = (msg: Msg, model: Model): Stage => {
         case 'DRAGGING': {
             return model.dragging.chain(
                 dragging => Maybe.fromNullable(dragging.ref.current).chain(
-                    node => luft(20, msg._0 - dragging.start).map(
-                        (delta): Stage => Math.abs(delta) > node.offsetWidth / 3
-                            ? {
-                                $: 'UPDATED',
-                                _0: false,
-                                _1: model
+                    node => luft(20, msg._2 - dragging.start).map(
+                        (delta): Stage => {
+                            if (delta < -node.offsetWidth / 3) {
+                                return msg._1.cata({
+                                    Nothing: (): Stage => ({
+                                        $: 'UPDATED',
+                                        _0: false,
+                                        _1: {
+                                            ...model,
+                                            dragging: Nothing
+                                        }
+                                    }),
+                                    Just: (next): Stage => ({
+                                        $: 'UPDATED',
+                                        _0: true,
+                                        _1: {
+                                            ...model,
+                                            currency: next.code,
+                                            dragging: Nothing,
+                                            sliding: Just(node.offsetWidth + delta)
+                                        }
+                                    })
+                                });
                             }
-                            : {
+
+                            if (delta > node.offsetWidth / 3) {
+                                return msg._0.cata({
+                                    Nothing: (): Stage => ({
+                                        $: 'UPDATED',
+                                        _0: false,
+                                        _1: {
+                                            ...model,
+                                            dragging: Nothing
+                                        }
+                                    }),
+                                    Just: (prev): Stage => ({
+                                        $: 'UPDATED',
+                                        _0: true,
+                                        _1: {
+                                            ...model,
+                                            currency: prev.code,
+                                            dragging: Nothing,
+                                            sliding: Just(node.offsetWidth - delta)
+                                        }
+                                    })
+                                });
+                            }
+
+                            return {
                                 $: 'UPDATED',
                                 _0: false,
                                 _1: {
@@ -124,7 +212,8 @@ export const update = (msg: Msg, model: Model): Stage => {
                                         delta: Just(delta)
                                     })
                                 }
-                            }
+                            };
+                        }
                     )
                 )
             ).getOrElse({
@@ -144,7 +233,25 @@ export const update = (msg: Msg, model: Model): Stage => {
                 }
             };
         }
+
+        case 'SLIDE_END': {
+            return {
+                $: 'UPDATED',
+                _0: false,
+                _1: {
+                    ...model,
+                    sliding: Nothing
+                }
+            };
+        }
     }
+};
+
+export const subscriptions = (model: Model): Sub<Msg> => {
+    return model.sliding.cata({
+        Nothing: () => Sub.none,
+        Just: () => Time.every(1000, (): Msg => ({ $: 'SLIDE_END' }))
+    });
 };
 
 /**
@@ -163,6 +270,7 @@ const Root = styled.div`
 
 interface CarouselProps {
     shift: number;
+    sliding: Maybe<number>;
 }
 
 interface CarouselAttrs {
@@ -173,7 +281,7 @@ interface CarouselAttrs {
 
 const Carousel = styled.div.attrs<CarouselProps, CarouselAttrs>({
     style: props => ({
-        transform: `translateX(${props.shift}px)`
+        transform: `translateX(${props.sliding.getOrElse(props.shift)}px)`
     })
 })`
     flex: 1 0 auto;
@@ -320,26 +428,7 @@ const extractCurrencies = (currencies: Array<Currency>, model: Model): Maybe<{
         }),
         Just: delta => {
             if (delta > 0) {
-                const { prev } = currencies.reduce(
-                    (acc, currency) => {
-                        if (acc.final) {
-                            return acc;
-                        }
-
-                        if (currency.code === current.code) {
-                            return { final: true, prev: acc.prev };
-                        }
-
-                        return {
-                            final: false,
-                            prev: Just(currency)
-                        };
-                    },
-                    {
-                        final: false,
-                        prev: Nothing
-                    }
-                );
+                const prev = findPrevCurrency(currencies, current.code);
 
                 return {
                     shift: prev.isNothing() ? 0 : delta,
@@ -350,26 +439,7 @@ const extractCurrencies = (currencies: Array<Currency>, model: Model): Maybe<{
             }
 
             if (delta < 0) {
-                const { next } = currencies.reduce(
-                    (acc, currency) => {
-                        if (currency.code === current.code) {
-                            return { final: true, next: acc.next };
-                        }
-
-                        if (acc.final) {
-                            return {
-                                final: false,
-                                next: Just(currency)
-                            };
-                        }
-
-                        return acc;
-                    },
-                    {
-                        final: false,
-                        next: Nothing
-                    }
-                );
+                const next = findNextCurrency(currencies, current.code);
 
                 return {
                     shift: next.isNothing() ? 0 : delta,
@@ -396,14 +466,19 @@ interface DraggingMouseEvents<T> {
     onMouseLeave?(event: React.MouseEvent<T>): void;
 }
 
-function buildDraggingMouseEvents<T>(dispatch: Dispatch<Msg>, dragging: Maybe<Dragging>): DraggingMouseEvents<T> {
+function buildDraggingMouseEvents<T>(
+    dispatch: Dispatch<Msg>,
+    dragging: Maybe<Dragging>,
+    prev: Maybe<Currency>,
+    next: Maybe<Currency>
+): DraggingMouseEvents<T> {
     return dragging.cata<DraggingMouseEvents<T>>({
         Nothing: () => ({
             onMouseDown: event => dispatch({ $: 'DRAG_START', _0: event.screenX })
         }),
         Just: ({ ref }) => ({
             ref,
-            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: event.screenX }),
+            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: prev, _1: next, _2: event.screenX }),
             onMouseUp: () => dispatch({ $: 'DRAG_END' }),
             onMouseLeave: () => dispatch({ $: 'DRAG_END' })
         })
@@ -424,7 +499,8 @@ export const View: React.StatelessComponent<{
             Just: acc => (
                 <Carousel
                     shift={acc.shift}
-                    {...buildDraggingMouseEvents(dispatch, model.dragging)}
+                    sliding={model.sliding}
+                    {...buildDraggingMouseEvents(dispatch, model.dragging, acc.prev, acc.next)}
                 >
                     {acc.prev.cata({
                         Nothing: () => null,

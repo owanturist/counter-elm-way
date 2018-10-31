@@ -321,16 +321,22 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
  * S U B S C R I P T I O N S
  */
 
-export const subscriptions = (model: Model): Sub<Msg> => {
-    if (areChangersSame(model)) {
-        return Sub.none;
-    }
-
-    return model.cancelRequest.cata({
+export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
+    Changer.subscriptions(model.changers.from).map((msg): Msg => ({
+        $: 'CHANGER_MSG',
+        _0: Changers.FROM,
+        _1: msg
+    })),
+    Changer.subscriptions(model.changers.to).map((msg): Msg => ({
+        $: 'CHANGER_MSG',
+        _0: Changers.TO,
+        _1: msg
+    })),
+    areChangersSame(model) ? Sub.none : model.cancelRequest.cata({
         Nothing: () => Time.every(10000, (): Msg => ({ $: 'FETCH_RATES' })),
         Just: () => Sub.none
-    });
-};
+    })
+]);
 
 /**
  * V I E W
