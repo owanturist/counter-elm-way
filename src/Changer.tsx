@@ -19,7 +19,7 @@ import {
 import * as Utils from './Utils';
 import * as Time from 'Fractal/Time';
 
-const SLIDING_DURATION = 1000; // in milliseconds
+const SLIDING_SPEED = 1; // ps/millisecond
 
 /**
  * M O D E L
@@ -33,7 +33,8 @@ interface Dragging {
 
 interface Sliding {
     currency: string;
-    end: number;
+    duration: number;
+    destination: number;
 }
 
 export interface Model {
@@ -68,13 +69,13 @@ export type Stage
     | { $: 'AMOUNT_CHANGED'; _0: Maybe<string> }
     ;
 
-const limit = (limit: number, prev: Maybe<Currency>, next: Maybe<Currency>, delta: number): Maybe<number> => {
+const limit = (luft: number, prev: Maybe<Currency>, next: Maybe<Currency>, delta: number): Maybe<number> => {
     if (delta > 0) {
         if (prev.isNothing()) {
             return Nothing;
         }
 
-        return delta - limit > 0 ? Just(delta - limit) : Nothing;
+        return delta - luft > 0 ? Just(delta - luft) : Nothing;
     }
 
     if (delta < 0) {
@@ -82,7 +83,7 @@ const limit = (limit: number, prev: Maybe<Currency>, next: Maybe<Currency>, delt
             return Nothing;
         }
 
-        return delta + limit < 0 ? Just(delta + limit) : Nothing;
+        return delta + luft < 0 ? Just(delta + luft) : Nothing;
     }
 
     return Nothing;
@@ -124,17 +125,83 @@ export const update = (msg: Msg, model: Model): Stage => {
         }
 
         case 'DRAGGING': {
-            return {
+            return model.dragging.chain(
+                dragging => Maybe.fromNullable(dragging.ref.current).map(
+                    node => limit(20, msg._0, msg._1, msg._2 - dragging.start).chain(
+                        delta => {
+                            const border = Utils.clamp(100, 300, node.offsetWidth / 3);
+                            const duration = Utils.clamp(
+                                50,
+                                300,
+                                (node.offsetWidth - Math.abs(delta)) / SLIDING_SPEED
+                            );
+
+                            if (delta < -border) {
+                                return msg._1.map((next): Stage => ({
+                                    $: 'UPDATED',
+                                    _0: true,
+                                    _1: {
+                                        ...model,
+                                        currency: next.code,
+                                        dragging: Nothing,
+                                        sliding: Just({
+                                            currency: model.currency,
+                                            duration,
+                                            destination: -node.offsetWidth
+                                        })
+                                    }
+                                }));
+                            }
+
+                            if (delta > border) {
+                                return msg._0.map((prev): Stage => ({
+                                    $: 'UPDATED',
+                                    _0: true,
+                                    _1: {
+                                        ...model,
+                                        currency: prev.code,
+                                        dragging: Nothing,
+                                        sliding: Just({
+                                            currency: model.currency,
+                                            duration,
+                                            destination: node.offsetWidth
+                                        })
+                                    }
+                                }));
+                            }
+
+                            return Just<Stage>({
+                                $: 'UPDATED',
+                                _0: false,
+                                _1: {
+                                    ...model,
+                                    dragging: Just({
+                                        ...dragging,
+                                        delta: Just(delta)
+                                    })
+                                }
+                            });
+                        }
+                    ).getOrElse({
+                        $: 'UPDATED',
+                        _0: false,
+                        _1: {
+                            ...model,
+                            dragging: Just({
+                                ...dragging,
+                                delta: Nothing
+                            })
+                        }
+                    })
+                )
+            ).getOrElse({
                 $: 'UPDATED',
                 _0: false,
                 _1: {
                     ...model,
-                    dragging: model.dragging.map(dragging => ({
-                        ...dragging,
-                        delta: limit(20, msg._0, msg._1, msg._2 - dragging.start)
-                    }))
+                    dragging: Nothing
                 }
-            };
+            });
         }
 
         case 'DRAG_END': {
@@ -164,7 +231,7 @@ export const update = (msg: Msg, model: Model): Stage => {
 export const subscriptions = (model: Model): Sub<Msg> => {
     return model.sliding.cata({
         Nothing: () => Sub.none,
-        Just: () => Time.every(SLIDING_DURATION, (): Msg => ({ $: 'SLIDE_END' }))
+        Just: sliding => Time.every(sliding.duration, (): Msg => ({ $: 'SLIDE_END' }))
     });
 };
 
@@ -184,7 +251,7 @@ const Root = styled.div`
 
 interface CarouselProps {
     shift: number;
-    sliding: Maybe<number>;
+    sliding: Maybe<Sliding>;
     prev: Maybe<Currency>;
     next: Maybe<Currency>;
 }
@@ -196,8 +263,15 @@ interface CarouselAttrs {
 }
 
 const Carousel = styled.div.attrs<CarouselProps, CarouselAttrs>({
-    style: props => ({
-        transform: `translateX(${props.sliding.getOrElse(props.shift)}px)`
+    style: props => props.sliding.cata({
+        Nothing: () => ({
+            transform: `translateX(${props.shift}px)`
+        }),
+
+        Just: sliding => ({
+            transform: `translateX(${sliding.destination}px)`,
+            transition: `transform ${sliding.duration}ms ease-out`
+        })
     })
 })`
     flex: 1 0 auto;
@@ -414,7 +488,7 @@ export const View: React.StatelessComponent<{
             Just: ({ prev, current, next }) => (
                 <Carousel
                     shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}
-                    sliding={Nothing}
+                    sliding={model.sliding}
                     prev={prev}
                     next={next}
                     {...model.sliding.isJust() ? {} : buildDraggingMouseEvents(dispatch, prev, next, model.dragging)}

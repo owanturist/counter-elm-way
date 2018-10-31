@@ -21,3 +21,15 @@ export const stringToNumber = (str: string): Maybe<number> => {
 };
 
 export const round = (fractionDigits: number, num: number): number => Number(num.toFixed(fractionDigits));
+
+export const clamp = (low: number, high: number, value: number): number => {
+    if (value < low) {
+        return low;
+    }
+
+    if (value > high) {
+        return high;
+    }
+
+    return value;
+};
