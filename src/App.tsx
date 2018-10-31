@@ -451,13 +451,14 @@ const ChangerContainer = styled.div<{
     position: relative;
     background: ${props => props.source === Changers.TO ? 'rgba(0, 0, 0, .25)' : null};
     ${props => props.source === Changers.FROM ? `
-        padding-bottom: 15px;
+        padding-bottom: 1em;
         ` : `
         &:before,
         &:after {
             content: "";
             position: absolute;
-            bottom: 100%;
+            top: 0;
+            margin-top: -2em;
             height: 1em;
             border: 0 solid rgba(0, 0, 0, .25);
         }
@@ -466,14 +467,14 @@ const ChangerContainer = styled.div<{
             right: 50%;
             left: 0;
             border-right-color: transparent;
-            border-width: 0 15px 15px 0;
+            border-width: 0 1em 1em 0;
         }
 
         &:after {
             right: 0;
             left: 50%;
             border-left-color: transparent;
-            border-width: 0 0 15px 15px;
+            border-width: 0 0 1em 1em;
         }
     `}
 `;
