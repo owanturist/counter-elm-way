@@ -483,10 +483,9 @@ const extractCurrencies = (currencies: Array<Currency>, currentCode: string): Ma
 };
 
 interface DraggingMouseEvents<T> {
-    onMouseDown?(event: React.MouseEvent<T>): void;
-    onMouseMove?(event: React.MouseEvent<T>): void;
-    onMouseUp?(event: React.MouseEvent<T>): void;
-    onMouseLeave?(event: React.MouseEvent<T>): void;
+    onTouchStart?(event: React.TouchEvent<T>): void;
+    onTouchMove?(event: React.TouchEvent<T>): void;
+    onTouchEnd?(event: React.TouchEvent<T>): void;
 }
 
 function buildDraggingMouseEvents<T>(
@@ -497,13 +496,22 @@ function buildDraggingMouseEvents<T>(
 ): DraggingMouseEvents<T> {
     return dragging.cata<DraggingMouseEvents<T>>({
         Nothing: () => ({
-            onMouseDown: event => dispatch({ $: 'DRAG_START', _0: event.screenX })
+            onTouchStart: event => Maybe.fromNullable(event.touches[ 0 ]).cata({
+                Nothing: () => {
+                    // do nothing
+                },
+                Just: touch => dispatch({ $: 'DRAG_START', _0: touch.screenX })
+            })
         }),
         Just: ({ ref }) => ({
             ref,
-            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: prev, _1: next, _2: event.screenX }),
-            onMouseUp: () => dispatch({ $: 'DRAG_END' }),
-            onMouseLeave: () => dispatch({ $: 'DRAG_END' })
+            onTouchMove: event => Maybe.fromNullable(event.touches[ 0 ]).cata({
+                Nothing: () => {
+                    // do nothing
+                },
+                Just: touch => dispatch({ $: 'DRAGGING', _0: prev, _1: next, _2: touch.screenX })
+            }),
+            onTouchEnd: () => dispatch({ $: 'DRAG_END' })
         })
     });
 }
