@@ -24,14 +24,16 @@ import * as Time from 'Fractal/Time';
  * M O D E L
  */
 
+const DRAGGING_LUFT_GAP = 20;
+
 interface Dragging {
     ref: React.RefObject<HTMLDivElement>;
     start: number;
-    delta: Maybe<number>;
+    delta: number;
 }
 
 interface Sliding {
-    currency: string;
+    currency: Maybe<string>;
     duration: number;
     destination: number;
 }
@@ -107,7 +109,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                     dragging: Just({
                         ref: React.createRef() as React.RefObject<HTMLDivElement>,
                         start: msg._0,
-                        delta: Nothing
+                        delta: 0
                     })
                 }
             };
@@ -129,7 +131,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                                     currency: next.code,
                                     dragging: Nothing,
                                     sliding: Just({
-                                        currency: model.currency,
+                                        currency: Just(model.currency),
                                         duration: calcSlidingDuration(offsetWidth + delta),
                                         destination: -offsetWidth
                                     })
@@ -141,7 +143,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                                     ...model,
                                     dragging: Nothing,
                                     sliding: Just({
-                                        currency: model.currency,
+                                        currency: Nothing,
                                         duration: calcSlidingDuration(delta),
                                         destination: 0
                                     })
@@ -158,7 +160,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                                     currency: prev.code,
                                     dragging: Nothing,
                                     sliding: Just({
-                                        currency: model.currency,
+                                        currency: Just(model.currency),
                                         duration: calcSlidingDuration(offsetWidth - delta),
                                         destination: offsetWidth
                                     })
@@ -170,7 +172,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                                     ...model,
                                     dragging: Nothing,
                                     sliding: Just({
-                                        currency: model.currency,
+                                        currency: Nothing,
                                         duration: calcSlidingDuration(delta),
                                         destination: 0
                                     })
@@ -183,10 +185,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                             _0: false,
                             _1: {
                                 ...model,
-                                dragging: Just({
-                                    ...dragging,
-                                    delta: Just(delta)
-                                })
+                                dragging: Just({ ...dragging, delta })
                             }
                         };
                     }
@@ -205,10 +204,15 @@ export const update = (msg: Msg, model: Model): Stage => {
             return {
                 $: 'UPDATED',
                 _0: false,
-                _1: {
+                _1: model.dragging.map((dragging): Model => ({
                     ...model,
-                    dragging: Nothing
-                }
+                    dragging: Nothing,
+                    sliding: Just({
+                        currency: Nothing,
+                        duration: calcSlidingDuration(dragging.delta),
+                        destination: 0
+                    })
+                })).getOrElse(model)
             };
         }
 
@@ -491,12 +495,14 @@ export const View: React.StatelessComponent<{
     <Root>
         {extractCurrencies(
             currencies,
-            model.sliding.map(sliding => sliding.currency).getOrElse(model.currency)
+            model.sliding.chain(sliding => sliding.currency).getOrElse(model.currency)
         ).cata({
             Nothing: () => null,
             Just: ({ prev, current, next }) => (
                 <Carousel
-                    shift={model.dragging.chain(dragging => dragging.delta).chain(delta => luft(20, delta)).getOrElse(0)}
+                    shift={model.dragging
+                            .chain(dragging => luft(DRAGGING_LUFT_GAP, dragging.delta))
+                            .getOrElse(0)}
                     sliding={model.sliding}
                     prev={prev}
                     next={next}
