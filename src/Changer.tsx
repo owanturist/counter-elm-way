@@ -19,6 +19,8 @@ import {
 import * as Utils from './Utils';
 import * as Time from 'Fractal/Time';
 
+const SLIDING_DURATION = 1000; // in milliseconds
+
 /**
  * M O D E L
  */
@@ -26,7 +28,7 @@ import * as Time from 'Fractal/Time';
 interface Dragging {
     ref: React.RefObject<HTMLDivElement>;
     start: number;
-    end: number;
+    delta: Maybe<number>;
 }
 
 interface Sliding {
@@ -56,7 +58,7 @@ export type Msg
     = { $: 'CHANGE_CURRENCY'; _0: string }
     | { $: 'CHANGE_AMOUNT'; _0: Maybe<string> }
     | { $: 'DRAG_START'; _0: number }
-    | { $: 'DRAGGING'; _0: number }
+    | { $: 'DRAGGING'; _0: Maybe<Currency>; _1: Maybe<Currency>; _2: number }
     | { $: 'DRAG_END' }
     | { $: 'SLIDE_END' }
     ;
@@ -65,6 +67,26 @@ export type Stage
     = { $: 'UPDATED'; _0: boolean; _1: Model }
     | { $: 'AMOUNT_CHANGED'; _0: Maybe<string> }
     ;
+
+const limit = (limit: number, prev: Maybe<Currency>, next: Maybe<Currency>, delta: number): Maybe<number> => {
+    if (delta > 0) {
+        if (prev.isNothing()) {
+            return Nothing;
+        }
+
+        return delta - limit > 0 ? Just(delta - limit) : Nothing;
+    }
+
+    if (delta < 0) {
+        if (next.isNothing()) {
+            return Nothing;
+        }
+
+        return delta + limit < 0 ? Just(delta + limit) : Nothing;
+    }
+
+    return Nothing;
+};
 
 export const update = (msg: Msg, model: Model): Stage => {
     switch (msg.$) {
@@ -95,7 +117,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                     dragging: Just({
                         ref: React.createRef() as React.RefObject<HTMLDivElement>,
                         start: msg._0,
-                        end: msg._0
+                        delta: Nothing
                     })
                 }
             };
@@ -109,7 +131,7 @@ export const update = (msg: Msg, model: Model): Stage => {
                     ...model,
                     dragging: model.dragging.map(dragging => ({
                         ...dragging,
-                        end: msg._0
+                        delta: limit(20, msg._0, msg._1, msg._2 - dragging.start)
                     }))
                 }
             };
@@ -142,7 +164,7 @@ export const update = (msg: Msg, model: Model): Stage => {
 export const subscriptions = (model: Model): Sub<Msg> => {
     return model.sliding.cata({
         Nothing: () => Sub.none,
-        Just: () => Time.every(1000, (): Msg => ({ $: 'SLIDE_END' }))
+        Just: () => Time.every(SLIDING_DURATION, (): Msg => ({ $: 'SLIDE_END' }))
     });
 };
 
@@ -317,28 +339,6 @@ const Slide = styled<{
     padding: 0 2em;
 `;
 
-const limit = (limit: number, prev: Maybe<Currency>, next: Maybe<Currency>, dragging: Dragging): Maybe<number> => {
-    const delta = dragging.end - dragging.start;
-
-    if (delta > 0) {
-        if (prev.isNothing()) {
-            return Nothing;
-        }
-
-        return delta - limit > 0 ? Just(delta - limit) : Nothing;
-    }
-
-    if (delta < 0) {
-        if (next.isNothing()) {
-            return Nothing;
-        }
-
-        return delta + limit < 0 ? Just(delta + limit) : Nothing;
-    }
-
-    return Nothing;
-};
-
 const extractCurrencies = (currencies: Array<Currency>, currentCode: string): Maybe<{
     prev: Maybe<Currency>;
     current: Currency;
@@ -380,6 +380,8 @@ interface DraggingMouseEvents<T> {
 
 function buildDraggingMouseEvents<T>(
     dispatch: Dispatch<Msg>,
+    prev: Maybe<Currency>,
+    next: Maybe<Currency>,
     dragging: Maybe<Dragging>
 ): DraggingMouseEvents<T> {
     return dragging.cata<DraggingMouseEvents<T>>({
@@ -388,7 +390,7 @@ function buildDraggingMouseEvents<T>(
         }),
         Just: ({ ref }) => ({
             ref,
-            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: event.screenX }),
+            onMouseMove: event => dispatch({ $: 'DRAGGING', _0: prev, _1: next, _2: event.screenX }),
             onMouseUp: () => dispatch({ $: 'DRAG_END' }),
             onMouseLeave: () => dispatch({ $: 'DRAG_END' })
         })
@@ -411,11 +413,11 @@ export const View: React.StatelessComponent<{
             Nothing: () => null,
             Just: ({ prev, current, next }) => (
                 <Carousel
-                    shift={model.dragging.chain(dragging => limit(20, prev, next, dragging)).getOrElse(0)}
+                    shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}
                     sliding={Nothing}
                     prev={prev}
                     next={next}
-                    {...model.sliding.isJust() ? {} : buildDraggingMouseEvents(dispatch, model.dragging)}
+                    {...model.sliding.isJust() ? {} : buildDraggingMouseEvents(dispatch, prev, next, model.dragging)}
                 >
                     {prev.cata({
                         Nothing: () => null,
