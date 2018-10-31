@@ -405,10 +405,15 @@ const Slide = styled<{
     amount: string;
     currency: Currency;
     donor: Maybe<Currency>;
+    preventClicking: boolean;
     className?: string;
     autoFocus?: boolean;
-}>(({ dispatch, currency, amount, donor, className, autoFocus }) => (
-    <label className={className}>
+}>(({ dispatch, currency, amount, donor, className, autoFocus, preventClicking }) => (
+    <label className={className} onClick={event => {
+        if (preventClicking) {
+            event.preventDefault();
+        }
+    }}>
         <Main>
             {currency.code}
 
@@ -533,6 +538,7 @@ export const View: React.StatelessComponent<{
                                 amount=""
                                 currency={currency}
                                 donor={donor}
+                                preventClicking={model.sliding.isJust()}
                                 key={currency.code}
                             />
                         )
@@ -544,6 +550,7 @@ export const View: React.StatelessComponent<{
                         currency={current}
                         donor={donor}
                         autoFocus={autoFocus}
+                        preventClicking={model.sliding.isJust()}
                         key={current.code}
                     />
 
@@ -555,6 +562,7 @@ export const View: React.StatelessComponent<{
                                 amount=""
                                 currency={currency}
                                 donor={donor}
+                                preventClicking={model.sliding.isJust()}
                                 key={currency.code}
                             />
                         )
