@@ -14,8 +14,6 @@ export type Pattern<T, R> = WithDefaultCase<{
 }, R>;
 
 export abstract class Maybe<T> {
-    public static fromNullable<T>(value: null | undefined): Maybe<T>;
-    public static fromNullable<T>(value: T): Maybe<T>;
     public static fromNullable<T>(value: T | null | undefined): Maybe<T> {
         return value == null ? Nothing : Just(value);
     }

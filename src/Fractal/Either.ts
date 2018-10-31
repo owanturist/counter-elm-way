@@ -14,8 +14,6 @@ export type Pattern<E, T, R> = WithDefaultCase<{
 }, R>;
 
 export abstract class Either<E, T> {
-    public static fromNullable<E, T>(error: E, value: null | undefined): Either<E, T>;
-    public static fromNullable<E, T>(error: E, value: T): Either<E, T>; // tslint:disable-line
     public static fromNullable<E, T>(error: E, value: T | null | undefined): Either<E, T> {
         return value == null ? Left(error) : Right(value);
     }
