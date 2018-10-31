@@ -20,12 +20,13 @@ const init = (): [ App.Model, Cmd<App.Msg>] => App.init(
         Currency.of('GBP', '£', 58.33)
     ]
 );
+const update = (msg: App.Msg, model: App.Model): [ App.Model, Cmd<App.Msg> ] => msg.update(model);
 
 render(
     (
         <Platform.Application
             init={init}
-            update={App.update}
+            update={update}
             subscriptions={App.subscriptions}
             view={App.View}
         />

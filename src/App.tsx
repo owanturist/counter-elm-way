@@ -65,6 +65,14 @@ export const init = (to: Currency, from: Currency, currencies: Array<Currency>):
     ];
 };
 
+const fetchRates = (from: Currency.ID, to: Currency.ID): [ Cmd<Msg>, Cmd<Msg> ] => {
+    const [ cancel, request ] = Api.getRatesFor(from, to, []).toCancelableTask();
+
+    return [
+        cancel.perform(() => new NoOp()),
+        request.attempt(result => new FetchRatesDone(from, result))
+    ];
+};
 
 export const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
     if (Utils.stringToNumber(model.amount).getOrElse(0) >= 0) {
@@ -114,187 +122,196 @@ export const limit = (model: Model): Model => Utils.stringToNumber(model.amount)
  * U P D A T E
  */
 
-export type Msg
-    = { type: 'NOOP' }
-    | { type: 'FETCH_RATES' }
-    | { type: 'FETCH_RATES_DONE'; from: Currency.ID; result: Either<Http.Error, Currency.Rates> }
-    | { type: 'EXCHANGE'; amountFrom: number; amountTo: number }
-    | { type: 'CHANGER_MSG'; source: Changers; changerMsg: Changer.Msg }
-    ;
+export abstract class Msg {
+    public abstract update(model: Model): [ Model, Cmd<Msg> ];
+}
 
-const NoOp: Msg = { type: 'NOOP' };
-const FetchRates: Msg = { type: 'FETCH_RATES' };
-const FetchRatesDone = (
-    from: Currency.ID,
-    result: Either<Http.Error, Currency.Rates>
-): Msg => ({ type: 'FETCH_RATES_DONE', from, result });
-const Exchange = (amountFrom: number, amountTo: number): Msg => ({ type: 'EXCHANGE', amountFrom, amountTo });
-const ChangerMsg = (source: Changers, changerMsg: Changer.Msg): Msg => ({ type: 'CHANGER_MSG', source, changerMsg });
-
-const fetchRates = (from: Currency.ID, to: Currency.ID): [ Cmd<Msg>, Cmd<Msg> ] => {
-    const [ cancel, request ] = Api.getRatesFor(from, to, []).toCancelableTask();
-
-    return [
-        cancel.perform(() => NoOp),
-        request.attempt(result => FetchRatesDone(from, result))
-    ];
-};
-
-export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
-    switch (msg.type) {
-        case 'NOOP': {
-            return [ model, Cmd.none ];
-        }
-
-        case 'FETCH_RATES': {
-            const [ from, to ] = getChangersRoles(model);
-            const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                Changer.getCurrencyCode(from),
-                Changer.getCurrencyCode(to)
-            );
-
-            return [
-                {
-                    ...model,
-                    cancelRequest: Just(cancelRequestCmd)
-                },
-                fetchRatesCmd
-            ];
-        }
-
-        case 'FETCH_RATES_DONE': {
-            return [
-                msg.result.cata({
-                    Left: (_error: Http.Error) => {
-                        // handle the error as you want to
-                        // tslint:disable-next-line:no-console
-                        return { ...model, cancelRequest: Nothing };
-                    },
-
-                    Right: rates => limit({
-                        ...model,
-                        cancelRequest: Nothing,
-                        currencies: model.currencies.map(currency => currency.code.isEqual(msg.from)
-                            ? currency.registerRates(rates)
-                            : currency
-                        )
-                    })
-                }),
-                Cmd.none
-            ];
-        }
-
-        case 'EXCHANGE': {
-            const [ from, to ] = getChangersRoles(model);
-
-            const nextCurrencies = model.currencies.map(currency => {
-                if (Changer.getCurrencyCode(from).isEqual(currency.code)) {
-                    return currency.change(msg.amountFrom);
-                }
-
-                if (Changer.getCurrencyCode(to).isEqual(currency.code)) {
-                    return currency.change(msg.amountTo);
-                }
-
-                return currency;
-            });
-
-            return [
-                {
-                    ...model,
-                    currencies: nextCurrencies,
-                    amount: ''
-                },
-                Cmd.none
-            ];
-        }
-
-        case 'CHANGER_MSG': {
-            return msg.changerMsg.update(model.changers[ msg.source ]).cata({
-                Updated(currencyChanged: boolean, nextChanger: Changer.Model): [ Model, Cmd<Msg> ] {
-                    if (!currencyChanged) {
-                        return [
-                            {
-                                ...model,
-                                changers: {
-                                    ...model.changers,
-                                    [ msg.source ]: nextChanger
-                                }
-                            },
-                            Cmd.none
-                        ];
-                    }
-
-                    const nextModel = limit({
-                        ...model,
-                        changers: {
-                            ...model.changers,
-                            [ msg.source ]: nextChanger
-                        }
-                    });
-
-                    const [ from, to ] = getChangersRoles(nextModel);
-                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                        Changer.getCurrencyCode(from),
-                        Changer.getCurrencyCode(to)
-                    );
-
-                    return [
-                        {
-                            ...nextModel,
-                            cancelRequest: Just(cancelRequestCmd)
-                        },
-                        Cmd.batch([
-                            model.cancelRequest.getOrElse(Cmd.none),
-                            fetchRatesCmd
-                        ])
-                    ];
-                },
-
-                AmountChanged(amount: string): [ Model, Cmd<Msg> ] {
-                    const nextModel = limit({
-                        ...model,
-                        active: msg.source,
-                        amount
-                    });
-
-                    const [ from, to ] = getChangersRoles(model);
-                    const [ nextFrom, nextTo ] = getChangersRoles(nextModel);
-
-                    if (Changer.isSame(from, nextFrom) && Changer.isSame(to, nextTo)) {
-                        return [ nextModel, Cmd.none ];
-                    }
-
-                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                        Changer.getCurrencyCode(nextFrom),
-                        Changer.getCurrencyCode(nextTo)
-                    );
-
-                    return [
-                        {
-                            ...nextModel,
-                            cancelRequest: Just(cancelRequestCmd)
-                        },
-                        Cmd.batch([
-                            model.cancelRequest.getOrElse(Cmd.none),
-                            fetchRatesCmd
-                        ])
-                    ];
-                }
-            });
-        }
+class NoOp extends Msg {
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [ model, Cmd.none ];
     }
-};
+}
+
+class FetchRates extends Msg {
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const [ from, to ] = getChangersRoles(model);
+        const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+            Changer.getCurrencyCode(from),
+            Changer.getCurrencyCode(to)
+        );
+
+        return [
+            {
+                ...model,
+                cancelRequest: Just(cancelRequestCmd)
+            },
+            fetchRatesCmd
+        ];
+    }
+}
+
+class FetchRatesDone extends Msg {
+    constructor(
+        private readonly from: Currency.ID,
+        private readonly result: Either<Http.Error, Currency.Rates>
+    ) {
+        super();
+    }
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            this.result.cata({
+                Left: (_error: Http.Error) => {
+                    // handle the error as you want to
+                    // tslint:disable-next-line:no-console
+                    return { ...model, cancelRequest: Nothing };
+                },
+
+                Right: rates => limit({
+                    ...model,
+                    cancelRequest: Nothing,
+                    currencies: model.currencies.map(currency => currency.code.isEqual(this.from)
+                        ? currency.registerRates(rates)
+                        : currency
+                    )
+                })
+            }),
+            Cmd.none
+        ];
+    }
+}
+
+class Exchange extends Msg {
+    constructor(
+        private readonly amountFrom: number,
+        private readonly amountTo: number
+    ) {
+        super();
+    }
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const [ from, to ] = getChangersRoles(model);
+
+        const nextCurrencies = model.currencies.map(currency => {
+            if (Changer.getCurrencyCode(from).isEqual(currency.code)) {
+                return currency.change(this.amountFrom);
+            }
+
+            if (Changer.getCurrencyCode(to).isEqual(currency.code)) {
+                return currency.change(this.amountTo);
+            }
+
+            return currency;
+        });
+
+        return [
+            {
+                ...model,
+                currencies: nextCurrencies,
+                amount: ''
+            },
+            Cmd.none
+        ];
+    }
+}
+
+class ChangerMsg extends Msg {
+    constructor(
+        private readonly source: Changers,
+        private readonly changerMsg: Changer.Msg
+    ) {
+        super();
+    }
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return this.changerMsg.update(model.changers[ this.source ]).cata({
+            Updated: (currencyChanged: boolean, nextChanger: Changer.Model): [ Model, Cmd<Msg> ] => {
+                if (!currencyChanged) {
+                    return [
+                        {
+                            ...model,
+                            changers: {
+                                ...model.changers,
+                                [ this.source ]: nextChanger
+                            }
+                        },
+                        Cmd.none
+                    ];
+                }
+
+                const nextModel = limit({
+                    ...model,
+                    changers: {
+                        ...model.changers,
+                        [ this.source ]: nextChanger
+                    }
+                });
+
+                const [ from, to ] = getChangersRoles(nextModel);
+                const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+                    Changer.getCurrencyCode(from),
+                    Changer.getCurrencyCode(to)
+                );
+
+                return [
+                    {
+                        ...nextModel,
+                        cancelRequest: Just(cancelRequestCmd)
+                    },
+                    Cmd.batch([
+                        model.cancelRequest.getOrElse(Cmd.none),
+                        fetchRatesCmd
+                    ])
+                ];
+            },
+
+            AmountChanged: (amount: string): [ Model, Cmd<Msg> ] => {
+                const nextModel = limit({
+                    ...model,
+                    active: this.source,
+                    amount
+                });
+
+                const [ from, to ] = getChangersRoles(model);
+                const [ nextFrom, nextTo ] = getChangersRoles(nextModel);
+
+                if (Changer.isSame(from, nextFrom) && Changer.isSame(to, nextTo)) {
+                    return [ nextModel, Cmd.none ];
+                }
+
+                const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+                    Changer.getCurrencyCode(nextFrom),
+                    Changer.getCurrencyCode(nextTo)
+                );
+
+                return [
+                    {
+                        ...nextModel,
+                        cancelRequest: Just(cancelRequestCmd)
+                    },
+                    Cmd.batch([
+                        model.cancelRequest.getOrElse(Cmd.none),
+                        fetchRatesCmd
+                    ])
+                ];
+            }
+        });
+    }
+}
 
 /**
  * S U B S C R I P T I O N S
  */
 
 export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
-    Changer.subscriptions(model.changers[ Changers.TOP ]).map(changerMsg => ChangerMsg(Changers.TOP, changerMsg)),
-    Changer.subscriptions(model.changers[ Changers.BOTTOM ]).map(changerMsg => ChangerMsg(Changers.BOTTOM, changerMsg)),
+    Changer.subscriptions(model.changers[ Changers.TOP ]).map(
+        changerMsg => new ChangerMsg(Changers.TOP, changerMsg)
+    ),
+    Changer.subscriptions(model.changers[ Changers.BOTTOM ]).map(
+        changerMsg => new ChangerMsg(Changers.BOTTOM, changerMsg)
+    ),
     model.cancelRequest.cata({
-        Nothing: () => Time.every(10000, () => FetchRates),
+        Nothing: () => Time.every(10000, () => new FetchRates()),
         Just: () => Sub.none
     })
 ]);
@@ -448,8 +465,8 @@ export const View: React.StatelessComponent<{
     return (
         <Root noValidate onSubmit={event => {
             dispatch(exchangeResult.cata({
-                Nothing: () => NoOp,
-                Just: ({ amountFrom, amountTo }) => Exchange(amountFrom, amountTo)
+                Nothing: () => new NoOp(),
+                Just: ({ amountFrom, amountTo }) => new Exchange(amountFrom, amountTo)
             }));
 
             event.preventDefault();
@@ -470,7 +487,7 @@ export const View: React.StatelessComponent<{
                         )}
                         pair={getCurrencyOfChanger(changerBottom, model)}
                         model={changerTop}
-                        dispatch={changerMsg => dispatch(ChangerMsg(Changers.TOP, changerMsg))}
+                        dispatch={changerMsg => dispatch(new ChangerMsg(Changers.TOP, changerMsg))}
                         autoFocus
                     />
                 </ChangerContainer>
@@ -483,7 +500,7 @@ export const View: React.StatelessComponent<{
                         )}
                         pair={getCurrencyOfChanger(changerTop, model)}
                         model={changerBottom}
-                        dispatch={changerMsg => dispatch(ChangerMsg(Changers.BOTTOM, changerMsg))}
+                        dispatch={changerMsg => dispatch(new ChangerMsg(Changers.BOTTOM, changerMsg))}
                     />
                 </ChangerContainer>
             </Content>
