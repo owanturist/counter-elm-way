@@ -251,15 +251,15 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'CHANGER_MSG': {
             const stage = Changer.update(msg._1, model.changers[ msg._0 ]);
 
-            switch (stage.$) {
+            switch (stage.type) {
                 case 'UPDATED': {
-                    if (!stage._0) {
+                    if (!stage.currencyChanged) {
                         return [
                             {
                                 ...model,
                                 changers: {
                                     ...model.changers,
-                                    [ msg._0 ]: stage._1
+                                    [ msg._0 ]: stage.model
                                 }
                             },
                             Cmd.none
@@ -270,7 +270,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         ...normalize(model),
                         changers: {
                             ...model.changers,
-                            [ msg._0 ]: stage._1
+                            [ msg._0 ]: stage.model
                         }
                     });
 
@@ -301,7 +301,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                             ...model,
                             amount: {
                                 source: msg._0,
-                                value: stage._0
+                                value: stage.amount
                             }
                         }),
                         Cmd.none

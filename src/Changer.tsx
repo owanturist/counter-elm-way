@@ -67,18 +67,32 @@ export const isSame = (left: Model, right: Model): boolean => left.currency === 
  */
 
 export type Msg
-    = { $: 'CHANGE_CURRENCY'; _0: string }
-    | { $: 'CHANGE_AMOUNT'; _0: Maybe<string> }
-    | { $: 'DRAG_START'; _0: number }
-    | { $: 'DRAGGING'; _0: Maybe<Currency>; _1: Maybe<Currency>; _2: number }
-    | { $: 'DRAG_END' }
-    | { $: 'SLIDE_END' }
+    = { type: 'CHANGE_CURRENCY'; currency: string }
+    | { type: 'CHANGE_AMOUNT'; amount: Maybe<string> }
+    | { type: 'DRAG_START'; start: number }
+    | { type: 'DRAGGING'; prev: Maybe<Currency>; next: Maybe<Currency>; end: number }
+    | { type: 'DRAG_END' }
+    | { type: 'SLIDE_END' }
     ;
 
+const ChangeCurrency = (currency: string): Msg => ({ type: 'CHANGE_CURRENCY', currency });
+const ChangeAmount = (amount: Maybe<string>): Msg => ({ type: 'CHANGE_AMOUNT', amount });
+const DragStart = (start: number): Msg => ({ type: 'DRAG_START', start });
+const Dragging = (
+    prev: Maybe<Currency>,
+    next: Maybe<Currency>,
+    end: number
+): Msg => ({ type: 'DRAGGING', prev, next, end });
+const DragEnd: Msg = { type: 'DRAG_END' };
+const SlideEnd: Msg = { type: 'SLIDE_END' };
+
 export type Stage
-    = { $: 'UPDATED'; _0: boolean; _1: Model }
-    | { $: 'AMOUNT_CHANGED'; _0: Maybe<string> }
+    = { type: 'UPDATED'; currencyChanged: boolean; model: Model }
+    | { type: 'AMOUNT_CHANGED'; amount: Maybe<string> }
     ;
+
+const Updated = (currencyChanged: boolean, model: Model): Stage => ({ type: 'UPDATED', currencyChanged, model });
+const AmountChanged = (amount: Maybe<string>): Stage => ({ type: 'AMOUNT_CHANGED', amount });
 
 const luft = (gap: number, delta: number): Maybe<number> => {
     if (delta > 0) {
@@ -93,168 +107,134 @@ const luft = (gap: number, delta: number): Maybe<number> => {
 };
 
 export const update = (msg: Msg, model: Model): Stage => {
-    switch (msg.$) {
+    switch (msg.type) {
         case 'CHANGE_CURRENCY': {
-            return {
-                $: 'UPDATED',
-                _0: true,
-                _1: {
-                    ...model,
-                    currency: msg._0
-                }
-            };
+            return Updated(true, {
+                ...model,
+                currency: msg.currency
+            });
         }
 
         case 'CHANGE_AMOUNT': {
-            return {
-                $: 'AMOUNT_CHANGED',
-                _0: msg._0
-            };
+            return AmountChanged(msg.amount);
         }
 
         case 'DRAG_START': {
-            return {
-                $: 'UPDATED',
-                _0: false,
-                _1: {
-                    ...model,
-                    dragging: Just({
-                        ref: React.createRef() as React.RefObject<HTMLDivElement>,
-                        start: msg._0,
-                        delta: Nothing
-                    })
-                }
-            };
+            return Updated(false, {
+                ...model,
+                dragging: Just({
+                    ref: React.createRef() as React.RefObject<HTMLDivElement>,
+                    start: msg.start,
+                    delta: Nothing
+                })
+            });
         }
 
         case 'DRAGGING': {
             return model.dragging.chain(
                 dragging => Maybe.fromNullable(dragging.ref.current).map(
-                    node => luft(DRAGGING_LUFT_GAP, msg._2 - dragging.start).map((delta): Stage => {
-                        const border = Utils.clamp(100, 300, node.offsetWidth / 3);
-
-                        if (delta < -border) {
-                            return msg._1.map((next): Stage => ({
-                                $: 'UPDATED',
-                                _0: true,
-                                _1: {
-                                    ...model,
-                                    currency: next.code,
-                                    dragging: Nothing,
-                                    sliding: Just({
-                                        currency: Just(model.currency),
-                                        duration: calcSlidingDuration(node.offsetWidth + delta),
-                                        destination: -node.offsetWidth
-                                    })
-                                }
-                            })).getOrElse({
-                                $: 'UPDATED',
-                                _0: false,
-                                _1: {
-                                    ...model,
-                                    dragging: Nothing,
-                                    sliding: Just({
-                                        currency: Nothing,
-                                        duration: calcSlidingDuration(delta),
-                                        destination: 0
-                                    })
-                                }
-                            });
-                        }
-
-                        if (delta > border) {
-                            return msg._0.map((prev): Stage => ({
-                                $: 'UPDATED',
-                                _0: true,
-                                _1: {
-                                    ...model,
-                                    currency: prev.code,
-                                    dragging: Nothing,
-                                    sliding: Just({
-                                        currency: Just(model.currency),
-                                        duration: calcSlidingDuration(node.offsetWidth - delta),
-                                        destination: node.offsetWidth
-                                    })
-                                }
-                            })).getOrElse({
-                                $: 'UPDATED',
-                                _0: false,
-                                _1: {
-                                    ...model,
-                                    dragging: Nothing,
-                                    sliding: Just({
-                                        currency: Nothing,
-                                        duration: calcSlidingDuration(delta),
-                                        destination: 0
-                                    })
-                                }
-                            });
-                        }
-
-                        return {
-                            $: 'UPDATED',
-                            _0: false,
-                            _1: {
-                                ...model,
-                                dragging: Just({
-                                    ...dragging,
-                                    delta: Just(delta)
-                                })
-                            }
-                        };
-                    }).getOrElse({
-                        $: 'UPDATED',
-                        _0: false,
-                        _1: {
+                    node => luft(DRAGGING_LUFT_GAP, msg.end - dragging.start).cata({
+                        Nothing: () => Updated(false, {
                             ...model,
                             dragging: Just({
                                 ...dragging,
                                 delta: Nothing
                             })
+                        }),
+
+                        Just: delta => {
+                            const border = Utils.clamp(100, 300, node.offsetWidth / 3);
+
+                            if (delta < -border) {
+                                return msg.next.cata({
+                                    Nothing: () => Updated(false, {
+                                        ...model,
+                                        dragging: Nothing,
+                                        sliding: Just({
+                                            currency: Nothing,
+                                            duration: calcSlidingDuration(delta),
+                                            destination: 0
+                                        })
+                                    }),
+
+                                    Just: next => Updated(true, {
+                                        ...model,
+                                        currency: next.code,
+                                        dragging: Nothing,
+                                        sliding: Just({
+                                            currency: Just(model.currency),
+                                            duration: calcSlidingDuration(node.offsetWidth + delta),
+                                            destination: -node.offsetWidth
+                                        })
+                                    })
+                                });
+                            }
+
+                            if (delta > border) {
+                                return msg.prev.cata({
+                                    Nothing: () => Updated(false, {
+                                        ...model,
+                                        dragging: Nothing,
+                                        sliding: Just({
+                                            currency: Nothing,
+                                            duration: calcSlidingDuration(delta),
+                                            destination: 0
+                                        })
+                                    }),
+
+                                    Just: prev => Updated(true, {
+                                        ...model,
+                                        currency: prev.code,
+                                        dragging: Nothing,
+                                        sliding: Just({
+                                            currency: Just(model.currency),
+                                            duration: calcSlidingDuration(node.offsetWidth - delta),
+                                            destination: node.offsetWidth
+                                        })
+                                    })
+                                });
+                            }
+
+                            return Updated(false, {
+                                ...model,
+                                dragging: Just({
+                                    ...dragging,
+                                    delta: Just(delta)
+                                })
+                            });
                         }
                     })
                 )
-            ).getOrElse({
-                $: 'UPDATED',
-                _0: false,
-                _1: {
-                    ...model,
-                    dragging: Nothing
-                }
-            });
+            ).getOrElse(Updated(false, {
+                ...model,
+                dragging: Nothing
+            }));
         }
 
         case 'DRAG_END': {
-            return {
-                $: 'UPDATED',
-                _0: false,
-                _1: model.dragging.chain(dragging => dragging.delta).cata({
-                    Nothing: () => ({
-                        ...model,
-                        dragging: Nothing
-                    }),
-                    Just: delta => ({
-                        ...model,
-                        dragging: Nothing,
-                        sliding: Just({
-                            currency: Nothing,
-                            duration: calcSlidingDuration(delta),
-                            destination: 0
-                        })
+            return Updated(false, model.dragging.chain(dragging => dragging.delta).cata({
+                Nothing: () => ({
+                    ...model,
+                    dragging: Nothing
+                }),
+
+                Just: delta => ({
+                    ...model,
+                    dragging: Nothing,
+                    sliding: Just({
+                        currency: Nothing,
+                        duration: calcSlidingDuration(delta),
+                        destination: 0
                     })
                 })
-            };
+            }));
         }
 
         case 'SLIDE_END': {
-            return {
-                $: 'UPDATED',
-                _0: false,
-                _1: {
-                    ...model,
-                    sliding: Nothing
-                }
-            };
+            return Updated(false, {
+                ...model,
+                sliding: Nothing
+            });
         }
     }
 };
@@ -262,7 +242,7 @@ export const update = (msg: Msg, model: Model): Stage => {
 export const subscriptions = (model: Model): Sub<Msg> => {
     return model.sliding.cata({
         Nothing: () => Sub.none,
-        Just: sliding => Time.every(sliding.duration, (): Msg => ({ $: 'SLIDE_END' }))
+        Just: sliding => Time.every(sliding.duration, () => SlideEnd)
     });
 };
 
@@ -427,10 +407,7 @@ const Slide = styled<{
                 type="number"
                 value={amount}
                 step={calcStep(amount).toString()}
-                onChange={event => dispatch({
-                    $: 'CHANGE_AMOUNT',
-                    _0: stringToAmount(event.currentTarget.value)
-                })}
+                onChange={event => dispatch(ChangeAmount(stringToAmount(event.currentTarget.value)))}
                 {...inputProps}
             />
         </Main>
@@ -506,7 +483,7 @@ function buildDraggingMouseEvents<T>(
                 Nothing: () => {
                     // do nothing
                 },
-                Just: touch => dispatch({ $: 'DRAG_START', _0: touch.screenX })
+                Just: touch => dispatch(DragStart(touch.screenX))
             })
         }),
         Just: ({ ref }) => ({
@@ -515,9 +492,9 @@ function buildDraggingMouseEvents<T>(
                 Nothing: () => {
                     // do nothing
                 },
-                Just: touch => dispatch({ $: 'DRAGGING', _0: prev, _1: next, _2: touch.screenX })
+                Just: touch => dispatch(Dragging(prev, next, touch.screenX))
             }),
-            onTouchEnd: () => dispatch({ $: 'DRAG_END' })
+            onTouchEnd: () => dispatch(DragEnd)
         })
     });
 }
@@ -581,7 +558,7 @@ export const View: React.StatelessComponent<{
             {currencies.map(currency => (
                 <Point
                     active={currency.code === model.currency}
-                    onClick={() => dispatch({ $: 'CHANGE_CURRENCY', _0: currency.code })}
+                    onClick={() => dispatch(ChangeCurrency(currency.code))}
                     key={currency.code}
                 />
             ))}
