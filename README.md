@@ -53,15 +53,6 @@ export type Model = Readonly<{
  * whenever and wherever you need. The second cause describe extra type sometimes.
  */
 
-type Decrement = '@Counter/Decrement';
-const Decrement: Decrement = '@Counter/Decrement';
-
-type Increment = '@Counter/Increment';
-const Increment: Increment = '@Counter/Increment';
-
-type Reset = '@Counter/Reset';
-const Reset: Reset = '@Counter/Reset';
-
 // Everyone outside knows about signature of your Msg now.
 export type Msg
     = Readonly<{ type: Decrement; amount: number }>
@@ -69,8 +60,16 @@ export type Msg
     | Readonly<{ type: Reset }>
     ;
 
+type Decrement = '@Counter/Decrement';
+const Decrement: Decrement = '@Counter/Decrement';
 const decrement = (amount: number): Msg => ({ type: Decrement, amount });
+
+type Increment = '@Counter/Increment';
+const Increment: Increment = '@Counter/Increment';
 const increment = (amount: number): Msg => ({ type: Increment, amount });
+
+type Reset = '@Counter/Reset';
+const Reset: Reset = '@Counter/Reset';
 const reset: Msg = { type: Reset };
 
 export const update = (msg: Msg, model: Model): Model => {
