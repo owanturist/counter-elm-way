@@ -2,7 +2,7 @@
 
 It is a small React application which wrote by [Elm][elm-lang] way.
 
-Implementation of the Elm architecture is placed right here in [Fractal]('./src/Fractal') folder.
+Implementation of the Elm architecture is placed right here in [Fractal](/src/Fractal) folder.
 You can find the source of some functors such as
 `Maybe`, `Either`, `Json/Decode` and `Json/Encode` [here][owanturist-maybe].
 
