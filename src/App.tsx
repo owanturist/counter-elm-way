@@ -41,19 +41,19 @@ enum Changers {
     TO = 'to'
 }
 
-interface Amount {
+type Amount = Readonly<{
     source: Changers;
     value: Maybe<string>;
-}
+}>;
 
-export interface Model {
+export type Model = Readonly<{
     cancelRequest: Maybe<Cmd<Msg>>;
     currencies: Array<Currency>;
     amount: Amount;
     changers: {
         [ Key in Changers ]: Changer.Model
     };
-}
+}>;
 
 export const init = (): [ Model, Cmd<Msg> ] => {
     const initialModel: Model = {

@@ -26,17 +26,17 @@ import * as Time from 'Fractal/Time';
 
 const DRAGGING_LUFT_GAP = 20;
 
-interface Dragging {
+type Dragging = Readonly<{
     ref: React.RefObject<HTMLDivElement>;
     start: number;
     delta: Maybe<number>;
-}
+}>;
 
-interface Sliding {
+type Sliding = Readonly<{
     currency: Maybe<string>;
     duration: number;
     destination: number;
-}
+}>;
 
 const SLIDING_SPEED = 1; // ps/millisecond
 const SLIDING_DURATION_MIN = 50; // millisecond
@@ -48,11 +48,11 @@ const calcSlidingDuration = (distance: number): number => Utils.clamp(
     Math.abs(distance / SLIDING_SPEED)
 );
 
-export interface Model {
+export type Model = Readonly<{
     currency: string;
     dragging: Maybe<Dragging>;
     sliding: Maybe<Sliding>;
-}
+}>;
 
 export const init = (currency: string): Model => ({
     currency,
