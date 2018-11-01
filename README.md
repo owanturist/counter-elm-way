@@ -31,6 +31,106 @@ npm dev
 Open [localhost:3000](http://localhost:3000/) in your browser.
 Open `{your_id}:3000` from another devices which plased in the same local network.
 
+## Advantages
+
+1. Encapsulation. No one parent component know nothing about `Msg`, it can just call `update`.
+1. No more huge `update`/`reducer` function - whole logic is described inside the source.
+It's very natural to define a `Msg` (or `Action` if you wish) and describe handling right there.
+1. Easy track of unused `Msg`. Otherwise you use deescribed `type Msg` at least in one place: 
+`update`/`reducer` and even you use one of ten `Msg` in a component but the function will 
+always use all of them.
+1. No more overhead with types:
+```ts
+export type Model = Readonly<{
+    count: number;
+}>;
+
+/**
+ * REDUX WAY
+ *
+ * Call it like `dispatch(decrement(2))` or
+ * `dispatch({ type: Decrement, amount: 2 })` if you too lazy to describe shortcuts
+ * whenever and wherever you need. The second cause describe extra type sometimes.
+ */
+
+type Decrement = '@Counter/Decrement';
+const Decrement: Decrement = '@Counter/Decrement';
+
+type Increment = '@Counter/Increment';
+const Increment: Increment = '@Counter/Increment';
+
+type Reset = '@Counter/Reset';
+const Reset: Reset = '@Counter/Reset';
+
+// Everyone outside knows about signature of your Msg now.
+export type Msg
+    = Readonly<{ type: Decrement; amount: number }>
+    | Readonly<{ type: Increment; amount: number }>
+    | Readonly<{ type: Reset }>
+    ;
+
+const decrement = (amount: number): Msg => ({ type: Decrement, amount });
+const increment = (amount: number): Msg => ({ type: Increment, amount });
+const reset: Msg = { type: Reset };
+
+export const update = (msg: Msg, model: Model): Model => {
+    switch (msg.type) {
+        case Decrement: {
+            return { ...model, count: model.count + msg.amount };
+        }
+
+        case Increment: {
+            return { ...model, count: model.count + msg.amount };
+        }
+
+        case Reset: {
+            return { ...model, count: 0 };
+        }
+    }
+};
+
+/**
+ * CLASS WAY
+ *
+ * Call it like `dispatch(new Decrement(2))` whenever and wherever you need
+ */
+
+// Nobody outisde knows about signature of your Msg now. Even inside the module.
+export abstract class Msg {
+    public abstract update(model: Model): Model;
+}
+
+class Decrement extends Msg {
+    constructor(private readonly amount: number) {
+        super();
+    }
+
+    public update(model: Model): Model {
+        return { ...model, count: model.count + this.amount };
+    }
+}
+
+class Decrement extends Msg {
+    constructor(private readonly amount: number) {
+        super();
+    }
+
+    public update(model: Model): Model {
+        return { ...model, count: model.count - this.amount };
+    }
+}
+
+class Reset extends Msg {
+    public update(model: Model): Model {
+        return { ...model, count: 0 };
+    }
+}
+```
+
+## Disadvantages
+
+1. Everyone likes Redux.
+
 ## Known issues
 
 ### No production build
@@ -60,8 +160,8 @@ But a little bit later...
 
 ## Alternatives
 
-Checkout to [exchange-app-classes][exchange-app-classes] branch where `Msg` and `Stage`
-of components are implemented by classes.
+Checkout to [exchange-app][exchange-app] branch where `Msg` and `Stage`
+of components are implemented by Redux-way.
 
 [exchangeratesapi.io]: https://exchangeratesapi.io
 [elm-lang]: http://elm-lang.org
@@ -73,4 +173,4 @@ of components are implemented by classes.
 [node-install]: https://nodejs.org/en/download/
 [nvm-install]: https://github.com/creationix/nvm#installation
 [styled-component-installation]: https://www.styled-components.com/docs/basics#installation
-[exchange-app-classes]: https://github.com/owanturist/counter-elm-way/tree/exchange-app-classes
+[exchange-app]: https://github.com/owanturist/counter-elm-way/tree/exchange-app
