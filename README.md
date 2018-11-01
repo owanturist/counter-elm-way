@@ -31,33 +31,24 @@ npm dev
 Open [localhost:3000](http://localhost:3000/) in your browser.
 Open `{your_id}:3000` from another devices which plased in the same local network.
 
-## Advantages
+## Why classes?
 
-1. Encapsulation. No one parent component know nothing about `Msg`, it can just call `update`.
-1. No more huge `update`/`reducer` function - whole logic is described inside the source.
-It's very natural to define a `Msg` (or `Action` if you wish) and describe handling right there.
-1. Easy track of unused `Msg`. Otherwise you use deescribed `type Msg` at least in one place: 
-`update`/`reducer` and even you use one of ten `Msg` in a component but the function will 
-always use all of them.
-1. No more overhead with types:
+Here is a piece of code which describes simple counter's `Msg`/`Action` and
+way of handling them like `update`/`reducer`. Below the code you can find lists of
+pros and cons by my opinion.
+
 ```ts
-export type Model = Readonly<{
+export interface Model {
     count: number;
-}>;
+}
 
-/**
- * REDUX WAY
- *
- * Call it like `dispatch(decrement(2))` or
- * `dispatch({ type: Decrement, amount: 2 })` if you too lazy to describe shortcuts
- * whenever and wherever you need. The second cause describe extra type sometimes.
- */
+/* REDUX WAY */
 
 // Everyone outside knows about signature of your Msg now.
 export type Msg
-    = Readonly<{ type: Decrement; amount: number }>
-    | Readonly<{ type: Increment; amount: number }>
-    | Readonly<{ type: Reset }>
+    = { type: Decrement; amount: number }
+    | { type: Increment; amount: number }
+    | { type: Reset }
     ;
 
 type Decrement = '@Counter/Decrement';
@@ -72,6 +63,8 @@ type Reset = '@Counter/Reset';
 const Reset: Reset = '@Counter/Reset';
 const reset: Msg = { type: Reset };
 
+// This function always uses all cases of Msg, so you should keep in mind
+// which of them are really used and which are legacy and should be removed
 export const update = (msg: Msg, model: Model): Model => {
     switch (msg.type) {
         case Decrement: {
@@ -88,19 +81,15 @@ export const update = (msg: Msg, model: Model): Model => {
     }
 };
 
-/**
- * CLASS WAY
- *
- * Call it like `dispatch(new Decrement(2))` whenever and wherever you need
- */
+/* CLASS WAY */
 
-// Nobody outisde knows about signature of your Msg now. Even inside the module.
+// Nobody outisde knows about signature of your Msg. Even inside the module.
 export abstract class Msg {
     public abstract update(model: Model): Model;
 }
 
 class Decrement extends Msg {
-    constructor(private readonly amount: number) {
+    constructor(private amount: number) {
         super();
     }
 
@@ -110,7 +99,7 @@ class Decrement extends Msg {
 }
 
 class Decrement extends Msg {
-    constructor(private readonly amount: number) {
+    constructor(private amount: number) {
         super();
     }
 
@@ -126,9 +115,32 @@ class Reset extends Msg {
 }
 ```
 
-## Disadvantages
+### Advantages
 
-1. Everyone likes Redux.
+1. Encapsulation. No one parent module know anything about `Msg`, it can just call `update`.
+It prevents modifying, using and simulating of a `Msg` from parent module.
+1. No more huge `update`/`reducer` function - whole logic is described inside the source.
+It's very natural to define a `Msg` (or `Action` if you wish) and describe handling right there.
+1. Easy track of unused `Msg`. Otherwise you use described `type Msg` at least in one place: 
+`update`/`reducer` and even you use one of let's say ten `Msg` in a module 
+but the function will always use all of them.
+1. More easy refactoring. Everything (definition and handling) in single place 
+and if you've desided to get rid of one of 
+the `Msg` you just delete it. Otherwise you should delete it at least from two places: 
+type definition, `update`/`reduce`.
+1. No more overhead with types. 
+You can and you should use `new` for create a `Msg`. 
+Just do it like this `dispatch(new Decrement(2))`. 
+No more `dispatch({ type: Decrement, amount: 2 })` which cause extra typing in some cases. 
+Or even using shortcuts like this `dispatch(decrement(2))` which also could be extra described.
+    > Somethimes you shouldn't create an extra types from `type` of `Msg`.
+    > It usually possible when you work with TS and depends on your team, beliefs and habits.
+
+### Disadvantages
+
+1. You should implement `update` method in every `Msg`, so it looks like kind of boilerplate.
+Otherwise you have single place (`update`/`reducer`) which describes the signature.
+1. Everyone does like Redux.
 
 ## Known issues
 
