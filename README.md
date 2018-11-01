@@ -40,7 +40,7 @@ when user type invalid format of number. How to reproduce:
   1. type `-` and then `-` again or do the same with any non digit allowed symbol
 (`-`, `,`, `+`, `.`, `e`, etc)
   1. React stops handle any change of the input until it become valid again
-  1. type any numbers or allowed symbols and you'll see that input was changed but nothing else happens
+  1. type any digits or allowed symbols and you'll see that input was changed but nothing else happens
 
 ### No production build
 
