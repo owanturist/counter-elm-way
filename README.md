@@ -2,6 +2,8 @@
 
 It is a small React application which wrote by [Elm][elm-lang] way.
 
+The source of FX rates is [exchangeratesapi.io][exchangeratesapi.io].
+
 Implementation of the Elm architecture is placed right here in [Fractal](/src/Fractal) folder.
 You can find the source of some functors such as
 `Maybe`, `Either`, `Json/Decode` and `Json/Encode` [here][owanturist-maybe].
@@ -56,7 +58,7 @@ For good performace at least js should be tree-shaked and uglified,
 Checkout to [exchange-app-classes][exchange-app-classes] branch where `Msg` and `Stage`
 of components are implemented by classes.
 
-
+[exchangeratesapi.io]: https://exchangeratesapi.io
 [elm-lang]: http://elm-lang.org
 [owanturist-maybe]: https://github.com/owanturist/Maybe
 [elm-core]: https://package.elm-lang.org/packages/elm/core/latest
