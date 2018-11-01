@@ -38,21 +38,48 @@ way of handling them like `update`/`reducer`. Below the code you can find lists 
 pros and cons by my opinion.
 
 ```ts
+/**
+ * Common Model (aka State).
+ */
 export interface Model {
     count: number;
 }
 
 /* REDUX WAY */
 
-// Everyone outside knows about signature of your Msg now.
+/**
+ * Msg definition.
+ *
+ * Everyone outside knows about signature of your Msg now.
+ */
 export type Msg
     = { type: Decrement; amount: number }
     | { type: Increment; amount: number }
     | { type: Reset }
     ;
 
+/**
+ * Msg.type definition.
+ *
+ * Used in Msg definition and Msg.type shortcut.
+ * Not required.
+ */
 type Decrement = '@Counter/Decrement';
+
+/**
+ * Msg.type shortcut.
+ *
+ * Used in Msg shortcut and update/reducer.
+ * Not required.
+ */
 const Decrement: Decrement = '@Counter/Decrement';
+
+/**
+ * Msg shortcut.
+ *
+ * Used like constructor of Msg wherever and whenever you need.
+ * Not required.
+ */
 const decrement = (amount: number): Msg => ({ type: Decrement, amount });
 
 type Increment = '@Counter/Increment';
@@ -63,8 +90,13 @@ type Reset = '@Counter/Reset';
 const Reset: Reset = '@Counter/Reset';
 const reset: Msg = { type: Reset };
 
-// This function always uses all cases of Msg, so you should keep in mind
-// which of them are really used and which are legacy and should be removed
+/**
+ * Handler of Msg (update/reducer).
+ *
+ * Handles whole bunch of Msg.
+ * This function always uses all cases of Msg, so you should keep in mind
+ * which of them are really used and which are legacy and should be removed.
+ */
 export const update = (msg: Msg, model: Model): Model => {
     switch (msg.type) {
         case Decrement: {
@@ -83,8 +115,17 @@ export const update = (msg: Msg, model: Model): Model => {
 
 /* CLASS WAY */
 
-// Nobody outisde knows about signature of your Msg. Even inside the module.
+/**
+ * Msg definition.
+ *
+ * Nobody outisde knows about signature of your Msg. Even inside the module.
+ */
 export abstract class Msg {
+    /**
+     * Handler of Msg.
+     *
+     * Handles just the Msg and nothing else.
+     */
     public abstract update(model: Model): Model;
 }
 
@@ -140,6 +181,7 @@ Or even using shortcuts like this `dispatch(decrement(2))` which also could be e
 
 1. You should implement `update` method in every `Msg`, so it looks like kind of boilerplate.
 Otherwise you have single place (`update`/`reducer`) which describes the signature.
+1. Creating of Msg with `new` looks unusual and not natural.
 1. Everyone does like Redux.
 
 ## Known issues
