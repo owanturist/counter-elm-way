@@ -10,41 +10,55 @@ import {
 const euro = Currency.of('EUR', '€', 0);
 const dollar = Currency.of('USD', '$', 0);
 
-test('Currency.(code|symbol|amount)', () => {
-    expect(euro.code).toBe('EUR');
-    expect(euro.symbol).toBe('€');
-    expect(euro.amount).toBe(0);
+describe('Currency', () => {
+    test('code', () => {
+        expect(euro.code).toBe('EUR');
+    });
+
+    test('symbol', () => {
+        expect(euro.symbol).toBe('€');
+    });
+
+    test('amount', () => {
+        expect(euro.amount).toBe(0);
+    });
 });
 
-test('Currency.registerRates()', () => {
-    const euroWithDollarRate = euro.registerRates([
-        [ 'USD', 1.3 ]
-    ]);
+describe('Currency.registerRates()', () => {
+    test('currency has no needed rate', () => {
+        expect(
+            euro.convertTo(1, dollar).isJust()
+        ).toBe(false);
+    });
 
-    expect(
-        euro.convertTo(1, dollar).isJust()
-    ).toBe(false);
-
-    expect(
-        euroWithDollarRate.convertTo(1, dollar).isJust()
-    ).toBe(true);
+    test('currency has needed rate', () => {
+        expect(
+            euro.registerRates([
+                [ 'USD', 1.3 ]
+            ]).convertTo(1, dollar).isJust()
+        ).toBe(true);
+    });
 });
 
-test('Currency.convertTo()', () => {
-    expect(
-        euro.registerRates([
-            [ 'USD', 2 ]
-        ]).convertTo(1, dollar)
-    ).toEqual(Just(0.5));
-});
-
-test('Currency.convertFrom()', () => {
-    expect(
-        dollar.convertFrom(
-            1,
+describe('Currency.convertTo()', () => {
+    test('convert EUR to 1 USD', () => {
+        expect(
             euro.registerRates([
                 [ 'USD', 2 ]
-            ])
-        )
-    ).toEqual(Just(2));
+            ]).convertTo(1, dollar)
+        ).toEqual(Just(0.5));
+    });
+});
+
+describe('Currency.convertFrom()', () => {
+    test('convert USD from 1 EUR', () => {
+        expect(
+            dollar.convertFrom(
+                1,
+                euro.registerRates([
+                    [ 'USD', 2 ]
+                ])
+            )
+        ).toEqual(Just(2));
+    });
 });
