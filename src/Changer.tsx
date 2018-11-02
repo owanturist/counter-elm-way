@@ -70,7 +70,7 @@ export type Msg
     = { type: 'CHANGE_CURRENCY'; currency: string }
     | { type: 'CHANGE_AMOUNT'; amount: Maybe<string> }
     | { type: 'DRAG_START'; start: number }
-    | { type: 'DRAGGING'; prev: Maybe<Currency>; next: Maybe<Currency>; end: number; width: number }
+    | { type: 'DRAG'; prev: Maybe<string>; next: Maybe<string>; end: number; width: number }
     | { type: 'DRAG_END' }
     | { type: 'SLIDE_END' }
     ;
@@ -79,11 +79,11 @@ const ChangeCurrency = (currency: string): Msg => ({ type: 'CHANGE_CURRENCY', cu
 const ChangeAmount = (amount: Maybe<string>): Msg => ({ type: 'CHANGE_AMOUNT', amount });
 const DragStart = (start: number): Msg => ({ type: 'DRAG_START', start });
 const Drag = (
-    prev: Maybe<Currency>,
-    next: Maybe<Currency>,
+    prev: Maybe<string>,
+    next: Maybe<string>,
     end: number,
     width: number
-): Msg => ({ type: 'DRAGGING', prev, next, end, width });
+): Msg => ({ type: 'DRAG', prev, next, end, width });
 const DragEnd: Msg = { type: 'DRAG_END' };
 const SlideEnd: Msg = { type: 'SLIDE_END' };
 
@@ -124,14 +124,14 @@ export const update = (msg: Msg, model: Model): Stage => {
             return Updated(false, {
                 ...model,
                 dragging: Just({
-                    ref: React.createRef() as React.RefObject<HTMLDivElement>,
+                    ref: React.createRef<HTMLDivElement>(),
                     start: msg.start,
                     delta: Nothing
                 })
             });
         }
 
-        case 'DRAGGING': {
+        case 'DRAG': {
             return model.dragging.map(
                 dragging => luft(DRAGGING_LUFT_GAP, msg.end - dragging.start).cata({
                     Nothing: () => Updated(false, {
@@ -159,7 +159,7 @@ export const update = (msg: Msg, model: Model): Stage => {
 
                                 Just: next => Updated(true, {
                                     ...model,
-                                    currency: next.code,
+                                    currency: next,
                                     dragging: Nothing,
                                     sliding: Just({
                                         currency: Just(model.currency),
@@ -184,7 +184,7 @@ export const update = (msg: Msg, model: Model): Stage => {
 
                                 Just: prev => Updated(true, {
                                     ...model,
-                                    currency: prev.code,
+                                    currency: prev,
                                     dragging: Nothing,
                                     sliding: Just({
                                         currency: Just(model.currency),
@@ -472,8 +472,8 @@ interface DraggingMouseEvents<T> {
 
 function buildDraggingMouseEvents<T>(
     dispatch: Dispatch<Msg>,
-    prev: Maybe<Currency>,
-    next: Maybe<Currency>,
+    prev: Maybe<string>,
+    next: Maybe<string>,
     dragging: Maybe<Dragging>
 ): DraggingMouseEvents<T> {
     return dragging.cata<DraggingMouseEvents<T>>({
@@ -512,7 +512,12 @@ export const View: React.StatelessComponent<{
     currencies,
     model.sliding.chain(sliding => sliding.currency).getOrElse(model.currency)
 ).fold(() => null, ({ prev, current, next }) => (
-    <Root {...model.sliding.isJust() ? {} : buildDraggingMouseEvents(dispatch, prev, next, model.dragging)}>
+    <Root {...model.sliding.isJust() ? {} : buildDraggingMouseEvents(
+        dispatch,
+        prev.map(currency => currency.code),
+        next.map(currency => currency.code),
+        model.dragging
+    )}>
         <Carousel
             shift={model.dragging.chain(dragging => dragging.delta).getOrElse(0)}
             sliding={model.sliding}
