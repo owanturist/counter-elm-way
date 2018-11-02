@@ -70,7 +70,7 @@ export type Msg
     = { type: 'CHANGE_CURRENCY'; currency: string }
     | { type: 'CHANGE_AMOUNT'; amount: Maybe<string> }
     | { type: 'DRAG_START'; start: number }
-    | { type: 'DRAGGING'; prev: Maybe<Currency>; next: Maybe<Currency>; end: number }
+    | { type: 'DRAGGING'; prev: Maybe<Currency>; next: Maybe<Currency>; end: number; width: number }
     | { type: 'DRAG_END' }
     | { type: 'SLIDE_END' }
     ;
@@ -78,11 +78,12 @@ export type Msg
 const ChangeCurrency = (currency: string): Msg => ({ type: 'CHANGE_CURRENCY', currency });
 const ChangeAmount = (amount: Maybe<string>): Msg => ({ type: 'CHANGE_AMOUNT', amount });
 const DragStart = (start: number): Msg => ({ type: 'DRAG_START', start });
-const Dragging = (
+const Drag = (
     prev: Maybe<Currency>,
     next: Maybe<Currency>,
-    end: number
-): Msg => ({ type: 'DRAGGING', prev, next, end });
+    end: number,
+    width: number
+): Msg => ({ type: 'DRAGGING', prev, next, end, width });
 const DragEnd: Msg = { type: 'DRAG_END' };
 const SlideEnd: Msg = { type: 'SLIDE_END' };
 
@@ -131,80 +132,78 @@ export const update = (msg: Msg, model: Model): Stage => {
         }
 
         case 'DRAGGING': {
-            return model.dragging.chain(
-                dragging => Maybe.fromNullable(dragging.ref.current).map(
-                    node => luft(DRAGGING_LUFT_GAP, msg.end - dragging.start).cata({
-                        Nothing: () => Updated(false, {
-                            ...model,
-                            dragging: Just({
-                                ...dragging,
-                                delta: Nothing
-                            })
-                        }),
+            return model.dragging.map(
+                dragging => luft(DRAGGING_LUFT_GAP, msg.end - dragging.start).cata({
+                    Nothing: () => Updated(false, {
+                        ...model,
+                        dragging: Just({
+                            ...dragging,
+                            delta: Nothing
+                        })
+                    }),
 
-                        Just: delta => {
-                            const border = Utils.clamp(100, 300, node.offsetWidth / 3);
+                    Just: delta => {
+                        const border = Utils.clamp(100, 300, msg.width / 3);
 
-                            if (delta < -border) {
-                                return msg.next.cata({
-                                    Nothing: () => Updated(false, {
-                                        ...model,
-                                        dragging: Nothing,
-                                        sliding: Just({
-                                            currency: Nothing,
-                                            duration: calcSlidingDuration(delta),
-                                            destination: 0
-                                        })
-                                    }),
-
-                                    Just: next => Updated(true, {
-                                        ...model,
-                                        currency: next.code,
-                                        dragging: Nothing,
-                                        sliding: Just({
-                                            currency: Just(model.currency),
-                                            duration: calcSlidingDuration(node.offsetWidth + delta),
-                                            destination: -node.offsetWidth
-                                        })
+                        if (delta < -border) {
+                            return msg.next.cata({
+                                Nothing: () => Updated(false, {
+                                    ...model,
+                                    dragging: Nothing,
+                                    sliding: Just({
+                                        currency: Nothing,
+                                        duration: calcSlidingDuration(delta),
+                                        destination: 0
                                     })
-                                });
-                            }
+                                }),
 
-                            if (delta > border) {
-                                return msg.prev.cata({
-                                    Nothing: () => Updated(false, {
-                                        ...model,
-                                        dragging: Nothing,
-                                        sliding: Just({
-                                            currency: Nothing,
-                                            duration: calcSlidingDuration(delta),
-                                            destination: 0
-                                        })
-                                    }),
-
-                                    Just: prev => Updated(true, {
-                                        ...model,
-                                        currency: prev.code,
-                                        dragging: Nothing,
-                                        sliding: Just({
-                                            currency: Just(model.currency),
-                                            duration: calcSlidingDuration(node.offsetWidth - delta),
-                                            destination: node.offsetWidth
-                                        })
+                                Just: next => Updated(true, {
+                                    ...model,
+                                    currency: next.code,
+                                    dragging: Nothing,
+                                    sliding: Just({
+                                        currency: Just(model.currency),
+                                        duration: calcSlidingDuration(msg.width + delta),
+                                        destination: -msg.width
                                     })
-                                });
-                            }
-
-                            return Updated(false, {
-                                ...model,
-                                dragging: Just({
-                                    ...dragging,
-                                    delta: Just(delta)
                                 })
                             });
                         }
-                    })
-                )
+
+                        if (delta > border) {
+                            return msg.prev.cata({
+                                Nothing: () => Updated(false, {
+                                    ...model,
+                                    dragging: Nothing,
+                                    sliding: Just({
+                                        currency: Nothing,
+                                        duration: calcSlidingDuration(delta),
+                                        destination: 0
+                                    })
+                                }),
+
+                                Just: prev => Updated(true, {
+                                    ...model,
+                                    currency: prev.code,
+                                    dragging: Nothing,
+                                    sliding: Just({
+                                        currency: Just(model.currency),
+                                        duration: calcSlidingDuration(msg.width - delta),
+                                        destination: msg.width
+                                    })
+                                })
+                            });
+                        }
+
+                        return Updated(false, {
+                            ...model,
+                            dragging: Just({
+                                ...dragging,
+                                delta: Just(delta)
+                            })
+                        });
+                    }
+                })
             ).getOrElse(Updated(false, {
                 ...model,
                 dragging: Nothing
@@ -488,11 +487,14 @@ function buildDraggingMouseEvents<T>(
         }),
         Just: ({ ref }) => ({
             ref,
-            onTouchMove: event => Maybe.fromNullable(event.touches[ 0 ]).cata({
+            onTouchMove: event => Maybe.props({
+                touch: Maybe.fromNullable(event.touches[ 0 ]),
+                node: Maybe.fromNullable(ref.current)
+            }).cata({
                 Nothing: () => {
                     // do nothing
                 },
-                Just: touch => dispatch(Dragging(prev, next, touch.screenX))
+                Just: ({ touch, node }) => dispatch(Drag(prev, next, touch.screenX, node.clientWidth))
             }),
             onTouchEnd: () => dispatch(DragEnd)
         })
