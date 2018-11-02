@@ -15,6 +15,10 @@ export const find = <T>(predicate: (value: T) => boolean, arr: Array<T>): Maybe<
 };
 
 export const stringToNumber = (str: string): Maybe<number> => {
+    if (str.trim() === '') {
+        return Nothing;
+    }
+
     const result = Number(str);
 
     return isNaN(result) ? Nothing : Just(result);
@@ -23,12 +27,14 @@ export const stringToNumber = (str: string): Maybe<number> => {
 export const round = (fractionDigits: number, num: number): number => Number(num.toFixed(fractionDigits));
 
 export const clamp = (low: number, high: number, value: number): number => {
-    if (value < low) {
-        return low;
+    const [ low_, high_ ] = low < high ? [ low, high ] : [ high, low ];
+
+    if (value < low_) {
+        return low_;
     }
 
-    if (value > high) {
-        return high;
+    if (value > high_) {
+        return high_;
     }
 
     return value;
