@@ -2,7 +2,6 @@ import * as React from 'react';
 import {
     shallow
 } from 'enzyme';
-import * as Sinon from 'sinon';
 
 import {
     Nothing,
@@ -391,14 +390,12 @@ describe('Changer.update()', () => {
 });
 
 describe('Changer.View', () => {
-    const dispatch = Sinon.spy();
+    const dispatch = () => {
+        // do nothing
+    };
     const USD = Currency.of('USD', '$', 100);
     const EUR = Currency.of('EUR', '€', 200);
     const RUB = Currency.of('RUB', '₽', 300);
-
-    beforeEach(() => {
-        dispatch.resetHistory();
-    });
 
     test('no current currency', () => {
         const wrapper = shallow(
