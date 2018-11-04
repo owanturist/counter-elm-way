@@ -1,14 +1,17 @@
-import 'jest'; // tslint:disable-line:no-import-side-effect
-
 import * as React from 'react';
-// import {
-//     shallow
-// } from 'enzyme';
+import {
+    shallow
+} from 'enzyme';
+import * as Sinon from 'sinon';
+
 import {
     Nothing,
     Just
 } from 'Fractal/Maybe';
 
+import {
+    Currency
+} from '../Currency';
 import * as Changer from '../Changer';
 
 describe('Changer.init()', () => {
@@ -383,6 +386,348 @@ describe('Changer.update()', () => {
                 ...initialModel,
                 sliding: Nothing
             }
+        });
+    });
+});
+
+describe('Changer.View', () => {
+    const dispatch = Sinon.spy();
+    const USD = Currency.of('USD', '$', 100);
+    const EUR = Currency.of('EUR', '€', 200);
+    const RUB = Currency.of('RUB', '₽', 300);
+
+    beforeEach(() => {
+        dispatch.resetHistory();
+    });
+
+    test('no current currency', () => {
+        const wrapper = shallow(
+            <Changer.View
+                dispatch={dispatch}
+                model={Changer.init('RUB')}
+                amount="100"
+                currencies={[ Currency.of('USD', '$', 0) ]}
+                donor={Nothing}
+            />
+        );
+
+        expect(wrapper).toBeEmptyRender();
+    });
+
+    test('single currency', () => {
+        const wrapper = shallow(
+            <Changer.View
+                dispatch={dispatch}
+                model={Changer.init(USD.code)}
+                amount="100"
+                currencies={[ USD ]}
+                donor={Nothing}
+            />
+        );
+
+        expect(wrapper.find('Carousel')).toContainMatchingElements(1, 'Slide');
+
+        expect(wrapper.find('Carousel').childAt(0)).toHaveProp('amount', '100');
+        expect(wrapper.find('Carousel').childAt(0)).toHaveProp('currency', USD);
+    });
+
+    describe('two currencies', () => {
+        test('first is current', () => {
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={Changer.init(USD.code)}
+                    amount="100"
+                    currencies={[ USD, EUR ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper.find('Carousel')).toContainMatchingElements(2, 'Slide');
+
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('amount', '100');
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('currency', USD);
+
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('amount', '');
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('currency', EUR);
+
+            expect(wrapper.find('Line')).toContainMatchingElements(2, 'Point');
+
+            expect(wrapper.find('Line').childAt(0)).toHaveProp('active', true);
+        });
+
+        test('second is current', () => {
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={Changer.init(EUR.code)}
+                    amount="100"
+                    currencies={[ USD, EUR ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper.find('Carousel')).toContainMatchingElements(2, 'Slide');
+
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('amount', '');
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('currency', USD);
+
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('amount', '100');
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('currency', EUR);
+
+            expect(wrapper.find('Line')).toContainMatchingElements(2, 'Point');
+
+            expect(wrapper.find('Line').childAt(1)).toHaveProp('active', true);
+        });
+    });
+
+    describe('three currencies', () => {
+        test('first is current', () => {
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={Changer.init(USD.code)}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper.find('Carousel')).toContainMatchingElements(2, 'Slide');
+
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('amount', '100');
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('currency', USD);
+
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('amount', '');
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('currency', EUR);
+
+            expect(wrapper.find('Line')).toContainMatchingElements(3, 'Point');
+
+            expect(wrapper.find('Line').childAt(0)).toHaveProp('active', true);
+        });
+
+        test('second is current', () => {
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={Changer.init(EUR.code)}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper.find('Carousel')).toContainMatchingElements(3, 'Slide');
+
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('amount', '');
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('currency', USD);
+
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('amount', '100');
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('currency', EUR);
+
+            expect(wrapper.find('Carousel').childAt(2)).toHaveProp('amount', '');
+            expect(wrapper.find('Carousel').childAt(2)).toHaveProp('currency', RUB);
+
+            expect(wrapper.find('Line')).toContainMatchingElements(3, 'Point');
+
+            expect(wrapper.find('Line').childAt(1)).toHaveProp('active', true);
+        });
+
+        test('third is current', () => {
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={Changer.init(RUB.code)}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper.find('Carousel')).toContainMatchingElements(2, 'Slide');
+
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('amount', '');
+            expect(wrapper.find('Carousel').childAt(0)).toHaveProp('currency', EUR);
+
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('amount', '100');
+            expect(wrapper.find('Carousel').childAt(1)).toHaveProp('currency', RUB);
+
+            expect(wrapper.find('Line')).toContainMatchingElements(3, 'Point');
+
+            expect(wrapper.find('Line').childAt(2)).toHaveProp('active', true);
+        });
+    });
+
+    describe('hold sliding currency while it is sliding', () => {
+        const model: Changer.Model = {
+            currency: EUR.code,
+            dragging: Nothing,
+            sliding: Just({
+                currency: Just(USD.code),
+                duration: 100,
+                destination: 800
+            })
+        };
+        const wrapper = shallow(
+            <Changer.View
+                dispatch={dispatch}
+                model={model}
+                amount="100"
+                currencies={[ USD, EUR, RUB ]}
+                donor={Nothing}
+            />
+        );
+
+        expect(wrapper.find('Carousel')).toContainMatchingElements(2, 'Slide');
+
+        expect(wrapper.find('Carousel').childAt(0)).toHaveProp('amount', '100');
+        expect(wrapper.find('Carousel').childAt(0)).toHaveProp('currency', USD);
+
+        expect(wrapper.find('Carousel').childAt(1)).toHaveProp('amount', '');
+        expect(wrapper.find('Carousel').childAt(1)).toHaveProp('currency', EUR);
+
+        expect(wrapper.find('Line')).toContainMatchingElements(3, 'Point');
+
+        expect(wrapper.find('Line').childAt(1)).toHaveProp('active', true);
+    });
+
+    describe('drag events are attaching', () => {
+        test('no dragging, no sliding', () => {
+            const model: Changer.Model = {
+                currency: EUR.code,
+                dragging: Nothing,
+                sliding: Nothing
+            };
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={model}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper).toHaveProp('onTouchStart');
+            expect(wrapper).not.toHaveProp('onTouchMove');
+            expect(wrapper).not.toHaveProp('onTouchEnd');
+        });
+
+        test('dragging, no sliding', () => {
+            const model: Changer.Model = {
+                currency: EUR.code,
+                dragging: Just({
+                    ref: React.createRef<HTMLDivElement>(),
+                    start: 0,
+                    delta: Nothing
+                }),
+                sliding: Nothing
+            };
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={model}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper).not.toHaveProp('onTouchStart');
+            expect(wrapper).toHaveProp('onTouchMove');
+            expect(wrapper).toHaveProp('onTouchEnd');
+        });
+
+        test('no dragging, sliding', () => {
+            const model: Changer.Model = {
+                currency: EUR.code,
+                dragging: Nothing,
+                sliding: Just({
+                    currency: Just(USD.code),
+                    duration: 100,
+                    destination: 800
+                })
+            };
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={model}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper).not.toHaveProp('onTouchStart');
+            expect(wrapper).not.toHaveProp('onTouchMove');
+            expect(wrapper).not.toHaveProp('onTouchEnd');
+        });
+    });
+
+    describe('shift according dragging.delta', () => {
+        test('no dragging at all', () => {
+            const model: Changer.Model = {
+                currency: EUR.code,
+                dragging: Nothing,
+                sliding: Nothing
+            };
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={model}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper.find('Carousel')).toHaveProp('shift', 0);
+        });
+
+        test('delta is nothing', () => {
+            const model: Changer.Model = {
+                currency: EUR.code,
+                dragging: Just({
+                    ref: React.createRef<HTMLDivElement>(),
+                    start: 0,
+                    delta: Nothing
+                }),
+                sliding: Nothing
+            };
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={model}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper.find('Carousel')).toHaveProp('shift', 0);
+        });
+
+        test('delta exists', () => {
+            const model: Changer.Model = {
+                currency: EUR.code,
+                dragging: Just({
+                    ref: React.createRef<HTMLDivElement>(),
+                    start: 0,
+                    delta: Just(30)
+                }),
+                sliding: Nothing
+            };
+            const wrapper = shallow(
+                <Changer.View
+                    dispatch={dispatch}
+                    model={model}
+                    amount="100"
+                    currencies={[ USD, EUR, RUB ]}
+                    donor={Nothing}
+                />
+            );
+
+            expect(wrapper.find('Carousel')).toHaveProp('shift', 30);
         });
     });
 });

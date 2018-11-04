@@ -53,6 +53,10 @@ For good performace at least js should be tree-shaked and uglified,
 `styled-components` should build output css thru Babel as 
 [recommended][styled-component-installation].
 
+### Enzyme + styled-components is broken
+
+Styled components 4 uses the new `ContextConsumer` component, which [breaks tests that use wrapper.dive()](https://github.com/airbnb/enzyme/issues/1647).
+
 ## Alternatives
 
 Checkout to [exchange-app-classes][exchange-app-classes] branch where `Msg` and `Stage`

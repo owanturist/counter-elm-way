@@ -1,5 +1,3 @@
-import 'jest'; // tslint:disable-line:no-import-side-effect
-
 import {
     Just
 } from 'Fractal/Maybe';

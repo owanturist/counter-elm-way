@@ -299,6 +299,8 @@ const Carousel = styled.div.attrs<CarouselProps, CarouselAttrs>({
     }};
 `;
 
+Carousel.displayName = 'Carousel';
+
 const Main = styled.div`
     display: flex;
     align-items: center;
@@ -333,6 +335,8 @@ const Input = styled.input`
     }
 `;
 
+Input.displayName = 'Input';
+
 const Small = styled.small`
     font-size: .8em;
 `;
@@ -345,6 +349,8 @@ const Line = styled.ul`
     font-size: 1.6em;
     line-height: 1;
 `;
+
+Line.displayName = 'Line';
 
 const Point = styled.li<{
     active: boolean;
@@ -359,6 +365,8 @@ const Point = styled.li<{
         content: "•"
     }
 `;
+
+Point.displayName = 'Point';
 
 const calcStep = (amount: string): number => {
     if (/(\.|,)\d[1-9]\d*/.test(amount)) {
@@ -378,7 +386,7 @@ const stringToAmount = (input: string): Maybe<string> => {
     return result === '' ? Nothing : Just(result);
 };
 
-const Slide = styled<{
+export const Slide = styled<{
     dispatch: Dispatch<Msg>;
     amount: string;
     currency: Currency;
@@ -431,6 +439,8 @@ const Slide = styled<{
     justify-content: center;
     padding: 0 2em;
 `;
+
+Slide.displayName = 'Slide';
 
 const extractCurrencies = (currencies: Array<Currency>, currentCode: string): Maybe<{
     prev: Maybe<Currency>;
@@ -561,6 +571,7 @@ export const View: React.StatelessComponent<{
                 )
             })}
         </Carousel>
+
         <Line>
             {currencies.map(currency => (
                 <Point
