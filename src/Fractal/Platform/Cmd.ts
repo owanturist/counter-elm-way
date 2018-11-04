@@ -4,7 +4,7 @@ export abstract class Cmd<Msg> {
 
         switch (nonEmptyCmds.length) {
             case 0: {
-                return new None();
+                return none;
             }
 
             case 1: {

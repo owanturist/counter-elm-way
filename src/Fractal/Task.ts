@@ -13,16 +13,23 @@ abstract class InternalCmd<M> extends Cmd<M> {
     }
 }
 
+type Executor<E, T> = (
+    fail: (error: E) => void,
+    succeed: (value: T) => void
+) => void;
+
 export abstract class Task<E, T> {
     public static succeed<E, T>(value: T): Task<E, T> {
-        return new Variations.Succeed(value);
+        return new Succeed(value);
     }
 
     public static fail<E, T>(error: E): Task<E, T> {
-        return new Variations.Fail(error);
+        return new Fail(error);
     }
 
-    public static props<E, T extends object>(config: {[ K in keyof T ]: Task<E, T[ K ]>}): Task<E, T> {
+    public static props<E, T extends object>(
+        config: {[ K in keyof T ]: Task<E, T[ K ]>}
+    ): Task<E, T> {
         let acc: Task<E, T> = Task.succeed({} as T);
 
         for (const key in config) {
@@ -66,8 +73,8 @@ export abstract class Task<E, T> {
         );
     }
 
-    protected static of<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {
-        return new Variations.Cons(executor);
+    protected static of<E, T>(executor: Executor<E, T>): Task<E, T> {
+        return new Cons(executor);
     }
 
     protected static execute<E, T>(task: Task<E, T>): Promise<T> {
@@ -75,19 +82,19 @@ export abstract class Task<E, T> {
     }
 
     public map<R>(fn: (value: T) => R): Task<E, R> {
-        return new Variations.Map(fn, this);
+        return new Map(fn, this);
     }
 
     public chain<R>(fn: (value: T) => Task<E, R>): Task<E, R> {
-        return new Variations.Chain(fn, this);
+        return new Chain(fn, this);
     }
 
     public onError<S>(fn: (error: E) => Task<S, T>): Task<S, T> {
-        return new Variations.OnError(fn, this);
+        return new OnError(fn, this);
     }
 
     public mapError<S>(fn: (error: E) => S): Task<S, T> {
-        return new Variations.MapError(fn, this);
+        return new MapError(fn, this);
     }
 
     public attempt<M>(tagger: (either: Either<E, T>) => M): Cmd<M> {
@@ -101,86 +108,86 @@ export abstract class Task<E, T> {
     protected abstract execute(): Promise<T>;
 }
 
-namespace Variations {
-    export class Cons<E, T> extends Task<E, T> {
-        constructor(protected readonly executor: (succeed: (value: T) => void, fail: (error: E) => void) => void) {
-            super();
-        }
-
-        protected execute(): Promise<T> {
-            return new Promise(this.executor);
-        }
+export class Cons<E, T> extends Task<E, T> {
+    constructor(private readonly executor: Executor<E, T>) {
+        super();
     }
 
-    export class Succeed<E, T> extends Task<E, T> {
-        constructor(protected readonly value: T) {
-            super();
-        }
+    protected execute(): Promise<T> {
+        return new Promise((resolve: (value: T) => void, reject: (error: E) => void): void => {
+            this.executor(reject, resolve);
+        });
+    }
+}
 
-        protected execute(): Promise<T> {
-            return Promise.resolve(this.value);
-        }
+export class Succeed<E, T> extends Task<E, T> {
+    constructor(private readonly value: T) {
+        super();
     }
 
-    export class Fail<E, T> extends Task<E, T> {
-        constructor(protected readonly error: E) {
-            super();
-        }
+    protected execute(): Promise<T> {
+        return Promise.resolve(this.value);
+    }
+}
 
-        protected execute(): Promise<T> {
-            return Promise.reject(this.error);
-        }
+export class Fail<E, T> extends Task<E, T> {
+    constructor(private readonly error: E) {
+        super();
     }
 
-    export class Map<E, T, R> extends Task<E, R> {
-        constructor(
-            protected readonly fn: (value: T) => R,
-            protected readonly task: Task<E, T>
-        ) {
-            super();
-        }
+    protected execute(): Promise<T> {
+        return Promise.reject(this.error);
+    }
+}
 
-        protected execute(): Promise<R> {
-            return Task.execute(this.task).then(this.fn);
-        }
+export class Map<E, T, R> extends Task<E, R> {
+    constructor(
+        private readonly fn: (value: T) => R,
+        private readonly task: Task<E, T>
+    ) {
+        super();
     }
 
-    export class Chain<E, T, R> extends Task<E, R> {
-        constructor(
-            protected readonly fn: (value: T) => Task<E, R>,
-            protected readonly task: Task<E, T>
-        ) {
-            super();
-        }
+    protected execute(): Promise<R> {
+        return Task.execute(this.task).then(this.fn);
+    }
+}
 
-        protected execute(): Promise<R> {
-            return Task.execute(this.task).then((value: T) => Task.execute(this.fn(value)));
-        }
+export class Chain<E, T, R> extends Task<E, R> {
+    constructor(
+        private readonly fn: (value: T) => Task<E, R>,
+        private readonly task: Task<E, T>
+    ) {
+        super();
     }
 
-    export class OnError<E, T, S> extends Task<S, T> {
-        constructor(
-            protected readonly fn: (error: E) => Task<S, T>,
-            protected readonly task: Task<E, T>
-        ) {
-            super();
-        }
+    protected execute(): Promise<R> {
+        return Task.execute(this.task).then((value: T) => Task.execute(this.fn(value)));
+    }
+}
 
-        protected execute(): Promise<T> {
-            return Task.execute(this.task).catch((error: E): Promise<T> => Task.execute(this.fn(error)));
-        }
+export class OnError<E, T, S> extends Task<S, T> {
+    constructor(
+        private readonly fn: (error: E) => Task<S, T>,
+        private readonly task: Task<E, T>
+    ) {
+        super();
     }
 
-    export class MapError<E, T, S> extends Task<S, T> {
-        constructor(
-            protected readonly fn: (error: E) => S,
-            protected readonly task: Task<E, T>
-        ) {
-            super();
-        }
+    protected execute(): Promise<T> {
+        return Task.execute(this.task).catch((error: E): Promise<T> => Task.execute(this.fn(error)));
+    }
+}
 
-        protected execute(): Promise<T> {
-            return Task.execute(this.task).catch((error: E): Promise<T> => Promise.reject(this.fn(error)));
-        }
+export class MapError<E, T, S> extends Task<S, T> {
+    constructor(
+        private readonly fn: (error: E) => S,
+        private readonly task: Task<E, T>
+    ) {
+        super();
+    }
+
+    protected execute(): Promise<T> {
+        return Task.execute(this.task).catch((error: E): Promise<T> => Promise.reject(this.fn(error)));
     }
 }

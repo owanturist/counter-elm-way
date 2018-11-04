@@ -21,7 +21,7 @@ import * as Decode from './Json/Decode';
 import * as Encode from './Json/Encode';
 
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static of<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {
+    public static of<E, T>(executor: (fail: (error: E) => void, succeed: (value: T) => void) => void): Task<E, T> {
         return Task.of(executor);
     }
 }
@@ -275,14 +275,14 @@ export class Request<T> {
     constructor(
         private readonly method: string,
         private readonly url: string,
-        private readonly config: {
+        private readonly config: Readonly<{
             headers: Array<Header>;
             body: Body;
             expect: Expect<T>;
             timeout: Maybe<number>;
             withCredentials: boolean;
             queryParams: Array<[string, string]>;
-        }
+        }>
     ) {}
 
     public withHeader(name: string, value: string): Request<T> {
@@ -386,12 +386,12 @@ export class Request<T> {
         let abortRequest = noop;
 
         return [
-            InternalTask.of((succeed: (value: void) => void): void => {
+            InternalTask.of((_fail: (error: never) => void, succeed: (value: void) => void): void => {
                 abortRequest();
 
                 succeed(undefined);
             }),
-            InternalTask.of((succeed: (value: T) => void, fail: (error: Error) => void): void => {
+            InternalTask.of((fail: (error: Error) => void, succeed: (value: T) => void): void => {
                 const xhr = new XMLHttpRequest();
 
                 xhr.addEventListener('error', () => {

@@ -7,7 +7,7 @@ import {
 } from './Platform/Sub';
 
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static of<E, T>(executor: (succeed: (value: T) => void, fail: (error: E) => void) => void): Task<E, T> {
+    public static of<E, T>(executor: (fail: (error: E) => void, succeed: (value: T) => void) => void): Task<E, T> {
         return Task.of(executor);
     }
 }
@@ -41,5 +41,5 @@ export const every = <Msg>(delay: number, tagger: (posix: number) => Msg): Sub<M
 };
 
 export const now: Task<never, number> = InternalTask.of(
-    (succeed: (posix: number) => void) => succeed(Date.now())
+    (_fail: (error: never) => void, succeed: (posix: number) => void) => succeed(Date.now())
 );

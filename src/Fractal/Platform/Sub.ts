@@ -11,7 +11,7 @@ export abstract class Sub<Msg> {
 
         switch (nonEmptySubs.length) {
             case 0: {
-                return new None();
+                return none;
             }
 
             case 1: {
