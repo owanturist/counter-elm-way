@@ -55,25 +55,17 @@ export type Model = Readonly<{
     };
 }>;
 
-export const init = (): [ Model, Cmd<Msg> ] => {
+export const init = (currencies: Array<Currency>, from: string, to: string): [ Model, Cmd<Msg> ] => {
     const initialModel: Model = {
         cancelRequest: Nothing,
-        currencies: [
-            Currency.of('USD', '$', 25.51),
-            Currency.of('EUR', '€', 116.12),
-            Currency.of('GBP', '£', 58.33)
-        ],
+        currencies,
         amount: {
             source: Changers.FROM,
             value: Nothing
         },
-        /* There should be a checking for length of list with
-         * extracting the values of first and second currencies
-         * but we skip it now.
-         */
         changers: {
-            from: Changer.init('USD'),
-            to: Changer.init('EUR')
+            from: Changer.init(from),
+            to: Changer.init(to)
         }
     };
     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
