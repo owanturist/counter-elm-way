@@ -13,7 +13,7 @@ import {
 } from '../Currency';
 import * as Changer from '../Changer';
 
-describe('Changer.init()', () => {
+test('Changer.init()', () => {
     expect(Changer.init('RUB')).toEqual({
         currency: 'RUB',
         dragging: Nothing,
@@ -21,7 +21,7 @@ describe('Changer.init()', () => {
     });
 });
 
-describe('Changer.isSame()', () => {
+test('Changer.isSame()', () => {
     expect(
         Changer.isSame(Changer.init('RUB'), Changer.init('EUR'))
     ).toBe(false);
