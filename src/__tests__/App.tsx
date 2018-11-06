@@ -1,8 +1,3 @@
-// import * as React from 'react';
-// import {
-//     shallow
-// } from 'enzyme';
-
 const Changer$init = jest.fn();
 const Changer$isSame = jest.fn();
 const Changer$update = jest.fn();
@@ -33,11 +28,7 @@ const EUR = Currency.of('EUR', '€', 20);
 const RUB = Currency.of('RUB', '₽', 30);
 
 beforeAll(() => {
-    Changer$init.mockImplementation((code: string) => ({ code }));
-});
-
-afterEach(() => {
-    Changer$init.mockClear();
+    Changer$init.mockImplementation((code: string) => `__${code}__`);
 });
 
 test('App.init()', () => {
@@ -50,8 +41,8 @@ test('App.init()', () => {
             value: Nothing
         },
         changers: {
-            from: { code: USD.code },
-            to: { code: EUR.code }
+            from: '__USD__',
+            to: '__EUR__'
         }
     });
 });
