@@ -57,6 +57,17 @@ For good performace at least js should be tree-shaked and uglified,
 
 Styled components 4 uses the new `ContextConsumer` component, which [breaks tests that use wrapper.dive()](https://github.com/airbnb/enzyme/issues/1647).
 
+### No tests for Fractal's containers
+
+Yes, there is a problem with testing of declarative wrappers (`Task`, `Time`, `Cmd`, `Sub`, etc).
+Some special Fractal-test-kit should be implemented here for writing common 
+declarative checking. The most important thing is that all of those containers do 
+just describing of side effects. It means that no one Http request or timeout will not 
+be triggered outside of a Fractal's app. Therefore we don't need to implement mocking of 
+that side effects - we just need to compare configurations of containers.
+It's a very powerful concept and I have a couple of ideas how to implement that.
+But a little bit later...
+
 ## Alternatives
 
 Checkout to [exchange-app-classes][exchange-app-classes] branch where `Msg` and `Stage`
