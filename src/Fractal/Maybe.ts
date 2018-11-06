@@ -77,8 +77,8 @@ export abstract class Maybe<T> {
     public abstract toEither<E>(error: E): Either<E, T>;
 }
 
-namespace Variations {
-    export class Nothing<T> extends Maybe<T> {
+namespace Internal {
+    export class Nothing extends Maybe<never> {
         public isNothing(): boolean {
             return true;
         }
@@ -87,27 +87,27 @@ namespace Variations {
             return false;
         }
 
-        public isEqual(another: Maybe<T>): boolean {
+        public isEqual<T>(another: Maybe<T>): boolean {
             return another.isNothing();
         }
 
-        public getOrElse(defaults: T): T {
+        public getOrElse<T>(defaults: T): T {
             return defaults;
         }
 
-        public ap<R>(): Maybe<R> {
-            return this as any as Maybe<R>;
+        public ap(): Nothing {
+            return this;
         }
 
-        public map<R>(): Maybe<R> {
-            return this as any as Maybe<R>;
+        public map(): Nothing {
+            return this;
         }
 
-        public chain<R>(): Maybe<R> {
-            return this as any as Maybe<R>;
+        public chain(): Nothing {
+            return this;
         }
 
-        public orElse(fn: () => Maybe<T>): Maybe<T> {
+        public orElse<T>(fn: () => Maybe<T>): Maybe<T> {
             return fn();
         }
 
@@ -115,7 +115,7 @@ namespace Variations {
             return nothingFn();
         }
 
-        public cata<R>(pattern: Pattern<T, R>): R {
+        public cata<T, R>(pattern: Pattern<T, R>): R {
             if (typeof pattern.Nothing === 'function') {
                 return pattern.Nothing();
             }
@@ -123,7 +123,7 @@ namespace Variations {
             return (pattern as DefaultCase<R>)._();
         }
 
-        public toEither<E>(error: E): Either<E, T> {
+        public toEither<E, T>(error: E): Either<E, T> {
             return Left(error);
         }
     }
@@ -158,7 +158,7 @@ namespace Variations {
             );
         }
 
-        public map<R>(fn: (value: T) => R): Maybe<R> {
+        public map<R>(fn: (value: T) => R): Just<R> {
             return new Just(
                 fn(this.value)
             );
@@ -168,7 +168,7 @@ namespace Variations {
             return fn(this.value);
         }
 
-        public orElse(): Maybe<T> {
+        public orElse(): Just<T> {
             return this;
         }
 
@@ -190,6 +190,6 @@ namespace Variations {
     }
 }
 
-export const Nothing: Maybe<never> = new Variations.Nothing();
+export const Nothing: Maybe<never> = new Internal.Nothing();
 
-export const Just = <T>(value: T): Maybe<T> => new Variations.Just(value);
+export const Just = <T>(value: T): Maybe<T> => new Internal.Just(value);

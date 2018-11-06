@@ -72,36 +72,6 @@ export abstract class Error {
     public abstract cata<T>(pattern: Error.Pattern<T>): T;
 }
 
-export namespace Error {
-    export type Pattern<T> = WithDefaultCase<{
-        BadUrl(url: string): T;
-        Timeout(): T;
-        NetworkError(): T;
-        BadStatus(response: Response<string>): T;
-        BadPayload(error: Decode.Error, response: Response<string>): T;
-    }, T>;
-
-    export const BadUrl = (url: string): Error => {
-        return new Internal.BadUrl(url);
-    };
-
-    export const Timeout = (): Error => {
-        return new Internal.Timeout();
-    };
-
-    export const NetworkError = (): Error => {
-        return new Internal.NetworkError();
-    };
-
-    export const BadStatus = (response: Response<string>): Error => {
-        return new Internal.BadStatus(response);
-    };
-
-    export const BadPayload = (error: Decode.Error, response: Response<string>): Error => {
-        return new Internal.BadPayload(error, response);
-    };
-}
-
 namespace Internal {
     export class BadUrl extends Error {
         constructor(private readonly url: string) {
@@ -167,6 +137,32 @@ namespace Internal {
             return (pattern as DefaultCase<T>)._();
         }
     }
+}
+
+export namespace Error {
+    export type Pattern<T> = WithDefaultCase<{
+        BadUrl(url: string): T;
+        Timeout(): T;
+        NetworkError(): T;
+        BadStatus(response: Response<string>): T;
+        BadPayload(error: Decode.Error, response: Response<string>): T;
+    }, T>;
+
+    export const BadUrl = (url: string): Error => {
+        return new Internal.BadUrl(url);
+    };
+
+    export const Timeout: Error = new Internal.Timeout();
+
+    export const NetworkError: Error = new Internal.NetworkError();
+
+    export const BadStatus = (response: Response<string>): Error => {
+        return new Internal.BadStatus(response);
+    };
+
+    export const BadPayload = (error: Decode.Error, response: Response<string>): Error => {
+        return new Internal.BadPayload(error, response);
+    };
 }
 
 /* H E A D E R */
@@ -396,12 +392,12 @@ export class Request<T> {
 
                 xhr.addEventListener('error', () => {
                     abortRequest = noop;
-                    fail(Error.NetworkError());
+                    fail(Error.NetworkError);
                 });
 
                 xhr.addEventListener('timeout', () => {
                     abortRequest = noop;
-                    fail(Error.Timeout());
+                    fail(Error.Timeout);
                 });
 
                 xhr.addEventListener('load', () => {

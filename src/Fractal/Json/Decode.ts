@@ -53,16 +53,16 @@ export namespace Error {
         Failure(message: string, source: Value): R;
     }, R>;
 
-    export const Field = (field: string, error: Error): Error => new Variations.Field(field, error);
+    export const Field = (field: string, error: Error): Error => new Internal.Field(field, error);
 
-    export const Index = (index: number, error: Error): Error => new Variations.Index(index, error);
+    export const Index = (index: number, error: Error): Error => new Internal.Index(index, error);
 
-    export const OneOf = (errors: Array<Error>): Error => new Variations.OneOf(errors);
+    export const OneOf = (errors: Array<Error>): Error => new Internal.OneOf(errors);
 
-    export const Failure = (message: string, source: Value): Error => new Variations.Failure(message, source);
+    export const Failure = (message: string, source: Value): Error => new Internal.Failure(message, source);
 }
 
-namespace Variations {
+namespace Internal {
     export class Field extends Error {
         constructor(
             private readonly field: string,

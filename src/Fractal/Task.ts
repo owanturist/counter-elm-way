@@ -19,11 +19,11 @@ type Executor<E, T> = (
 ) => void;
 
 export abstract class Task<E, T> {
-    public static succeed<E, T>(value: T): Task<E, T> {
+    public static succeed<T>(value: T): Task<never, T> {
         return new Succeed(value);
     }
 
-    public static fail<E, T>(error: E): Task<E, T> {
+    public static fail<E>(error: E): Task<E, never> {
         return new Fail(error);
     }
 
@@ -120,7 +120,7 @@ export class Cons<E, T> extends Task<E, T> {
     }
 }
 
-export class Succeed<E, T> extends Task<E, T> {
+export class Succeed<T> extends Task<never, T> {
     constructor(private readonly value: T) {
         super();
     }
@@ -130,12 +130,12 @@ export class Succeed<E, T> extends Task<E, T> {
     }
 }
 
-export class Fail<E, T> extends Task<E, T> {
+export class Fail<E> extends Task<E, never> {
     constructor(private readonly error: E) {
         super();
     }
 
-    protected execute(): Promise<T> {
+    protected execute<T>(): Promise<T> {
         return Promise.reject(this.error);
     }
 }

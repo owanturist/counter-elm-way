@@ -74,15 +74,14 @@ export abstract class Either<E, T> {
     public abstract leftMap<S>(fn: (error: E) => S): Either<S, T>;
     public abstract orElse(fn: (error: E) => Either<E, T>): Either<E, T>;
 
-
     public abstract fold<R>(leftFn: (error: E) => R, rightFn: (value: T) => R): R;
     public abstract cata<R>(pattern: Pattern<E, T, R>): R;
 
     public abstract toMaybe(): Maybe<T>;
 }
 
-namespace Variations {
-    export class Left<E, T> extends Either<E, T> {
+namespace Internal {
+    export class Left<E> extends Either<E, never> {
         constructor(private readonly error: E) {
             super();
         }
@@ -95,47 +94,46 @@ namespace Variations {
             return false;
         }
 
-        public isEqual(another: Either<E, T>): boolean {
-            return another
-                .fold(
-                    (error: E): boolean => error === this.error,
-                    (): boolean => false
-                );
+        public isEqual<T>(another: Either<E, T>): boolean {
+            return another.fold(
+                (error: E): boolean => error === this.error,
+                (): boolean => false
+            );
         }
 
-        public getOrElse(defaults: T): T {
+        public getOrElse<T>(defaults: T): T {
             return defaults;
         }
 
-        public ap<R>(): Either<E, R> {
-            return this as any as Either<E, R>;
+        public ap(): Left<E> {
+            return this;
         }
 
-        public map<R>(): Either<E, R> {
-            return this as any as Either<E, R>;
+        public map(): Left<E> {
+            return this;
         }
 
-        public chain<R>(): Either<E, R> {
-            return this as any as Either<E, R>;
+        public chain(): Left<E> {
+            return this;
         }
 
-        public bimap<S, R>(leftFn: (error: E) => S): Either<S, R> {
+        public bimap<R>(leftFn: (error: E) => R): Left<R> {
             return new Left(
                 leftFn(this.error)
             );
         }
 
-        public swap(): Either<T, E> {
+        public swap(): Right<E> {
             return new Right(this.error);
         }
 
-        public leftMap<S>(fn: (error: E) => S): Either<S, T> {
+        public leftMap<R>(fn: (error: E) => R): Left<R> {
             return new Left(
                 fn(this.error)
             );
         }
 
-        public orElse(fn: (error: E) => Either<E, T>): Either<E, T> {
+        public orElse<T>(fn: (error: E) => Either<E, T>): Either<E, T> {
             return fn(this.error);
         }
 
@@ -143,7 +141,7 @@ namespace Variations {
             return leftFn(this.error);
         }
 
-        public cata<R>(pattern: Pattern<E, T, R>): R {
+        public cata<T, R>(pattern: Pattern<E, T, R>): R {
             if (typeof pattern.Left === 'function') {
                 return pattern.Left(this.error);
             }
@@ -151,12 +149,12 @@ namespace Variations {
             return (pattern as DefaultCase<R>)._();
         }
 
-        public toMaybe(): Maybe<T> {
+        public toMaybe(): Maybe<never> {
             return Nothing;
         }
     }
 
-    export class Right<E, T> extends Either<E, T> {
+    export class Right<T> extends Either<never, T> {
         constructor(private readonly value: T) {
             super();
         }
@@ -169,57 +167,56 @@ namespace Variations {
             return true;
         }
 
-        public isEqual(another: Either<E, T>): boolean {
-            return another
-                .fold(
-                    (): boolean => false,
-                    (value: T): boolean => value === this.value
-                );
+        public isEqual<E>(another: Either<E, T>): boolean {
+            return another.fold(
+                (): boolean => false,
+                (value: T): boolean => value === this.value
+            );
         }
 
         public getOrElse(): T {
             return this.value;
         }
 
-        public ap<R>(eitherFn: Either<E, (value: T) => R>): Either<E, R> {
+        public ap<E, R>(eitherFn: Either<E, (value: T) => R>): Either<E, R> {
             return eitherFn.map(
                 (fn: (value: T) => R): R => fn(this.value)
             );
         }
 
-        public map<R>(fn: (value: T) => R): Either<E, R> {
+        public map<E, R>(fn: (value: T) => R): Either<E, R> {
             return new Right(
                 fn(this.value)
             );
         }
 
-        public chain<R>(fn: (value: T) => Either<E, R>): Either<E, R> {
+        public chain<E, R>(fn: (value: T) => Either<E, R>): Either<E, R> {
             return fn(this.value);
         }
 
-        public bimap<S, R>(_leftFn: (error: E) => S, rightFn: (value: T) => R): Either<S, R> {
+        public bimap<E, S, R>(_leftFn: (error: E) => S, rightFn: (value: T) => R): Right<R> {
             return new Right(
                 rightFn(this.value)
             );
         }
 
-        public swap(): Either<T, E> {
+        public swap(): Left<T> {
             return new Left(this.value);
         }
 
-        public leftMap<S>(): Either<S, T> {
-            return this as any as Either<S, T>;
-        }
-
-        public orElse(): Either<E, T> {
+        public leftMap(): Right<T> {
             return this;
         }
 
-        public fold<R>(_leftFn: (error: E) => R, rightFn: (value: T) => R): R {
+        public orElse(): Right<T> {
+            return this;
+        }
+
+        public fold<E, R>(_leftFn: (error: E) => R, rightFn: (value: T) => R): R {
             return rightFn(this.value);
         }
 
-        public cata<R>(pattern: Pattern<E, T, R>): R {
+        public cata<E, R>(pattern: Pattern<E, T, R>): R {
             if (typeof pattern.Right === 'function') {
                 return pattern.Right(this.value);
             }
@@ -233,6 +230,6 @@ namespace Variations {
     }
 }
 
-export const Left = <E>(error: E): Either<E, never> => new Variations.Left(error);
+export const Left = <E>(error: E): Either<E, never> => new Internal.Left(error);
 
-export const Right = <T>(value: T): Either<never, T> => new Variations.Right(value);
+export const Right = <T>(value: T): Either<never, T> => new Internal.Right(value);
