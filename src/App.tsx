@@ -36,7 +36,7 @@ import * as Utils from './Utils';
  * M O D E L
  */
 
-enum Changers {
+export enum Changers {
     FROM = 'from',
     TO = 'to'
 }
@@ -69,7 +69,7 @@ export const init = (currencies: Array<Currency>, from: string, to: string): [ M
         }
     };
     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-        initialModel.changers.from.currency,
+        from,
         initialModel.currencies.map(currency => currency.code)
     );
 
@@ -215,11 +215,9 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'FETCH_RATES_DONE': {
             return [
                 msg.result.cata({
-                    Left: (error: Http.Error) => {
+                    Left: (_error: Http.Error) => {
                         // handle the error as you want to
                         // tslint:disable-next-line:no-console
-                        console.log(error);
-
                         return { ...model, cancelRequest: Nothing };
                     },
 
