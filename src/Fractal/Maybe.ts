@@ -43,7 +43,7 @@ export abstract class Maybe<T> {
     }
 
     public static sequence<T>(array: Array<Maybe<T>>): Maybe<Array<T>> {
-        let acc = Just<Array<T>>([]);
+        let acc: Maybe<Array<T>> = Just([]);
 
         for (const item of array) {
             acc = acc.chain(
