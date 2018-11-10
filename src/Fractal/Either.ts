@@ -19,7 +19,7 @@ export abstract class Either<E, T> {
     }
 
     public static fromMaybe<E, T>(error: E, maybe: Maybe<T>): Either<E, T> {
-        return maybe.fold((): Either<E, T> => Left(error), Right);
+        return maybe.fold(() => Left(error), Right as (value: T) => Either<E, T>);
     }
 
     public static props<E, T extends object>(config: {[ K in keyof T ]: Either<E, T[ K ]>}): Either<E, T> {
@@ -73,9 +73,11 @@ export abstract class Either<E, T> {
     public abstract swap(): Either<T, E>;
     public abstract leftMap<S>(fn: (error: E) => S): Either<S, T>;
     public abstract orElse(fn: (error: E) => Either<E, T>): Either<E, T>;
-    public abstract pipe(
-        either: T extends (value: infer A) => unknown ? Either<E, A> : never
-    ): Either<E, T extends (value: unknown) => infer U ? U : T>;
+    public abstract pipe<S>(
+        either: T extends (value: infer A) => unknown
+            ? Either<[ E ] extends [ never ] ? S : E, A>
+            : never
+    ): Either<[ E ] extends [ never ] ? S : E, T extends (value: unknown) => infer U ? U : T>;
 
     public abstract fold<R>(leftFn: (error: E) => R, rightFn: (value: T) => R): R;
     public abstract cata<R>(pattern: Pattern<E, T, R>): R;
@@ -84,7 +86,7 @@ export abstract class Either<E, T> {
 }
 
 namespace Internal {
-    export class Left<E> extends Either<E, never> {
+    export class Left<E, T> extends Either<E, T> {
         constructor(private readonly error: E) {
             super();
         }
@@ -97,58 +99,58 @@ namespace Internal {
             return false;
         }
 
-        public isEqual<T>(another: Either<E, T>): boolean {
+        public isEqual(another: Either<E, T>): boolean {
             return another.fold(
                 (error: E): boolean => error === this.error,
                 (): boolean => false
             );
         }
 
-        public getOrElse<T>(defaults: T): T {
+        public getOrElse(defaults: T): T {
             return defaults;
         }
 
-        public ap(): Left<E> {
-            return this;
+        public ap<R>(): Either<E, R> {
+            return this as unknown as Either<E, R>;
         }
 
-        public map(): Left<E> {
-            return this;
+        public map<R>(): Either<E, R> {
+            return this as unknown as Either<E, R>;
         }
 
-        public chain(): Left<E> {
-            return this;
+        public chain<R>(): Either<E, R> {
+            return this as unknown as Either<E, R>;
         }
 
-        public bimap<R>(leftFn: (error: E) => R): Left<R> {
+        public bimap<S, R>(leftFn: (error: E) => S): Either<S, R> {
             return new Left(
                 leftFn(this.error)
             );
         }
 
-        public swap(): Right<E> {
+        public swap(): Either<T, E> {
             return new Right(this.error);
         }
 
-        public leftMap<R>(fn: (error: E) => R): Left<R> {
+        public leftMap<S>(fn: (error: E) => S): Either<S, T> {
             return new Left(
                 fn(this.error)
             );
         }
 
-        public orElse<T>(fn: (error: E) => Either<E, T>): Either<E, T> {
+        public orElse(fn: (error: E) => Either<E, T>): Either<E, T> {
             return fn(this.error);
         }
 
-        public pipe(): Left<E> {
-            return this;
+        public pipe<S, U>(): Either<[ E ] extends [ never ] ? S : E, T extends (value: unknown) => U ? U : T> {
+            return this as unknown as Either<[ E ] extends [ never ] ? S : E, T extends (value: unknown) => U ? U : T>;
         }
 
         public fold<R>(leftFn: (error: E) => R): R {
             return leftFn(this.error);
         }
 
-        public cata<T, R>(pattern: Pattern<E, T, R>): R {
+        public cata<R>(pattern: Pattern<E, T, R>): R {
             if (typeof pattern.Left === 'function') {
                 return pattern.Left(this.error);
             }
@@ -156,12 +158,12 @@ namespace Internal {
             return (pattern as DefaultCase<R>)._();
         }
 
-        public toMaybe(): Maybe<never> {
+        public toMaybe(): Maybe<T> {
             return Nothing;
         }
     }
 
-    export class Right<T> extends Either<never, T> {
+    export class Right<E, T> extends Either<E, T> {
         constructor(private readonly value: T) {
             super();
         }
@@ -174,7 +176,7 @@ namespace Internal {
             return true;
         }
 
-        public isEqual<E>(another: Either<E, T>): boolean {
+        public isEqual(another: Either<E, T>): boolean {
             return another.fold(
                 (): boolean => false,
                 (value: T): boolean => value === this.value
@@ -185,49 +187,55 @@ namespace Internal {
             return this.value;
         }
 
-        public ap<E, R>(eitherFn: Either<E, (value: T) => R>): Either<E, R> {
+        public ap<R>(eitherFn: Either<E, (value: T) => R>): Either<E, R> {
             return eitherFn.map(
                 (fn: (value: T) => R): R => fn(this.value)
             );
         }
 
-        public map<E, R>(fn: (value: T) => R): Either<E, R> {
+        public map<R>(fn: (value: T) => R): Either<E, R> {
             return new Right(
                 fn(this.value)
             );
         }
 
-        public chain<E, R>(fn: (value: T) => Either<E, R>): Either<E, R> {
+        public chain<R>(fn: (value: T) => Either<E, R>): Either<E, R> {
             return fn(this.value);
         }
 
-        public bimap<E, S, R>(_leftFn: (error: E) => S, rightFn: (value: T) => R): Right<R> {
+        public bimap<S, R>(_leftFn: (error: E) => S, rightFn: (value: T) => R): Either<S, R> {
             return new Right(
                 rightFn(this.value)
             );
         }
 
-        public swap(): Left<T> {
+        public swap(): Either<T, E> {
             return new Left(this.value);
         }
 
-        public leftMap(): Right<T> {
+        public leftMap<S>(): Either<S, T> {
+            return this as unknown as Either<S, T>;
+        }
+
+        public orElse(): Either<E, T> {
             return this;
         }
 
-        public orElse(): Right<T> {
-            return this;
+        public pipe<S, A, U>(
+            either: T extends (value: A) => unknown
+                ? Either<[ E ] extends [ never ] ? S : E, A>
+                : never
+        ): Either<[ E ] extends [ never ] ? S : E, T extends (value: unknown) => U ? U : T> {
+            return either.map(
+                this.value as unknown as (value: A) => U
+            ) as unknown as Either<[ E ] extends [ never ] ? S : E, T extends (value: unknown) => U ? U : T>;
         }
 
-        public pipe<E, A, U>(either: T extends (value: A) => unknown ? Either<E, A> : never): Either<E, U> {
-            return either.map(this.value as unknown as (value: A) => U);
-        }
-
-        public fold<E, R>(_leftFn: (error: E) => R, rightFn: (value: T) => R): R {
+        public fold<R>(_leftFn: (error: E) => R, rightFn: (value: T) => R): R {
             return rightFn(this.value);
         }
 
-        public cata<E, R>(pattern: Pattern<E, T, R>): R {
+        public cata<R>(pattern: Pattern<E, T, R>): R {
             if (typeof pattern.Right === 'function') {
                 return pattern.Right(this.value);
             }
