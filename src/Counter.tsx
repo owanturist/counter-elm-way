@@ -5,9 +5,6 @@ import {
     Dispatch
 } from 'Fractal/Platform';
 import {
-    Task
-} from 'Fractal/Task';
-import {
     Cmd
 } from 'Fractal/Platform/Cmd';
 import {
@@ -55,7 +52,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'DELAYED': {
             return [
                 model,
-                Task.perform(() => msg._0, Process.sleep(1000))
+                Process.sleep(1000).perform(() => msg._0)
             ];
         }
 

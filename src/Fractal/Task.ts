@@ -67,12 +67,6 @@ export abstract class Task<E, T> {
         return acc;
     }
 
-    public static perform<M, T>(tagger: (value: T) => M, task: Task<never, T>): Cmd<M> {
-        return InternalCmd.of(
-            () => task.execute().then(tagger)
-        );
-    }
-
     protected static of<E, T>(executor: Executor<E, T>): Task<E, T> {
         return new Cons(executor);
     }
@@ -102,6 +96,12 @@ export abstract class Task<E, T> {
             () => this.execute()
                 .then((value: T) => tagger(Right(value)))
                 .catch((error: E) => tagger(Left(error)))
+        );
+    }
+
+    public perform<M>(tagger: [ E ] extends [ never ] ? (value: T) => M : never): Cmd<M> {
+        return InternalCmd.of(
+            () => this.execute().then(tagger)
         );
     }
 
