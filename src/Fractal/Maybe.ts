@@ -29,7 +29,7 @@ export abstract class Maybe<T> {
             if (config.hasOwnProperty(key)) {
                 acc = acc.chain(
                     (obj: T): Maybe<T> => config[ key ].map(
-                        (value: T[Extract<keyof T, string>]): T => {
+                        (value: T[ Extract<keyof T, string> ]): T => {
                             obj[ key ] = value;
 
                             return obj;
@@ -70,6 +70,9 @@ export abstract class Maybe<T> {
     public abstract map<R>(fn: (value: T) => R): Maybe<R>;
     public abstract chain<R>(fn: (value: T) => Maybe<R>): Maybe<R>;
     public abstract orElse(fn: () => Maybe<T>): Maybe<T>;
+    public abstract pipe(
+        maybe: T extends (value: infer A) => unknown ? Maybe<A> : never
+    ): Maybe<T extends (value: unknown) => infer U ? U : T>;
 
     public abstract fold<R>(nothingFn: () => R, justFn: (value: T) => R): R;
     public abstract cata<R>(pattern: Pattern<T, R>): R;
@@ -109,6 +112,10 @@ namespace Internal {
 
         public orElse<T>(fn: () => Maybe<T>): Maybe<T> {
             return fn();
+        }
+
+        public pipe(): Nothing {
+            return this;
         }
 
         public fold<R>(nothingFn: () => R): R {
@@ -170,6 +177,10 @@ namespace Internal {
 
         public orElse(): Just<T> {
             return this;
+        }
+
+        public pipe<A, U>(maybe: T extends (value: A) => unknown ? Maybe<A> : never): Maybe<U> {
+            return maybe.map(this.value as unknown as (value: A) => U);
         }
 
         public fold<R>(_nothingFn: () => R, justFn: (value: T) => R): R {

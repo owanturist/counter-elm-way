@@ -79,6 +79,9 @@ export abstract class RemoteData<E, T> {
     public abstract bimap<S, R>(failureFn: (error: E) => S, succeedFn: (value: T) => R): RemoteData<S, R>;
     public abstract swap(): RemoteData<T, E>;
     public abstract failureMap<S>(fn: (error: E) => S): RemoteData<S, T>;
+    public abstract pipe(
+        maybe: T extends (value: infer A) => unknown ? RemoteData<E, A> : never
+    ): RemoteData<E, T extends (value: unknown) => infer U ? U : T>;
 
     public abstract cata<R>(pattern: Pattern<E, T, R>): R;
 
@@ -135,6 +138,10 @@ namespace Internal {
         }
 
         public failureMap(): NotAsked {
+            return this;
+        }
+
+        public pipe(): NotAsked {
             return this;
         }
 
@@ -200,6 +207,10 @@ namespace Internal {
         }
 
         public failureMap(): Loading {
+            return this;
+        }
+
+        public pipe(): Loading {
             return this;
         }
 
@@ -276,6 +287,10 @@ namespace Internal {
             );
         }
 
+        public pipe(): Failure<E> {
+            return this;
+        }
+
         public cata<T, R>(pattern: Pattern<E, T, R>): R {
             if (typeof pattern.Failure === 'function') {
                 return pattern.Failure(this.error);
@@ -349,6 +364,10 @@ namespace Internal {
 
         public failureMap(): Succeed<T> {
             return this;
+        }
+
+        public pipe<E, A, U>(either: T extends (value: A) => unknown ? RemoteData<E, A> : never): RemoteData<E, U> {
+            return either.map(this.value as unknown as (value: A) => U);
         }
 
         public cata<E, R>(pattern: Pattern<E, T, R>): R {

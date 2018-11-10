@@ -73,6 +73,9 @@ export abstract class Either<E, T> {
     public abstract swap(): Either<T, E>;
     public abstract leftMap<S>(fn: (error: E) => S): Either<S, T>;
     public abstract orElse(fn: (error: E) => Either<E, T>): Either<E, T>;
+    public abstract pipe(
+        either: T extends (value: infer A) => unknown ? Either<E, A> : never
+    ): Either<E, T extends (value: unknown) => infer U ? U : T>;
 
     public abstract fold<R>(leftFn: (error: E) => R, rightFn: (value: T) => R): R;
     public abstract cata<R>(pattern: Pattern<E, T, R>): R;
@@ -135,6 +138,10 @@ namespace Internal {
 
         public orElse<T>(fn: (error: E) => Either<E, T>): Either<E, T> {
             return fn(this.error);
+        }
+
+        public pipe(): Left<E> {
+            return this;
         }
 
         public fold<R>(leftFn: (error: E) => R): R {
@@ -210,6 +217,10 @@ namespace Internal {
 
         public orElse(): Right<T> {
             return this;
+        }
+
+        public pipe<E, A, U>(either: T extends (value: A) => unknown ? Either<E, A> : never): Either<E, U> {
+            return either.map(this.value as unknown as (value: A) => U);
         }
 
         public fold<E, R>(_leftFn: (error: E) => R, rightFn: (value: T) => R): R {
