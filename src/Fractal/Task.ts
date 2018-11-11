@@ -105,10 +105,46 @@ export abstract class Task<E, T> {
         );
     }
 
+    public abstract pipe<S>(
+        task: T extends (value: infer A) => unknown
+            ? Task<[ E ] extends [ never ] ? S : E, A>
+            : never
+    ): Task<[ E ] extends [ never ] ? S : E, T extends (value: unknown) => infer U ? U : T>;
+
     protected abstract execute(): Promise<T>;
 }
 
-export class Cons<E, T> extends Task<E, T> {
+abstract class Streamable<E, T> extends Task<E, T> {
+    public pipe<S, A, U>(
+        task: T extends (value: A) => unknown
+            ? Task<[ E ] extends [ never ] ? S : E, A>
+            : never
+    ): Task<[ E ] extends [ never ] ? S : E, T extends (value: unknown) => U ? U : T> {
+        return new Pipe(task, this as unknown as Task<
+            [ E ] extends [ never ] ? S : E,
+            (value: A) => T extends (value: unknown) => U ? U : T
+        >);
+    }
+
+    protected abstract execute(): Promise<T>;
+}
+
+class Pipe<E, T, R> extends Streamable<E, R> {
+    constructor(
+        private readonly value: Task<E, T>,
+        private readonly fn: Task<E, (value: T) => R>
+    ) {
+        super();
+    }
+
+    public execute(): Promise<R> {
+        return Task.execute(this.fn).then(
+            (fn: (value: T) => R): Promise<R> => Task.execute(this.value).then(fn)
+        );
+    }
+}
+
+class Cons<E, T> extends Streamable<E, T> {
     constructor(private readonly executor: Executor<E, T>) {
         super();
     }
@@ -120,7 +156,7 @@ export class Cons<E, T> extends Task<E, T> {
     }
 }
 
-export class Succeed<T> extends Task<never, T> {
+class Succeed<T> extends Streamable<never, T> {
     constructor(private readonly value: T) {
         super();
     }
@@ -130,7 +166,7 @@ export class Succeed<T> extends Task<never, T> {
     }
 }
 
-export class Fail<E> extends Task<E, never> {
+class Fail<E> extends Streamable<E, never> {
     constructor(private readonly error: E) {
         super();
     }
@@ -140,7 +176,7 @@ export class Fail<E> extends Task<E, never> {
     }
 }
 
-export class Map<E, T, R> extends Task<E, R> {
+class Map<E, T, R> extends Streamable<E, R> {
     constructor(
         private readonly fn: (value: T) => R,
         private readonly task: Task<E, T>
@@ -153,7 +189,7 @@ export class Map<E, T, R> extends Task<E, R> {
     }
 }
 
-export class Chain<E, T, R> extends Task<E, R> {
+class Chain<E, T, R> extends Streamable<E, R> {
     constructor(
         private readonly fn: (value: T) => Task<E, R>,
         private readonly task: Task<E, T>
@@ -166,7 +202,7 @@ export class Chain<E, T, R> extends Task<E, R> {
     }
 }
 
-export class OnError<E, T, S> extends Task<S, T> {
+class OnError<E, T, S> extends Streamable<S, T> {
     constructor(
         private readonly fn: (error: E) => Task<S, T>,
         private readonly task: Task<E, T>
@@ -179,7 +215,7 @@ export class OnError<E, T, S> extends Task<S, T> {
     }
 }
 
-export class MapError<E, T, S> extends Task<S, T> {
+class MapError<E, T, S> extends Streamable<S, T> {
     constructor(
         private readonly fn: (error: E) => S,
         private readonly task: Task<E, T>
