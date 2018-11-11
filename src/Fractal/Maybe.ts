@@ -81,7 +81,7 @@ export abstract class Maybe<T> {
 }
 
 namespace Internal {
-    export class Nothing extends Maybe<never> {
+    export class Nothing<T> extends Maybe<T> {
         public isNothing(): boolean {
             return true;
         }
@@ -98,24 +98,24 @@ namespace Internal {
             return defaults;
         }
 
-        public ap(): Nothing {
-            return this;
+        public ap<R>(): Maybe<R> {
+            return this as unknown as Maybe<R>;
         }
 
-        public map(): Nothing {
-            return this;
+        public map<R>(): Maybe<R> {
+            return this as unknown as Maybe<R>;
         }
 
-        public chain(): Nothing {
-            return this;
+        public chain<R>(): Maybe<R> {
+            return this as unknown as Maybe<R>;
         }
 
         public orElse<T>(fn: () => Maybe<T>): Maybe<T> {
             return fn();
         }
 
-        public pipe(): Nothing {
-            return this;
+        public pipe<U>(): Maybe<T extends (value: unknown) => U ? U : T> {
+            return this as unknown as Maybe<T extends (value: unknown) => U ? U : T>;
         }
 
         public fold<R>(nothingFn: () => R): R {
@@ -165,7 +165,7 @@ namespace Internal {
             );
         }
 
-        public map<R>(fn: (value: T) => R): Just<R> {
+        public map<R>(fn: (value: T) => R): Maybe<R> {
             return new Just(
                 fn(this.value)
             );
@@ -175,7 +175,7 @@ namespace Internal {
             return fn(this.value);
         }
 
-        public orElse(): Just<T> {
+        public orElse(): Maybe<T> {
             return this;
         }
 
