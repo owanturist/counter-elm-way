@@ -204,11 +204,37 @@ export abstract class Decoder<T> {
     public abstract pipe(
         decoder: T extends (value: infer A) => unknown ? Decoder<A> : never
     ): Decoder<T extends (value: unknown) => infer U ? U : T>;
+
+    public abstract require(
+        key: T extends (value: unknown) => unknown ? string : never,
+        decoder: T extends (value: infer A) => unknown ? Decoder<A> : never
+    ): Decoder<T extends (value: unknown) => infer U ? U : T>;
+
+    public abstract optional(
+        key: T extends (value: Maybe<unknown>) => unknown ? string : never,
+        decoder: T extends (value: Maybe<infer A>) => unknown ? Decoder<A> : never
+    ): Decoder<T extends (value: unknown) => infer U ? U : T>;
 }
 
 abstract class Streamable<T> extends Decoder<T> {
-    public pipe<A, U>(decoder: T extends (value: A) => unknown ? Decoder<A> : never): Decoder<U> {
+    public pipe<A, U>(
+        decoder: T extends (value: A) => unknown ? Decoder<A> : never
+    ): Decoder<U> {
         return new Pipe(decoder, this as unknown as Decoder<(value: A) => U>);
+    }
+
+    public require<A, U>(
+        key: string,
+        decoder: T extends (value: A) => unknown ? Decoder<A> : never
+    ): Decoder<U> {
+        return new Pipe(field(key, decoder), this as unknown as Decoder<(value: A) => U>);
+    }
+
+    public optional<A, U>(
+        key: string,
+        decoder: T extends (value: Maybe<A>) => unknown ? Decoder<A> : never
+    ): Decoder<U> {
+        return new Pipe(field(key, nullable(decoder)), this as unknown as Decoder<(value: Maybe<A>) => U>);
     }
 
     public abstract decode(input: Value): Either<Error, T>;
@@ -268,17 +294,13 @@ class Primitive<T> extends Streamable<T> {
     }
 }
 
-class Identity extends Decoder<Value> {
+class Identity extends Streamable<Value> {
     public decode(input: Value): Either<Error, Value> {
         return Right(input);
     }
-
-    public pipe(): Identity {
-        return this;
-    }
 }
 
-class List<T> extends Decoder<Array<T>> {
+class List<T> extends Streamable<Array<T>> {
     constructor(private readonly decoder: Decoder<T>) {
         super();
     }
@@ -307,13 +329,9 @@ class List<T> extends Decoder<Array<T>> {
 
         return result;
     }
-
-    public pipe(): List<T> {
-        return this;
-    }
 }
 
-class KeyValue<T> extends Decoder<Array<[ string, T ]>> {
+class KeyValue<T> extends Streamable<Array<[ string, T ]>> {
     constructor(private readonly decoder: Decoder<T>) {
         super();
     }
@@ -343,10 +361,6 @@ class KeyValue<T> extends Decoder<Array<[ string, T ]>> {
         }
 
         return result;
-    }
-
-    public pipe(): KeyValue<T> {
-        return this;
     }
 }
 
@@ -457,7 +471,7 @@ class Nill<T> extends Streamable<T> {
     }
 }
 
-class Fail extends Decoder<never> {
+class Fail extends Streamable<never> {
     constructor(private readonly msg: string) {
         super();
     }
@@ -466,10 +480,6 @@ class Fail extends Decoder<never> {
         return Left(
             Error.Failure(this.msg, input)
         );
-    }
-
-    public pipe(): Fail {
-        return this;
     }
 }
 
