@@ -54,6 +54,6 @@ export class Currency {
             return this;
         }
 
-        return new Currency(this.code, this.symbol, this.amount + amount, this.rates);
+        return new Currency(this.code, this.symbol, (this.amount * 100 + amount * 100) / 100, this.rates);
     }
 }

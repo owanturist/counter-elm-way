@@ -110,7 +110,7 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
             ...model,
             amount: {
                 ...model.amount,
-                value: Just(minimum.toString())
+                value: Just(Utils.trunc(2, minimum).toString())
             }
         };
     }
@@ -129,7 +129,7 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
             ...model,
             amount: {
                 ...model.amount,
-                value: Just(maximum.toString())
+                value: Just(Utils.trunc(2, maximum).toString())
             }
         };
     }
