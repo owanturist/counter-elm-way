@@ -22,16 +22,6 @@ const Select = styled.button`
     border: 1px solid rgba(255, 255, 255, .5);
     border-radius: .35em;
     outline: none;
-
-    &:after {
-        content: "";
-        display: inline-block;
-        margin-left: .3em;
-        border: 0 solid transparent;
-        border-width: .3em .3em 0
-        border-top-color: #fff;
-        vertical-align: middle;
-    }
 `;
 
 const Small = styled.small`
