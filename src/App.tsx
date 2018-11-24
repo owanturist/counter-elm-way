@@ -102,7 +102,7 @@ const normalize = (model: Model): Model => {
 
 const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNumber).map(amount => {
     const minimum = getCurrencyOfChanger(model.amount.source, model).map(
-        currency => Utils.round(2, -currency.amount)
+        currency => Utils.trunc(2, -currency.amount)
     ).getOrElse(amount);
 
     if (amount < minimum) {
@@ -122,7 +122,7 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
         acc => model.amount.source === Changers.FROM
             ? acc.from.convertTo(acc.to.amount, acc.to)
             : acc.to.convertFrom(acc.from.amount, acc.from)
-    ).map(max => Utils.round(2, max)).getOrElse(amount);
+    ).map(max => Utils.trunc(2, max)).getOrElse(amount);
 
     if (amount > maximum) {
         return {
@@ -334,7 +334,7 @@ const extractFormatedAmountFor = (
     }).chain(acc => source === Changers.FROM
         ? acc.from.convertTo(-acc.amount, acc.to)
         : acc.to.convertFrom(-acc.amount, acc.from)
-    ).map(amount => amount.toFixed(2)).getOrElse('');
+    ).map(amount => Utils.trunc(2, amount).toFixed(2)).getOrElse('');
 };
 
 const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: Amount): Maybe<{
@@ -346,31 +346,20 @@ const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: A
     from,
     to,
     amount: amount.value.chain(Utils.stringToNumber)
-}).chain(acc => {
-    if (acc.amount === 0) {
-        return Nothing;
-    }
-
-    if (acc.from.code === acc.to.code) {
-        return Nothing;
-    }
-
-    if (amount.source === Changers.FROM) {
-        return acc.to.convertFrom(-acc.amount, acc.from).map(amountTo => ({
-            from: acc.from,
-            to: acc.to,
-            amountFrom: Utils.round(2, acc.amount),
-            amountTo: Utils.round(2, amountTo)
-        }));
-    }
-
-    return acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
+}).chain(acc => amount.source === Changers.FROM
+    ? acc.to.convertFrom(-acc.amount, acc.from).map(amountTo => ({
         from: acc.from,
         to: acc.to,
-        amountFrom: Utils.round(2, amountFrom),
-        amountTo: Utils.round(2, acc.amount)
-    }));
-});
+        amountFrom: Utils.trunc(2, acc.amount),
+        amountTo: Utils.trunc(2, amountTo)
+    }))
+    : acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
+        from: acc.from,
+        to: acc.to,
+        amountFrom: Utils.trunc(2, amountFrom),
+        amountTo: Utils.trunc(2, acc.amount)
+    }))
+).chain(acc => acc.amountFrom === 0 || acc.amountTo === 0 ? Nothing : Just(acc));
 
 const Root = styled.form`
     display: flex;

@@ -24,7 +24,9 @@ export const stringToNumber = (str: string): Maybe<number> => {
     return isNaN(result) ? Nothing : Just(result);
 };
 
-export const round = (fractionDigits: number, num: number): number => Number(num.toFixed(fractionDigits));
+export const trunc = (fractionDigits: number, num: number): number => {
+    return Math.trunc(num * Math.pow(10, fractionDigits)) / Math.pow(10, fractionDigits);
+};
 
 export const clamp = (low: number, high: number, value: number): number => {
     const [ low_, high_ ] = low < high ? [ low, high ] : [ high, low ];

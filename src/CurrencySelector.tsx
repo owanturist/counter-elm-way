@@ -10,6 +10,7 @@ import {
 import {
     Currency
 } from './Currency';
+import * as Utils from './Utils';
 
 const Select = styled.button`
     display: inline-block;
@@ -29,7 +30,7 @@ const Small = styled.small`
 `;
 
 const matchDecimals = (rate: number): Maybe<[ string, string ]> => {
-    const result = rate.toFixed(4).match(/(\d{1,}\.\d{2})(\d{2})/);
+    const result = Utils.trunc(4, rate).toFixed(4).match(/(\d{1,}\.\d{2})(\d{2})/);
 
     if (result == null) {
         return Nothing;

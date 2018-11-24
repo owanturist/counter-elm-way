@@ -423,7 +423,7 @@ export const Slide = styled<{
             {donor.chain(donorCurrency => donorCurrency.convertTo(1, currency).map(rate => (
                 <span>
                     <Small>{currency.symbol}</Small>1&nbsp;=&nbsp;
-                    <Small>{donorCurrency.symbol}</Small>{Utils.round(2, rate)}
+                    <Small>{donorCurrency.symbol}</Small>{Utils.trunc(2, rate).toFixed(2)}
                 </span>
             ))
             ).getOrElse(<span></span>)}
