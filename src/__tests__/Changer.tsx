@@ -21,16 +21,6 @@ test('Changer.init()', () => {
     });
 });
 
-test('Changer.isSame()', () => {
-    expect(
-        Changer.isSame(Changer.init('RUB'), Changer.init('EUR'))
-    ).toBe(false);
-
-    expect(
-        Changer.isSame(Changer.init('RUB'), Changer.init('RUB'))
-    ).toBe(true);
-});
-
 describe('Changer.update()', () => {
     test('CHANGE_CURRENCY', () => {
         const initialModel = Changer.init('EUR');

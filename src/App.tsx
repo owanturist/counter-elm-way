@@ -76,8 +76,6 @@ export const init = (currencies: Array<Currency>, from: string, to: string): [ M
     ];
 };
 
-const areChangersSame = (model: Model): boolean => Changer.isSame(model.changers.from, model.changers.to);
-
 const getCurrencyOfChanger = (source: Changers, model: Model): Maybe<Currency> => {
     return Utils.find(currency => currency.code === model.changers[ source ].currency, model.currencies);
 };
@@ -113,20 +111,6 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
             amount: {
                 ...model.amount,
                 value: Just(minimum.toString())
-            }
-        };
-    }
-
-    if (areChangersSame(model)) {
-        if (amount <= -minimum /* aka maximum */) {
-            return model;
-        }
-
-        return {
-            ...model,
-            amount: {
-                ...model.amount,
-                value: Just((-minimum).toString())
             }
         };
     }
@@ -278,10 +262,6 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         }
                     });
 
-                    if (areChangersSame(nextModel)) {
-                        return [ nextModel, Cmd.none ];
-                    }
-
                     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
                         nextModel.changers.from.currency,
                         [ nextModel.changers.to.currency ]
@@ -327,7 +307,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
     Changer.subscriptions(model.changers.from).map(changerMsg => ChangerMsg(Changers.FROM, changerMsg)),
     Changer.subscriptions(model.changers.to).map(changerMsg => ChangerMsg(Changers.TO, changerMsg)),
-    areChangersSame(model) ? Sub.none : model.cancelRequest.cata({
+    model.cancelRequest.cata({
         Nothing: () => Time.every(10000, () => FetchRates),
         Just: () => Sub.none
     })
@@ -499,7 +479,7 @@ export const View: React.StatelessComponent<{
                 </MenuItemContainer>
 
                 <MenuItemContainer align="center">
-                    {!areChangersSame(model) && Maybe.props({ from, to }).cata({
+                    {Maybe.props({ from, to }).cata({
                         Nothing: () => null,
                         Just: acc => <CurrencySelector.View from={acc.from} to={acc.to} />
                     })}
@@ -517,7 +497,9 @@ export const View: React.StatelessComponent<{
                 <ChangerContainer source={Changers.FROM}>
                     <Changer.View
                         amount={extractFormatedAmountFor(Changers.FROM, from, to, model.amount)}
-                        currencies={model.currencies}
+                        currencies={model.currencies.filter(
+                            currency => currency.code !== model.changers[ Changers.TO ].currency
+                        )}
                         donor={Nothing}
                         model={model.changers.from}
                         dispatch={changerMsg => dispatch(ChangerMsg(Changers.FROM, changerMsg))}
@@ -528,8 +510,10 @@ export const View: React.StatelessComponent<{
                 <ChangerContainer source={Changers.TO}>
                     <Changer.View
                         amount={extractFormatedAmountFor(Changers.TO, from, to, model.amount)}
-                        currencies={model.currencies}
-                        donor={areChangersSame(model) ? Nothing : from}
+                        currencies={model.currencies.filter(
+                            currency => currency.code !== model.changers[ Changers.FROM ].currency
+                        )}
+                        donor={from}
                         model={model.changers.to}
                         dispatch={changerMsg => dispatch(ChangerMsg(Changers.TO, changerMsg))}
                     />

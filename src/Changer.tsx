@@ -60,8 +60,6 @@ export const init = (currency: string): Model => ({
     sliding: Nothing
 });
 
-export const isSame = (left: Model, right: Model): boolean => left.currency === right.currency;
-
 /**
  * U P D A T E
  */
