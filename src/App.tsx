@@ -475,7 +475,10 @@ export const View: React.StatelessComponent<{
         }}>
             <Header>
                 <MenuItemContainer align="flex-start">
-                    <MenuButton>Cancel</MenuButton>
+                    <MenuButton
+                        type="button"
+                        disabled
+                    >Back</MenuButton>
                 </MenuItemContainer>
 
                 <MenuItemContainer align="center">
