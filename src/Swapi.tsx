@@ -110,7 +110,7 @@ export const View = ({ dispatch, model }: {
                         </div>
                     ),
 
-                    BadPayload: (decodeError: Decode.Error) => (
+                    BadBody: (decodeError: Decode.Error) => (
                         <div>
                             <h1>Error with data</h1>
                             <code>{decodeError.stringify(4)}</code>

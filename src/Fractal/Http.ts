@@ -1,6 +1,5 @@
 import {
-    DefaultCase,
-    WithDefaultCase
+    Cata
 } from './Basics';
 import {
     Maybe,
@@ -20,11 +19,7 @@ import {
 import * as Decode from './Json/Decode';
 import * as Encode from './Json/Encode';
 
-abstract class InternalTask<E, T> extends Task<E, T> {
-    public static of<E, T>(executor: (fail: (error: E) => void, succeed: (value: T) => void) => void): Task<E, T> {
-        return Task.of(executor);
-    }
-}
+/* H E L P E R S */
 
 const noop = () => {
     // do nothing
@@ -66,13 +61,21 @@ const parseHeaders = (rawHeaders: string): {[ name: string ]: string } => {
     return headers;
 };
 
+/* T A S K */
+
+abstract class InternalTask<E, T> extends Task<E, T> {
+    public static of<E, T>(executor: (fail: (error: E) => void, succeed: (value: T) => void) => void): Task<E, T> {
+        return super.of(executor);
+    }
+}
+
 /* E R R O R */
 
 export abstract class Error {
     public abstract cata<T>(pattern: Error.Pattern<T>): T;
 }
 
-namespace Internal {
+namespace Errors {
     export class BadUrl extends Error {
         constructor(private readonly url: string) {
             super();
@@ -83,7 +86,7 @@ namespace Internal {
                 return pattern.BadUrl(this.url);
             }
 
-            return (pattern as DefaultCase<T>)._();
+            return (pattern._ as () => T)();
         }
     }
 
@@ -93,7 +96,7 @@ namespace Internal {
                 return pattern.Timeout();
             }
 
-            return (pattern as DefaultCase<T>)._();
+            return (pattern._ as () => T)();
         }
     }
 
@@ -103,7 +106,7 @@ namespace Internal {
                 return pattern.NetworkError();
             }
 
-            return (pattern as DefaultCase<T>)._();
+            return (pattern._ as () => T)();
         }
     }
 
@@ -117,11 +120,11 @@ namespace Internal {
                 return pattern.BadStatus(this.response);
             }
 
-            return (pattern as DefaultCase<T>)._();
+            return (pattern._ as () => T)();
         }
     }
 
-    export class BadPayload extends Error {
+    export class BadBody extends Error {
         constructor(
             private readonly error: Decode.Error,
             private readonly response: Response<string>
@@ -130,75 +133,109 @@ namespace Internal {
         }
 
         public cata<T>(pattern: Error.Pattern<T>): T {
-            if (typeof pattern.BadPayload === 'function') {
-                return pattern.BadPayload(this.error, this.response);
+            if (typeof pattern.BadBody === 'function') {
+                return pattern.BadBody(this.error, this.response);
             }
 
-            return (pattern as DefaultCase<T>)._();
+            return (pattern._ as () => T)();
         }
     }
 }
 
 export namespace Error {
-    export type Pattern<T> = WithDefaultCase<{
+    export type Pattern<T> = Cata<{
         BadUrl(url: string): T;
         Timeout(): T;
         NetworkError(): T;
         BadStatus(response: Response<string>): T;
-        BadPayload(error: Decode.Error, response: Response<string>): T;
-    }, T>;
+        BadBody(error: Decode.Error, response: Response<string>): T;
+    }>;
 
     export const BadUrl = (url: string): Error => {
-        return new Internal.BadUrl(url);
+        return new Errors.BadUrl(url);
     };
 
-    export const Timeout: Error = new Internal.Timeout();
+    export const Timeout: Error = new Errors.Timeout();
 
-    export const NetworkError: Error = new Internal.NetworkError();
+    export const NetworkError: Error = new Errors.NetworkError();
 
     export const BadStatus = (response: Response<string>): Error => {
-        return new Internal.BadStatus(response);
+        return new Errors.BadStatus(response);
     };
 
-    export const BadPayload = (error: Decode.Error, response: Response<string>): Error => {
-        return new Internal.BadPayload(error, response);
+    export const BadBody = (error: Decode.Error, response: Response<string>): Error => {
+        return new Errors.BadBody(error, response);
     };
 }
 
 /* H E A D E R */
 
-interface Header {
-    name: string;
-    value: string;
+export class Header {
+    protected constructor(
+        protected readonly name: string,
+        protected readonly value: string
+    ) {}
 }
 
-export const header = (name: string, value: string): Header => ({ name, value });
+abstract class PhantomHeader extends Header {
+    public static of(name: string, value: string): Header {
+        return new Header(name, value);
+    }
+
+    public static getName(header: PhantomHeader): string {
+        return header.name;
+    }
+
+    public static getValue(header: PhantomHeader): string {
+        return header.value;
+    }
+}
+
+export const header = PhantomHeader.of;
 
 /* R E S P O N S E */
 
 export interface Response<T> {
-    url: string;
-    status: {
-        code: number;
-        message: string;
-    };
-    headers: {[ name: string ]: string };
-    body: T;
+    readonly url: string;
+    readonly statusCode: number;
+    readonly statusText: string;
+    readonly headers: {[ name: string ]: string };
+    readonly body: T;
 }
 
 /* E X P E C T */
 
-export interface Expect<T> {
-    responseType: XMLHttpRequestResponseType;
-    responseToResult(response: Response<string>): Either<Decode.Error, T>;
+export class Expect<T> {
+    protected constructor(
+        protected readonly responseType: XMLHttpRequestResponseType,
+        protected readonly responseToResult: (response: Response<string>) => Either<Decode.Error, T>
+    ) {}
+}
+
+abstract class PhantomExpect<T> extends Expect<T> {
+    public static of<T>(
+        responseType: XMLHttpRequestResponseType,
+        responseToResult: (response: Response<string>) => Either<Decode.Error, T>
+    ): Expect<T> {
+        return new Expect(responseType, responseToResult);
+    }
+
+    public static getType<T>(expect: PhantomExpect<T>): XMLHttpRequestResponseType {
+        return expect.responseType;
+    }
+
+    public static toResult<T>(response: Response<string>, expect: PhantomExpect<T>): Either<Decode.Error, T> {
+        return expect.responseToResult(response);
+    }
 }
 
 export const expectResponse = <T>(
     responseToResult: (response: Response<string>) => Either<Decode.Error, T>
-): Expect<T> => ({
-    responseType: 'text',
-    responseToResult
-});
+): Expect<T> => PhantomExpect.of('text', responseToResult);
+
+export const expectWhatever: Expect<void> = expectResponse(
+    (): Either<Decode.Error, void> => Right(undefined)
+);
 
 export const expectString: Expect<string> = expectResponse(
     (response: Response<string>): Either<Decode.Error, string> => Right(response.body)
@@ -215,84 +252,48 @@ interface BodyContent {
     value: string;
 }
 
-export abstract class Body {
-    public abstract getContent(): Maybe<BodyContent>;
+export class Body {
+    protected constructor(
+        protected readonly content: Maybe<BodyContent>
+    ) {}
 }
 
-class EmptyBody extends Body {
-    public getContent(): Maybe<BodyContent> {
-        return Nothing;
+abstract class PhantomBody extends Body {
+    public static of(content: Maybe<BodyContent>): Body {
+        return new Body(content);
+    }
+
+    public static getContent(body: PhantomBody): Maybe<BodyContent> {
+        return body.content;
     }
 }
 
-class StringBody extends Body {
-    constructor(
-        private readonly type: string,
-        private readonly value: string
-    ) {
-        super();
-    }
+export const emptyBody: Body = PhantomBody.of(Nothing);
 
-    public getContent(): Maybe<BodyContent> {
-        return Just({
-            type: this.type,
-            value: this.value
-        });
-    }
-}
-
-export const emptyBody: Body = new EmptyBody();
-
-export const stringBody = (type: string, value: string): Body => new StringBody(type, value);
+export const stringBody = (type: string, value: string): Body => PhantomBody.of(Just({ type, value }));
 
 export const jsonBody = (encoder: Encode.Encoder): Body => stringBody('application/json', encoder.encode(4));
 
 /* R E Q U E S T */
 
-const requestWithMethodAndUrl = (method: string, url: string): Request<string> => new Request(method, url, {
-    headers: [],
-    body: new EmptyBody(),
-    expect: expectString,
-    timeout: Nothing,
-    withCredentials: false,
-    queryParams: []
-});
-
-export const get = (url: string): Request<string> => requestWithMethodAndUrl('GET', url);
-export const post = (url: string): Request<string> => requestWithMethodAndUrl('GET', url);
-export const put = (url: string): Request<string> => requestWithMethodAndUrl('PUT', url);
-export const patch = (url: string): Request<string> => requestWithMethodAndUrl('PATCH', url);
-export const del = (url: string): Request<string> => requestWithMethodAndUrl('DELETE', url);
-export const options = (url: string): Request<string> => requestWithMethodAndUrl('OPTIONS', url);
-export const trace = (url: string): Request<string> => requestWithMethodAndUrl('TRACE', url);
-export const head = (url: string): Request<string> => requestWithMethodAndUrl('HEAD', url);
-
 export class Request<T> {
-    constructor(
-        private readonly method: string,
-        private readonly url: string,
-        private readonly config: Readonly<{
-            headers: Array<Header>;
-            body: Body;
-            expect: Expect<T>;
-            timeout: Maybe<number>;
-            withCredentials: boolean;
-            queryParams: Array<[string, string]>;
-        }>
-    ) {}
+    protected constructor(private readonly config: Readonly<{
+        method: string;
+        url: string;
+        headers: Array<Header>;
+        body: Body;
+        expect: Expect<T>;
+        timeout: Maybe<number>;
+        withCredentials: boolean;
+        queryParams: Array<[ string, string ]>;
+    }>) {}
 
     public withHeader(name: string, value: string): Request<T> {
-        return new Request(this.method, this.url, {
-            ...this.config,
-            headers: [
-                header(name, value),
-                ...this.config.headers
-            ]
-        });
+        return this.withHeaders([ header(name, value) ]);
     }
 
     public withHeaders(headers: Array<Header>): Request<T> {
-        return new Request(this.method, this.url, {
+        return new Request({
             ...this.config,
             headers: [
                 ...headers,
@@ -302,7 +303,7 @@ export class Request<T> {
     }
 
     public withBody(body: Body): Request<T> {
-        return new Request(this.method, this.url, {
+        return new Request({
             ...this.config,
             body
         });
@@ -317,28 +318,28 @@ export class Request<T> {
     }
 
     public withTimeout(timeout: number): Request<T> {
-        return new Request(this.method, this.url, {
+        return new Request({
             ...this.config,
             timeout: Just(timeout)
         });
     }
 
     public withoutTimeout(): Request<T> {
-        return new Request(this.method, this.url, {
+        return new Request({
             ...this.config,
             timeout: Nothing
         });
     }
 
     public withCredentials(enabled: boolean): Request<T> {
-        return new Request(this.method, this.url, {
+        return new Request({
             ...this.config,
             withCredentials: enabled
         });
     }
 
     public withQueryParam(key: string, value: string): Request<T> {
-        return new Request(this.method, this.url, {
+        return new Request({
             ...this.config,
             queryParams: [
                 [ key, value ],
@@ -348,7 +349,7 @@ export class Request<T> {
     }
 
     public withQueryParams(queries: Array<[ string, string ]>): Request<T> {
-        return new Request(this.method, this.url, {
+        return new Request({
             ...this.config,
             queryParams: [
                 ...queries,
@@ -358,7 +359,7 @@ export class Request<T> {
     }
 
     public withExpect<R>(expect: Expect<R>): Request<R> {
-        return new Request(this.method, this.url, {
+        return new Request({
             ...this.config,
             expect
         });
@@ -405,10 +406,8 @@ export class Request<T> {
 
                     const stringResponse: Response<string> = {
                         url: xhr.responseURL,
-                        status: {
-                            code: xhr.status,
-                            message: xhr.statusText
-                        },
+                        statusCode: xhr.status,
+                        statusText: xhr.statusText,
                         headers: parseHeaders(xhr.getAllResponseHeaders()),
                         body: xhr.responseText
                     };
@@ -417,12 +416,12 @@ export class Request<T> {
                         return fail(Error.BadStatus(stringResponse));
                     }
 
-                    this.config.expect.responseToResult({
+                    PhantomExpect.toResult({
                         ...stringResponse,
                         body: xhr.response as string
-                    }).cata({
+                    }, this.config.expect).cata({
                         Left(decodeError: Decode.Error): void {
-                            fail(Error.BadPayload(decodeError, stringResponse));
+                            fail(Error.BadBody(decodeError, stringResponse));
                         },
 
                         Right: succeed
@@ -430,16 +429,19 @@ export class Request<T> {
                 });
 
                 try {
-                    xhr.open(this.method, buildUrlWithQuery(this.url, this.config.queryParams), true);
+                    xhr.open(this.config.method, buildUrlWithQuery(this.config.url, this.config.queryParams), true);
                 } catch (e) {
-                    return fail(Error.BadUrl(this.url));
+                    return fail(Error.BadUrl(this.config.url));
                 }
 
                 for (const requestHeader of this.config.headers) {
-                    xhr.setRequestHeader(requestHeader.name, requestHeader.value);
+                    xhr.setRequestHeader(
+                        PhantomHeader.getName(requestHeader),
+                        PhantomHeader.getValue(requestHeader)
+                    );
                 }
 
-                xhr.responseType = this.config.expect.responseType;
+                xhr.responseType = PhantomExpect.getType(this.config.expect);
                 xhr.withCredentials = this.config.withCredentials;
 
                 this.config.timeout.cata({
@@ -452,7 +454,7 @@ export class Request<T> {
                     }
                 });
 
-                this.config.body.getContent().cata({
+                PhantomBody.getContent(this.config.body).cata({
                     Nothing(): void {
                         xhr.send();
                     },
@@ -480,3 +482,27 @@ export class Request<T> {
         return this.toTask().attempt(tagger);
     }
 }
+
+abstract class PhantomRequest<T> extends Request<T> {
+    public static of(method: string, url: string): Request<void> {
+        return new Request({
+            method,
+            url,
+            headers: [],
+            body: emptyBody,
+            expect: expectWhatever,
+            timeout: Nothing,
+            withCredentials: false,
+            queryParams: []
+        });
+    }
+}
+
+export const get     = (url: string): Request<void> => PhantomRequest.of('GET', url);
+export const post    = (url: string): Request<void> => PhantomRequest.of('GET', url);
+export const put     = (url: string): Request<void> => PhantomRequest.of('PUT', url);
+export const patch   = (url: string): Request<void> => PhantomRequest.of('PATCH', url);
+export const del     = (url: string): Request<void> => PhantomRequest.of('DELETE', url);
+export const options = (url: string): Request<void> => PhantomRequest.of('OPTIONS', url);
+export const trace   = (url: string): Request<void> => PhantomRequest.of('TRACE', url);
+export const head    = (url: string): Request<void> => PhantomRequest.of('HEAD', url);

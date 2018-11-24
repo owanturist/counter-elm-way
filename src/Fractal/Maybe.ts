@@ -1,6 +1,6 @@
 import {
-    DefaultCase,
-    WithDefaultCase
+    WhenNever,
+    Cata
 } from './Basics';
 import {
     Either,
@@ -8,21 +8,21 @@ import {
     Right
 } from './Either';
 
-export type Pattern<T, R> = WithDefaultCase<{
+export type Pattern<T, R> = Cata<{
     Nothing(): R;
     Just(value: T): R;
-}, R>;
+}>;
 
 export abstract class Maybe<T> {
-    public static fromNullable<T>(value: T | null | undefined): Maybe<T> {
-        return value == null ? Nothing : Just(value);
+    public static fromNullable<T>(value: T | null | undefined): Maybe<T extends null | undefined ? never : T> {
+        return value == null ? Nothing : Just(value as T extends null | undefined ? never : T);
     }
 
     public static fromEither<E, T>(either: Either<E, T>): Maybe<T> {
-        return either.fold(() => Nothing, Just);
+        return either.fold((): Maybe<T> => Nothing, Just);
     }
 
-    public static props<T extends object>(config: {[ K in keyof T ]: Maybe<T[ K ]>}): Maybe<T> {
+    public static props<T>(config: {[ K in keyof T ]: Maybe<T[ K ]>}): Maybe<T> {
         let acc: Maybe<T> = Just({} as T);
 
         for (const key in config) {
@@ -62,17 +62,17 @@ export abstract class Maybe<T> {
 
     public abstract isNothing(): boolean;
     public abstract isJust(): boolean;
-    public abstract isEqual(another: Maybe<T>): boolean;
+    public abstract isEqual<D>(another: Maybe<WhenNever<T, D>>): boolean;
 
-    public abstract getOrElse(defaults: T): T;
-
-    public abstract ap<R>(maybeFn: Maybe<(value: T) => R>): Maybe<R>;
     public abstract map<R>(fn: (value: T) => R): Maybe<R>;
     public abstract chain<R>(fn: (value: T) => Maybe<R>): Maybe<R>;
-    public abstract orElse(fn: () => Maybe<T>): Maybe<T>;
+    public abstract ap<R>(maybeFn: Maybe<(value: T) => R>): Maybe<R>;
     public abstract pipe(
         maybe: T extends (value: infer A) => unknown ? Maybe<A> : never
     ): Maybe<T extends (value: unknown) => infer U ? U : T>;
+
+    public abstract orElse<D>(fn: () => Maybe<WhenNever<T, D>>): Maybe<WhenNever<T, D>>;
+    public abstract getOrElse<D>(defaults: WhenNever<T, D>): WhenNever<T, D>;
 
     public abstract fold<R>(nothingFn: () => R, justFn: (value: T) => R): R;
     public abstract cata<R>(pattern: Pattern<T, R>): R;
@@ -90,16 +90,8 @@ namespace Internal {
             return false;
         }
 
-        public isEqual<T>(another: Maybe<T>): boolean {
+        public isEqual<D>(another: Maybe<WhenNever<T, D>>): boolean {
             return another.isNothing();
-        }
-
-        public getOrElse<T>(defaults: T): T {
-            return defaults;
-        }
-
-        public ap<R>(): Maybe<R> {
-            return this as unknown as Maybe<R>;
         }
 
         public map<R>(): Maybe<R> {
@@ -110,27 +102,35 @@ namespace Internal {
             return this as unknown as Maybe<R>;
         }
 
-        public orElse<T>(fn: () => Maybe<T>): Maybe<T> {
-            return fn();
+        public ap<R>(): Maybe<R> {
+            return this as unknown as Maybe<R>;
         }
 
         public pipe<U>(): Maybe<T extends (value: unknown) => U ? U : T> {
             return this as unknown as Maybe<T extends (value: unknown) => U ? U : T>;
         }
 
+        public orElse<D>(fn: () => Maybe<WhenNever<T, D>>): Maybe<WhenNever<T, D>> {
+            return fn();
+        }
+
+        public getOrElse<D>(defaults: WhenNever<T, D>): WhenNever<T, D> {
+            return defaults;
+        }
+
         public fold<R>(nothingFn: () => R): R {
             return nothingFn();
         }
 
-        public cata<T, R>(pattern: Pattern<T, R>): R {
+        public cata<R>(pattern: Pattern<T, R>): R {
             if (typeof pattern.Nothing === 'function') {
                 return pattern.Nothing();
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
-        public toEither<E, T>(error: E): Either<E, T> {
+        public toEither<E>(error: E): Either<E, T> {
             return Left(error);
         }
     }
@@ -148,20 +148,10 @@ namespace Internal {
             return true;
         }
 
-        public isEqual(another: Maybe<T>): boolean {
+        public isEqual<D>(another: Maybe<WhenNever<T, D>>): boolean {
             return another.fold(
                 (): boolean => false,
-                (value: T): boolean => value === this.value
-            );
-        }
-
-        public getOrElse(): T {
-            return this.value;
-        }
-
-        public ap<R>(maybeFn: Maybe<(value: T) => R>): Maybe<R> {
-            return maybeFn.map(
-                (fn: (value: T) => R): R => fn(this.value)
+                (value: WhenNever<T, D>): boolean => value === this.value
             );
         }
 
@@ -175,12 +165,20 @@ namespace Internal {
             return fn(this.value);
         }
 
-        public orElse(): Maybe<T> {
-            return this;
+        public ap<R>(maybeFn: Maybe<(value: T) => R>): Maybe<R> {
+            return maybeFn.pipe(this);
         }
 
         public pipe<A, U>(maybe: T extends (value: A) => unknown ? Maybe<A> : never): Maybe<U> {
             return maybe.map(this.value as unknown as (value: A) => U);
+        }
+
+        public orElse<D>(): Maybe<WhenNever<T, D>> {
+            return this as unknown as Maybe<WhenNever<T, D>>;
+        }
+
+        public getOrElse<D>(): WhenNever<T, D> {
+            return this.value as WhenNever<T, D>;
         }
 
         public fold<R>(_nothingFn: () => R, justFn: (value: T) => R): R {
@@ -192,7 +190,7 @@ namespace Internal {
                 return pattern.Just(this.value);
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         public toEither<E>(): Either<E, T> {

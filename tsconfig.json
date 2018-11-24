@@ -1,18 +1,36 @@
 {
   "compilerOptions": {
+
+    /* Basic Options */
     "target": "es6",
     "module": "es6",
-    "baseUrl": "./src/",
-    "allowSyntheticDefaultImports": true,
-    "removeComments": true,
-    "preserveConstEnums": true,
-    "sourceMap": true,
-    "noUnusedParameters": true,
-    "noUnusedLocals": true,
-    "jsx": "react",
-    "strictNullChecks": true,
     "moduleResolution": "node",
-    "noImplicitAny": true
+    "declaration": false,
+    "removeComments": true,
+    "importHelpers": true,
+    "downlevelIteration": true,
+    "allowSyntheticDefaultImports": true,
+    "jsx": "react",
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "baseUrl": "./src/",
+
+    /* Strict Type-Checking Options */
+    "strict": true, // noImplicitAny noImplicitThis alwaysStrict strictNullChecks strictFunctionTypes strictPropertyInitialization
+    "strictFunctionTypes": false, // otherwise brokes .pipe
+
+    /* Additional Checks */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Source Map Options */
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false,
+
+    "preserveConstEnums": true
    },
   "include": [
     "./src/**/*"

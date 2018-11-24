@@ -1,6 +1,5 @@
 import {
-    DefaultCase,
-    WithDefaultCase
+    Cata
 } from '../Basics';
 import {
     Maybe,
@@ -46,12 +45,12 @@ export abstract class Error {
 }
 
 export namespace Error {
-    export type Pattern<R> = WithDefaultCase<{
+    export type Pattern<R> = Cata<{
         Field(field: string, error: Error): R;
         Index(index: number, error: Error): R;
         OneOf(errors: Array<Error>): R;
         Failure(message: string, source: Value): R;
-    }, R>;
+    }>;
 
     export const Field = (field: string, error: Error): Error => new Internal.Field(field, error);
 
@@ -76,7 +75,7 @@ namespace Internal {
                 return pattern.Field(this.field, this.error);
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         protected stringifyWithContext(indent: number, context: Array<string>): string {
@@ -100,7 +99,7 @@ namespace Internal {
                 return pattern.Index(this.index, this.error);
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         protected stringifyWithContext(indent: number, context: Array<string>): string {
@@ -118,7 +117,7 @@ namespace Internal {
                 return pattern.OneOf(this.errors);
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         protected stringifyWithContext(indent: number, context: Array<string>): string {
@@ -165,7 +164,7 @@ namespace Internal {
                 return pattern.Failure(this.message, this.source);
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         protected stringifyWithContext(indent: number, context: Array<string>): string {
@@ -187,6 +186,10 @@ export abstract class Decoder<T> {
 
     public chain<R>(fn: (value: T) => Decoder<R>): Decoder<R> {
         return new Chain(fn, this);
+    }
+
+    public ap<R>(decoderFn: Decoder<(value: T) => R>): Decoder<R> {
+        return this.chain((value: T): Decoder<R> => decoderFn.map((fn: (value: T) => R): R => fn(value)));
     }
 
     public decodeJSON(input: string): Either<Error, T> {
@@ -376,7 +379,7 @@ class Field<T> extends Streamable<T> {
         if (isObject(input) && this.key in input) {
             return this.decoder
                 .decode(input[ this.key ])
-                .leftMap((error: Error): Error => Error.Field(this.key, error));
+                .mapLeft((error: Error): Error => Error.Field(this.key, error));
         }
 
         return expecting(`an OBJECT with a field named '${this.key}'`, input);
@@ -405,7 +408,7 @@ class Index<T> extends Streamable<T> {
 
         return this.decoder
             .decode(input[ this.index ])
-            .leftMap((error: Error): Error => Error.Index(this.index, error));
+            .mapLeft((error: Error): Error => Error.Index(this.index, error));
     }
 }
 
@@ -420,7 +423,7 @@ class OneOf<T> extends Streamable<T> {
         for (const decoder of this.decoders) {
             result = result.orElse(
                 (acc: Array<Error>): Either<Array<Error>, T> => {
-                    return decoder.decode(input).leftMap((error: Error): Array<Error> => {
+                    return decoder.decode(input).mapLeft((error: Error): Array<Error> => {
                         acc.push(error);
 
                         return acc;
@@ -429,7 +432,7 @@ class OneOf<T> extends Streamable<T> {
             );
         }
 
-        return result.leftMap((errors: Array<Error>): Error => Error.OneOf(errors));
+        return result.mapLeft(Error.OneOf);
     }
 }
 
@@ -494,25 +497,11 @@ class Succeed<T> extends Streamable<T> {
 }
 
 export const fromEither = <T>(either: Either<string, T>): Decoder<T> => {
-    return either.cata({
-        Left(msg: string): Decoder<T> {
-            return fail(msg);
-        },
-        Right(value: T): Decoder<T> {
-            return succeed(value);
-        }
-    });
+    return either.fold(fail, succeed);
 };
 
 export const fromMaybe = <T>(msg: string, maybe: Maybe<T>): Decoder<T> => {
-    return maybe.cata({
-        Nothing(): Decoder<T> {
-            return fail(msg);
-        },
-        Just(value: T): Decoder<T> {
-            return succeed(value);
-        }
-    });
+    return maybe.fold((): Decoder<T> => fail(msg), succeed);
 };
 
 export const string: Decoder<string> = new Primitive('a STRING', isString);

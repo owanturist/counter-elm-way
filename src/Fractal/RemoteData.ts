@@ -1,6 +1,5 @@
 import {
-    DefaultCase,
-    WithDefaultCase
+    Cata
 } from './Basics';
 import {
     Maybe,
@@ -11,12 +10,12 @@ import {
     Either
 } from './Either';
 
-export type Pattern<E, T, R> = WithDefaultCase<{
+export type Pattern<E, T, R> = Cata<{
     NotAsked(): R;
     Loading(): R;
     Failure(error: E): R;
     Succeed(value: T): R;
-}, R>;
+}>;
 
 export abstract class RemoteData<E, T> {
     public static fromMaybe<E, T>(error: E, maybe: Maybe<T>): RemoteData<E, T> {
@@ -155,7 +154,7 @@ namespace Internal {
                 return pattern.NotAsked();
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         public toMaybe(): Maybe<T> {
@@ -227,7 +226,7 @@ namespace Internal {
                 return pattern.Loading();
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         public toMaybe(): Maybe<T> {
@@ -307,7 +306,7 @@ namespace Internal {
                 return pattern.Failure(this.error);
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         public toMaybe(): Maybe<T> {
@@ -392,7 +391,7 @@ namespace Internal {
                 return pattern.Succeed(this.value);
             }
 
-            return (pattern as DefaultCase<R>)._();
+            return (pattern._ as () => R)();
         }
 
         public toMaybe(): Maybe<T> {
