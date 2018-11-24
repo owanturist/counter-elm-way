@@ -1,10 +1,8 @@
 const Changer$init = jest.fn();
-const Changer$isSame = jest.fn();
 const Changer$update = jest.fn();
 
 jest.mock('../Changer', () => ({
     init: Changer$init,
-    isSame: Changer$isSame,
     update: Changer$update
 }));
 
@@ -117,7 +115,6 @@ describe('App.update()', () => {
     describe('CHANGER_MSG', () => {
         afterEach(() => {
             Changer$update.mockReset();
-            Changer$isSame.mockReset();
         });
 
         describe('Changer.UPDATED', () => {
@@ -148,45 +145,12 @@ describe('App.update()', () => {
                 ]);
             });
 
-            test('Changers have same currency', () => {
+            test('currency has been changed', () => {
                 Changer$update.mockReturnValueOnce({
                     type: 'UPDATED',
                     currencyChanged: true,
                     model: 'next_FROM_Changer'
                 });
-                Changer$isSame.mockReturnValueOnce(true);
-
-                const [ initialModel ] = App.init([ USD, EUR, RUB ], USD.code, EUR.code);
-                const [ model ] = App.update({
-                    type: 'CHANGER_MSG',
-                    source: App.Changers.FROM,
-                    changerMsg: { type: 'SLIDE_END' }
-                }, initialModel);
-
-                expect(model).toEqual({
-                    ...initialModel,
-                    changers: {
-                        ...model.changers,
-                        from: 'next_FROM_Changer'
-                    }
-                });
-                expect(Changer$update.mock.calls[ 0 ]).toEqual([
-                    { type: 'SLIDE_END' },
-                    initialModel.changers.from
-                ]);
-                expect(Changer$isSame.mock.calls[ 0 ]).toEqual([
-                    'next_FROM_Changer',
-                    initialModel.changers.to
-                ]);
-            });
-
-            test('Changers have different currency', () => {
-                Changer$update.mockReturnValueOnce({
-                    type: 'UPDATED',
-                    currencyChanged: true,
-                    model: 'next_FROM_Changer'
-                });
-                Changer$isSame.mockReturnValueOnce(false);
 
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
@@ -219,10 +183,6 @@ describe('App.update()', () => {
                     { type: 'SLIDE_END' },
                     initialModel.changers.from
                 ]);
-                expect(Changer$isSame.mock.calls[ 0 ]).toEqual([
-                    'next_FROM_Changer',
-                    initialModel.changers.to
-                ]);
             });
         });
 
@@ -232,7 +192,6 @@ describe('App.update()', () => {
                     type: 'AMOUNT_CHANGED',
                     amount: Nothing
                 });
-                Changer$isSame.mockReturnValueOnce(false);
 
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
@@ -270,7 +229,6 @@ describe('App.update()', () => {
                     type: 'AMOUNT_CHANGED',
                     amount: Just('100')
                 });
-                Changer$isSame.mockReturnValueOnce(false);
 
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
