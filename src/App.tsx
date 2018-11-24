@@ -10,9 +10,6 @@ import {
     Either
 } from 'Fractal/Either';
 import {
-    Task
-} from 'Fractal/Task';
-import {
     Dispatch
 } from 'Fractal/Platform';
 import {
@@ -186,7 +183,7 @@ const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Ms
     const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
 
     return [
-        Task.perform(() => NoOp, cancel),
+        cancel.perform(() => NoOp),
         request.attempt(result => FetchRatesDone(base, result))
     ];
 };
