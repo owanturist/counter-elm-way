@@ -5,35 +5,35 @@ import {
     Currency
 } from '../Currency';
 
-const euro = Currency.of('EUR', '€', 0);
-const dollar = Currency.of('USD', '$', 0);
+const EUR = Currency.of('EUR', '€', 0);
+const USD = Currency.of('USD', '$', 0);
 
 describe('Currency', () => {
     test('code', () => {
-        expect(euro.code).toBe('EUR');
+        expect(EUR.code).toBe('EUR');
     });
 
     test('symbol', () => {
-        expect(euro.symbol).toBe('€');
+        expect(EUR.symbol).toBe('€');
     });
 
     test('amount', () => {
-        expect(euro.amount).toBe(0);
+        expect(EUR.amount).toBe(0);
     });
 });
 
 describe('Currency.registerRates()', () => {
     test('currency has no needed rate', () => {
         expect(
-            euro.convertTo(1, dollar).isJust()
+            EUR.convertTo(1, USD).isJust()
         ).toBe(false);
     });
 
     test('currency has needed rate', () => {
         expect(
-            euro.registerRates([
+            EUR.registerRates([
                 [ 'USD', 1.3 ]
-            ]).convertTo(1, dollar).isJust()
+            ]).convertTo(1, USD).isJust()
         ).toBe(true);
     });
 });
@@ -41,9 +41,9 @@ describe('Currency.registerRates()', () => {
 describe('Currency.convertTo()', () => {
     test('convert EUR to 1 USD', () => {
         expect(
-            euro.registerRates([
+            EUR.registerRates([
                 [ 'USD', 2 ]
-            ]).convertTo(1, dollar)
+            ]).convertTo(1, USD)
         ).toEqual(Just(0.5));
     });
 });
@@ -51,12 +51,35 @@ describe('Currency.convertTo()', () => {
 describe('Currency.convertFrom()', () => {
     test('convert USD from 1 EUR', () => {
         expect(
-            dollar.convertFrom(
+            USD.convertFrom(
                 1,
-                euro.registerRates([
+                EUR.registerRates([
                     [ 'USD', 2 ]
                 ])
             )
         ).toEqual(Just(2));
+    });
+});
+
+describe('Currency.change()', () => {
+    test('add 0', () => {
+        const nextUSD = USD.change(0);
+
+        expect(nextUSD.amount).toBe(0);
+        expect(nextUSD).toBe(USD);
+    });
+
+    test('add 1', () => {
+        const nextUSD = USD.change(1);
+
+        expect(nextUSD.amount).toBe(1);
+        expect(nextUSD).not.toBe(USD);
+    });
+
+    test('subtract 1', () => {
+        const nextUSD = USD.change(-1);
+
+        expect(nextUSD.amount).toBe(-1);
+        expect(nextUSD).not.toBe(USD);
     });
 });

@@ -38,7 +38,7 @@ type Sliding = Readonly<{
     destination: number;
 }>;
 
-const SLIDING_SPEED = 1; // ps/millisecond
+const SLIDING_SPEED = 1; // px/millisecond
 const SLIDING_DURATION_MIN = 50; // millisecond
 const SLIDING_DURATION_MAX = 300; // millisecond
 
@@ -418,7 +418,7 @@ export const Slide = styled<{
         </Main>
 
         <Info>
-            <span>You have <Small>{currency.symbol}</Small>{currency.amount}</span>
+            <span>You have <Small>{currency.symbol}</Small>{Utils.trunc(2, currency.amount).toFixed(2)}</span>
 
             {donor.chain(donorCurrency => donorCurrency.convertTo(1, currency).map(rate => (
                 <span>

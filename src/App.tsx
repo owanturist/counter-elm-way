@@ -219,14 +219,26 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'EXCHANGE': {
-            alert(`
-                Exchange ${msg.amountFrom.toFixed(2)} of ${msg.from.code}
-                to ${msg.amountTo.toFixed(2)} ${msg.to.code}
-            `);
+            const nextCurrencies = model.currencies.map(currency => {
+                switch (currency.code) {
+                    case model.changers.from.currency: {
+                        return currency.change(msg.amountFrom);
+                    }
+
+                    case model.changers.to.currency: {
+                        return currency.change(msg.amountTo);
+                    }
+
+                    default: {
+                        return currency;
+                    }
+                }
+            });
 
             return [
                 {
                     ...model,
+                    currencies: nextCurrencies,
                     amount: {
                         ...model.amount,
                         value: Nothing

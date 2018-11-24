@@ -48,4 +48,12 @@ export class Currency {
 
         return Maybe.fromNullable(foreign.rates[ this.code ]).map(foreignRate => amount * foreignRate);
     }
+
+    public change(amount: number): Currency {
+        if (amount === 0) {
+            return this;
+        }
+
+        return new Currency(this.code, this.symbol, this.amount + amount, this.rates);
+    }
 }
