@@ -28,6 +28,10 @@ export const trunc = (fractionDigits: number, num: number): number => {
     return Math.trunc(num * Math.pow(10, fractionDigits)) / Math.pow(10, fractionDigits);
 };
 
+export const ceil = (fractionDigits: number, num: number): number => {
+    return Math.ceil(num * Math.pow(10, fractionDigits)) / Math.pow(10, fractionDigits);
+};
+
 export const clamp = (low: number, high: number, value: number): number => {
     const [ low_, high_ ] = low < high ? [ low, high ] : [ high, low ];
 

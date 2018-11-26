@@ -35,7 +35,7 @@ test('App.init()', () => {
     expect(initialModel).toMatchObject({
         currencies: [ USD, EUR, RUB ],
         amount: {
-            source: App.Changers.FROM,
+            source: App.Changers.TOP,
             value: Nothing
         },
         changers: {
@@ -58,12 +58,12 @@ describe('App.update()', () => {
             cancelRequest: Nothing,
             currencies: [ USD, EUR, RUB ],
             amount: {
-                source: App.Changers.FROM,
+                source: App.Changers.TOP,
                 value: Nothing
             },
             changers: {
-                from: Changer.init(USD.code),
-                to: Changer.init(EUR.code)
+                [ App.Changers.TOP ]: Changer.init(USD.code),
+                [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
             }
         };
         const [ model ] = App.update({ type: 'FETCH_RATES' }, initialModel);
@@ -128,7 +128,7 @@ describe('App.update()', () => {
                 const [ initialModel ] = App.init([ USD, EUR, RUB ], USD.code, EUR.code);
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.FROM,
+                    source: App.Changers.TOP,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
@@ -141,7 +141,7 @@ describe('App.update()', () => {
                 });
                 expect(Changer$update.mock.calls[ 0 ]).toEqual([
                     { type: 'SLIDE_END' },
-                    initialModel.changers.from
+                    initialModel.changers[ App.Changers.TOP ]
                 ]);
             });
 
@@ -156,17 +156,17 @@ describe('App.update()', () => {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
                     amount: {
-                        source: App.Changers.FROM,
+                        source: App.Changers.TOP,
                         value: Nothing
                     },
                     changers: {
-                        from: Changer.init(USD.code),
-                        to: Changer.init(EUR.code)
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
                     }
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.FROM,
+                    source: App.Changers.TOP,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
@@ -181,7 +181,7 @@ describe('App.update()', () => {
                 expect(model.cancelRequest.isJust()).toBe(true);
                 expect(Changer$update.mock.calls[ 0 ]).toEqual([
                     { type: 'SLIDE_END' },
-                    initialModel.changers.from
+                    initialModel.changers[ App.Changers.TOP ]
                 ]);
             });
         });
@@ -197,30 +197,30 @@ describe('App.update()', () => {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
                     amount: {
-                        source: App.Changers.FROM,
+                        source: App.Changers.TOP,
                         value: Just('100')
                     },
                     changers: {
-                        from: Changer.init(USD.code),
-                        to: Changer.init(EUR.code)
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
                     }
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.TO,
+                    source: App.Changers.BOTTOM,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
                 expect(model).toEqual({
                     ...initialModel,
                     amount: {
-                        source: App.Changers.TO,
+                        source: App.Changers.BOTTOM,
                         value: Nothing
                     }
                 });
                 expect(Changer$update.mock.calls[ 0 ]).toEqual([
                     { type: 'SLIDE_END' },
-                    initialModel.changers.to
+                    initialModel.changers[ App.Changers.BOTTOM ]
                 ]);
             });
 
@@ -234,30 +234,30 @@ describe('App.update()', () => {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
                     amount: {
-                        source: App.Changers.FROM,
+                        source: App.Changers.TOP,
                         value: Nothing
                     },
                     changers: {
-                        from: Changer.init(USD.code),
-                        to: Changer.init(EUR.code)
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
                     }
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.TO,
+                    source: App.Changers.BOTTOM,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
                 expect(model).toEqual({
                     ...initialModel,
                     amount: {
-                        source: App.Changers.TO,
+                        source: App.Changers.BOTTOM,
                         value: Just('100')
                     }
                 });
                 expect(Changer$update.mock.calls[ 0 ]).toEqual([
                     { type: 'SLIDE_END' },
-                    initialModel.changers.to
+                    initialModel.changers[ App.Changers.BOTTOM ]
                 ]);
             });
         });

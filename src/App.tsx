@@ -26,7 +26,6 @@ import {
 } from './Currency';
 import * as Api from './Api';
 import * as Changer from './Changer';
-import * as CurrencySelector from './CurrencySelector';
 import * as Utils from './Utils';
 
 /**
@@ -34,8 +33,8 @@ import * as Utils from './Utils';
  */
 
 export enum Changers {
-    FROM = 'from',
-    TO = 'to'
+    TOP,
+    BOTTOM
 }
 
 type Amount = Readonly<{
@@ -52,17 +51,17 @@ export type Model = Readonly<{
     };
 }>;
 
-export const init = (currencies: Array<Currency>, from: string, to: string): [ Model, Cmd<Msg> ] => {
+export const init = (currencies: Array<Currency>, to: string, from: string): [ Model, Cmd<Msg> ] => {
     const initialModel: Model = {
         cancelRequest: Nothing,
         currencies,
         amount: {
-            source: Changers.FROM,
+            source: Changers.TOP,
             value: Nothing
         },
         changers: {
-            from: Changer.init(from),
-            to: Changer.init(to)
+            [ Changers.TOP ]: Changer.init(to),
+            [ Changers.BOTTOM ]: Changer.init(from)
         }
     };
     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
@@ -76,32 +75,32 @@ export const init = (currencies: Array<Currency>, from: string, to: string): [ M
     ];
 };
 
-const getCurrencyOfChanger = (source: Changers, model: Model): Maybe<Currency> => {
-    return Utils.find(currency => currency.code === model.changers[ source ].currency, model.currencies);
-};
+const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
+    const amount = model.amount.value.chain(Utils.stringToNumber).getOrElse(0);
 
-const normalize = (model: Model): Model => {
-    if (model.amount.source === Changers.FROM) {
-        return model;
+    if (model.amount.source === Changers.TOP) {
+        return amount >= 0
+            ? [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]
+            : [ model.changers[ Changers.TOP ], model.changers[ Changers.BOTTOM ] ]
+            ;
     }
 
-    return {
-        ...model,
-        amount: {
-            source: Changers.FROM,
-            value: Maybe.props({
-                amount: model.amount.value.chain(Utils.stringToNumber),
-                to: getCurrencyOfChanger(Changers.TO, model),
-                from: getCurrencyOfChanger(Changers.FROM, model)
-            })
-                .chain(acc => acc.from.convertTo(-acc.amount, acc.to))
-                .map(amount => amount.toFixed(2))
-        }
-    };
+    return amount >= 0
+        ? [ model.changers[ Changers.TOP ], model.changers[ Changers.BOTTOM ] ]
+        : [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]
+        ;
+};
+
+const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Currency> => {
+    const code = Changer.getCurrencyCode(changer);
+
+    return Utils.find(currency => currency.code === code, model.currencies);
 };
 
 const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNumber).map(amount => {
-    const minimum = getCurrencyOfChanger(model.amount.source, model).map(
+    const [ from, to ] = getChangersRoles(model);
+
+    const minimum = getCurrencyOfChanger(from, model).map(
         currency => Utils.trunc(2, -currency.amount)
     ).getOrElse(amount);
 
@@ -110,26 +109,24 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
             ...model,
             amount: {
                 ...model.amount,
-                value: Just(Utils.trunc(2, minimum).toString())
+                value: Just(minimum.toString())
             }
         };
     }
 
     const maximum = Maybe.props({
-        to: getCurrencyOfChanger(Changers.TO, model),
-        from: getCurrencyOfChanger(Changers.FROM, model)
+        to: getCurrencyOfChanger(to, model),
+        from: getCurrencyOfChanger(from, model)
     }).chain(
-        acc => model.amount.source === Changers.FROM
-            ? acc.from.convertTo(acc.to.amount, acc.to)
-            : acc.to.convertFrom(acc.from.amount, acc.from)
-    ).map(max => Utils.trunc(2, max)).getOrElse(amount);
+        acc => acc.to.convertFrom(acc.from.amount, acc.from)
+    ).map(max => Utils.ceil(2, max)).getOrElse(amount);
 
     if (amount > maximum) {
         return {
             ...model,
             amount: {
                 ...model.amount,
-                value: Just(Utils.trunc(2, maximum).toString())
+                value: Just(maximum.toString())
             }
         };
     }
@@ -179,9 +176,11 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'FETCH_RATES': {
+            const [ from, to ] = getChangersRoles(model);
+
             const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                model.changers.from.currency,
-                [ model.changers.to.currency ]
+                Changer.getCurrencyCode(from),
+                [ Changer.getCurrencyCode(to) ]
             );
 
             return [
@@ -219,13 +218,15 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'EXCHANGE': {
+            const [ from, to ] = getChangersRoles(model);
+
             const nextCurrencies = model.currencies.map(currency => {
                 switch (currency.code) {
-                    case model.changers.from.currency: {
+                    case Changer.getCurrencyCode(from): {
                         return currency.change(msg.amountFrom);
                     }
 
-                    case model.changers.to.currency: {
+                    case Changer.getCurrencyCode(to): {
                         return currency.change(msg.amountTo);
                     }
 
@@ -267,16 +268,17 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     }
 
                     const nextModel = limit({
-                        ...normalize(model),
+                        ...model,
                         changers: {
                             ...model.changers,
                             [ msg.source ]: stage.model
                         }
                     });
 
+                    const [ from, to ] = getChangersRoles(nextModel);
                     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                        nextModel.changers.from.currency,
-                        [ nextModel.changers.to.currency ]
+                        Changer.getCurrencyCode(from),
+                        [ Changer.getCurrencyCode(to) ]
                     );
 
                     return [
@@ -292,15 +294,35 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 }
 
                 case 'AMOUNT_CHANGED': {
+                    const nextModel = limit({
+                        ...model,
+                        amount: {
+                            source: msg.source,
+                            value: stage.amount
+                        }
+                    });
+
+                    const [ from, to ] = getChangersRoles(model);
+                    const [ nextFrom, nextTo ] = getChangersRoles(nextModel);
+
+                    if (Changer.isSame(from, nextFrom) && Changer.isSame(to, nextTo)) {
+                        return [ nextModel, Cmd.none ];
+                    }
+
+                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+                        Changer.getCurrencyCode(nextFrom),
+                        [ Changer.getCurrencyCode(nextTo) ]
+                    );
+
                     return [
-                        limit({
-                            ...model,
-                            amount: {
-                                source: msg.source,
-                                value: stage.amount
-                            }
-                        }),
-                        Cmd.none
+                        {
+                            ...nextModel,
+                            cancelRequest: Just(cancelRequestCmd)
+                        },
+                        Cmd.batch([
+                            model.cancelRequest.getOrElse(Cmd.none),
+                            fetchRatesCmd
+                        ])
                     ];
                 }
 
@@ -317,8 +339,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
  */
 
 export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
-    Changer.subscriptions(model.changers.from).map(changerMsg => ChangerMsg(Changers.FROM, changerMsg)),
-    Changer.subscriptions(model.changers.to).map(changerMsg => ChangerMsg(Changers.TO, changerMsg)),
+    Changer.subscriptions(model.changers[ Changers.TOP ]).map(changerMsg => ChangerMsg(Changers.TOP, changerMsg)),
+    Changer.subscriptions(model.changers[ Changers.BOTTOM ]).map(changerMsg => ChangerMsg(Changers.BOTTOM, changerMsg)),
     model.cancelRequest.cata({
         Nothing: () => Time.every(10000, () => FetchRates),
         Just: () => Sub.none
@@ -333,20 +355,20 @@ const extractFormatedAmountFor = (
     source: Changers,
     from: Maybe<Currency>,
     to: Maybe<Currency>,
-    amount: Amount
+    model: Model
 ): string => {
-    if (amount.source === source) {
-        return amount.value.getOrElse('');
+    if (model.amount.source === source) {
+        return model.amount.value.getOrElse('');
     }
 
     return Maybe.props({
         to,
         from,
-        amount: amount.value.chain(Utils.stringToNumber)
-    }).chain(acc => source === Changers.FROM
-        ? acc.from.convertTo(-acc.amount, acc.to)
-        : acc.to.convertFrom(-acc.amount, acc.from)
-    ).map(amount => Utils.trunc(2, amount).toFixed(2)).getOrElse('');
+        amount: model.amount.value.chain(Utils.stringToNumber)
+    }).chain(acc => acc.amount >= 0
+        ? acc.from.convertTo(-acc.amount, acc.to).map(amount => Utils.trunc(2, amount))
+        : acc.to.convertFrom(-acc.amount, acc.from).map(amount => Utils.ceil(2, amount))
+    ).map(amount => amount.toFixed(2)).getOrElse('');
 };
 
 const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: Amount): Maybe<{
@@ -358,18 +380,18 @@ const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: A
     from,
     to,
     amount: amount.value.chain(Utils.stringToNumber)
-}).chain(acc => amount.source === Changers.FROM
-    ? acc.to.convertFrom(-acc.amount, acc.from).map(amountTo => ({
-        from: acc.from,
-        to: acc.to,
-        amountFrom: Utils.trunc(2, acc.amount),
-        amountTo: Utils.trunc(2, amountTo)
-    }))
-    : acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
+}).chain(acc => acc.amount >= 0
+    ? acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
         from: acc.from,
         to: acc.to,
         amountFrom: Utils.trunc(2, amountFrom),
-        amountTo: Utils.trunc(2, acc.amount)
+        amountTo: Utils.ceil(2, acc.amount)
+    }))
+    : acc.to.convertFrom(-acc.amount, acc.from).map(amountTo => ({
+        from: acc.from,
+        to: acc.to,
+        amountFrom: Utils.trunc(2, acc.amount),
+        amountTo: Utils.ceil(2, amountTo)
     }))
 ).chain(acc => acc.amountFrom === 0 || acc.amountTo === 0 ? Nothing : Just(acc));
 
@@ -384,17 +406,8 @@ const Root = styled.form`
 const Header = styled.header`
     flex: 0 0 auto;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     line-height: 1;
-`;
-
-const MenuItemContainer = styled.div<{
-    align: 'flex-start' | 'center' | 'flex-end';
-}>`
-    flex: 1 0 ${props => props.align === 'center' ? 'auto' : '30%'};
-    display: flex;
-    justify-content: ${props => props.align};
-    align-items: center;
 `;
 
 const MenuButton = styled.button<{
@@ -420,13 +433,13 @@ const Content = styled.div`
 `;
 
 const ChangerContainer = styled.div<{
-    source: Changers;
+    position: Changers;
 }>`
     flex: 1 0 50%;
     display: flex;
     position: relative;
-    background: ${props => props.source === Changers.TO ? 'rgba(0, 0, 0, .25)' : null};
-    ${props => props.source === Changers.FROM ? `
+    background: ${props => props.position === Changers.BOTTOM ? 'rgba(0, 0, 0, .25)' : null};
+    ${props => props.position === Changers.TOP ? `
         padding-bottom: 1em;
         ` : `
         &:before,
@@ -459,8 +472,9 @@ export const View: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
     model: Model;
 }> = ({ dispatch, model }) => {
-    const from = getCurrencyOfChanger(Changers.FROM, model);
-    const to = getCurrencyOfChanger(Changers.TO, model);
+    const [ fromChanger, toChanger ] = getChangersRoles(model);
+    const from = getCurrencyOfChanger(fromChanger, model);
+    const to = getCurrencyOfChanger(toChanger, model);
     const exchangeResult = getExchangeResult(from, to, model.amount);
 
     return (
@@ -475,51 +489,35 @@ export const View: React.StatelessComponent<{
             event.preventDefault();
         }}>
             <Header>
-                <MenuItemContainer align="flex-start">
-                    <MenuButton
-                        type="button"
-                        disabled
-                    >Back</MenuButton>
-                </MenuItemContainer>
-
-                <MenuItemContainer align="center">
-                    {Maybe.props({ from, to }).cata({
-                        Nothing: () => null,
-                        Just: acc => <CurrencySelector.View from={acc.from} to={acc.to} />
-                    })}
-                </MenuItemContainer>
-
-                <MenuItemContainer align="flex-end">
-                    <MenuButton
-                        type="submit"
-                        disabled={exchangeResult.isNothing()}
-                    >Exchange</MenuButton>
-                </MenuItemContainer>
+                <MenuButton
+                    type="submit"
+                    disabled={exchangeResult.isNothing()}
+                >Exchange</MenuButton>
             </Header>
 
             <Content>
-                <ChangerContainer source={Changers.FROM}>
+                <ChangerContainer position={Changers.TOP}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.FROM, from, to, model.amount)}
+                        amount={extractFormatedAmountFor(Changers.TOP, from, to, model)}
                         currencies={model.currencies.filter(
-                            currency => currency.code !== model.changers[ Changers.TO ].currency
+                            currency => currency.code !== Changer.getCurrencyCode( model.changers[ Changers.BOTTOM ])
                         )}
-                        donor={Nothing}
-                        model={model.changers.from}
-                        dispatch={changerMsg => dispatch(ChangerMsg(Changers.FROM, changerMsg))}
+                        pair={getCurrencyOfChanger(model.changers[ Changers.BOTTOM ], model)}
+                        model={model.changers[ Changers.TOP ]}
+                        dispatch={changerMsg => dispatch(ChangerMsg(Changers.TOP, changerMsg))}
                         autoFocus
                     />
                 </ChangerContainer>
 
-                <ChangerContainer source={Changers.TO}>
+                <ChangerContainer position={Changers.BOTTOM}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.TO, from, to, model.amount)}
+                        amount={extractFormatedAmountFor(Changers.BOTTOM, from, to, model)}
                         currencies={model.currencies.filter(
-                            currency => currency.code !== model.changers[ Changers.FROM ].currency
+                            currency => currency.code !== Changer.getCurrencyCode(model.changers[ Changers.TOP ])
                         )}
-                        donor={from}
-                        model={model.changers.to}
-                        dispatch={changerMsg => dispatch(ChangerMsg(Changers.TO, changerMsg))}
+                        pair={getCurrencyOfChanger(model.changers[ Changers.TOP ], model)}
+                        model={model.changers[ Changers.BOTTOM ]}
+                        dispatch={changerMsg => dispatch(ChangerMsg(Changers.BOTTOM, changerMsg))}
                     />
                 </ChangerContainer>
             </Content>

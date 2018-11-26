@@ -60,6 +60,10 @@ export const init = (currency: string): Model => ({
     sliding: Nothing
 });
 
+export const isSame = (first: Model, second: Model) => first === second || first.currency === second.currency;
+
+export const getCurrencyCode = (model: Model): string => model.currency;
+
 /**
  * U P D A T E
  */
@@ -384,18 +388,29 @@ const stringToAmount = (input: string): Maybe<string> => {
     return result === '' ? Nothing : Just(result);
 };
 
+const Rate: React.StatelessComponent<{
+    currency: Currency;
+    pair: Currency;
+    rate: number;
+}> = ({ currency, pair, rate }) => (
+    <span>
+        <Small>{currency.symbol}</Small>1&nbsp;=&nbsp;
+        <Small>{pair.symbol}</Small>{rate.toFixed(2)}
+    </span>
+);
+
 export const Slide = styled<{
     dispatch: Dispatch<Msg>;
     amount: string;
     currency: Currency;
-    donor: Maybe<Currency>;
+    pair: Maybe<Currency>;
     preventClicking: boolean;
     className?: string;
 } & React.InputHTMLAttributes<HTMLInputElement>>(({
     dispatch,
     currency,
     amount,
-    donor,
+    pair,
     className,
     preventClicking,
     ...inputProps
@@ -420,13 +435,31 @@ export const Slide = styled<{
         <Info>
             <span>You have <Small>{currency.symbol}</Small>{Utils.trunc(2, currency.amount).toFixed(2)}</span>
 
-            {donor.chain(donorCurrency => donorCurrency.convertTo(1, currency).map(rate => (
-                <span>
-                    <Small>{currency.symbol}</Small>1&nbsp;=&nbsp;
-                    <Small>{donorCurrency.symbol}</Small>{Utils.trunc(2, rate).toFixed(2)}
-                </span>
-            ))
-            ).getOrElse(<span></span>)}
+            {pair.chain(pairCurrency => {
+                const numAmount = Utils.stringToNumber(amount).getOrElse(0);
+
+                if (numAmount > 0) {
+                    return pairCurrency.convertTo(1, currency).map(rate => (
+                        <Rate
+                            currency={currency}
+                            pair={pairCurrency}
+                            rate={Utils.trunc(2, rate)}
+                        />
+                    ));
+                }
+
+                if (numAmount < 0) {
+                    return pairCurrency.convertFrom(1, currency).map(rate => (
+                        <Rate
+                            currency={currency}
+                            pair={pairCurrency}
+                            rate={Utils.ceil(2, rate)}
+                        />
+                    ));
+                }
+
+                return Nothing;
+            }).getOrElse(<span />)}
         </Info>
     </label>
 ))`
@@ -514,9 +547,9 @@ export const View: React.StatelessComponent<{
     model: Model;
     amount: string;
     currencies: Array<Currency>;
-    donor: Maybe<Currency>;
+    pair: Maybe<Currency>;
     autoFocus?: boolean;
-}> = ({ dispatch, model, amount, currencies, donor, autoFocus }) => extractCurrencies(
+}> = ({ dispatch, model, amount, currencies, pair, autoFocus }) => extractCurrencies(
     currencies,
     model.sliding.chain(sliding => sliding.currency).getOrElse(model.currency)
 ).fold(() => null, ({ prev, current, next }) => (
@@ -539,7 +572,7 @@ export const View: React.StatelessComponent<{
                         dispatch={dispatch}
                         amount=""
                         currency={currency}
-                        donor={donor}
+                        pair={pair}
                         preventClicking={model.sliding.isJust()}
                         disabled
                     />
@@ -550,7 +583,7 @@ export const View: React.StatelessComponent<{
                 dispatch={dispatch}
                 amount={amount}
                 currency={current}
-                donor={donor}
+                pair={pair}
                 autoFocus={autoFocus}
                 preventClicking={model.sliding.isJust()}
             />
@@ -562,7 +595,7 @@ export const View: React.StatelessComponent<{
                         dispatch={dispatch}
                         amount=""
                         currency={currency}
-                        donor={donor}
+                        pair={pair}
                         preventClicking={model.sliding.isJust()}
                         disabled
                     />

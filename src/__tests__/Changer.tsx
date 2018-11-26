@@ -394,7 +394,7 @@ describe('Changer.View', () => {
                 model={Changer.init('RUB')}
                 amount="100"
                 currencies={[ Currency.of('USD', '$', 0) ]}
-                donor={Nothing}
+                pair={Nothing}
             />
         );
 
@@ -408,7 +408,7 @@ describe('Changer.View', () => {
                 model={Changer.init(USD.code)}
                 amount="100"
                 currencies={[ USD ]}
-                donor={Nothing}
+                pair={Nothing}
             />
         );
 
@@ -426,7 +426,7 @@ describe('Changer.View', () => {
                     model={Changer.init(USD.code)}
                     amount="100"
                     currencies={[ USD, EUR ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -450,7 +450,7 @@ describe('Changer.View', () => {
                     model={Changer.init(EUR.code)}
                     amount="100"
                     currencies={[ USD, EUR ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -476,7 +476,7 @@ describe('Changer.View', () => {
                     model={Changer.init(USD.code)}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -500,7 +500,7 @@ describe('Changer.View', () => {
                     model={Changer.init(EUR.code)}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -527,7 +527,7 @@ describe('Changer.View', () => {
                     model={Changer.init(RUB.code)}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -561,7 +561,7 @@ describe('Changer.View', () => {
                 model={model}
                 amount="100"
                 currencies={[ USD, EUR, RUB ]}
-                donor={Nothing}
+                pair={Nothing}
             />
         );
 
@@ -591,7 +591,7 @@ describe('Changer.View', () => {
                     model={model}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -616,7 +616,7 @@ describe('Changer.View', () => {
                     model={model}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -641,7 +641,7 @@ describe('Changer.View', () => {
                     model={model}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -664,7 +664,7 @@ describe('Changer.View', () => {
                     model={model}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -687,7 +687,7 @@ describe('Changer.View', () => {
                     model={model}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
@@ -710,7 +710,7 @@ describe('Changer.View', () => {
                     model={model}
                     amount="100"
                     currencies={[ USD, EUR, RUB ]}
-                    donor={Nothing}
+                    pair={Nothing}
                 />
             );
 
