@@ -31,7 +31,7 @@ beforeAll(() => {
 });
 
 test('App.init()', () => {
-    const [ initialModel ] = App.init([ USD, EUR, RUB ], USD.code, EUR.code);
+    const [ initialModel ] = App.init(USD, EUR, [ RUB ]);
 
     expect(initialModel).toMatchObject({
         currencies: [ USD, EUR, RUB ],
@@ -48,7 +48,7 @@ test('App.init()', () => {
 
 describe('App.update()', () => {
     test('NOOP', () => {
-        const [ initialModel ] = App.init([ USD, EUR, RUB ], USD.code, EUR.code);
+        const [ initialModel ] = App.init(USD, EUR, [ RUB ]);
         const [ model ] = App.update({ type: 'NOOP' }, initialModel);
 
         expect(model).toBe(initialModel);
@@ -71,7 +71,7 @@ describe('App.update()', () => {
     });
 
     describe('FETCH_RATES_DONE', () => {
-        const [ initialModel ] = App.init([ USD, EUR, RUB ], USD.code, EUR.code);
+        const [ initialModel ] = App.init(USD, EUR, [ RUB ]);
 
         test('request is failed', () => {
             const [ model ] = App.update({
@@ -124,7 +124,7 @@ describe('App.update()', () => {
                     model: 'next_FROM_Changer'
                 });
 
-                const [ initialModel ] = App.init([ USD, EUR, RUB ], USD.code, EUR.code);
+                const [ initialModel ] = App.init(USD, EUR, [ RUB ]);
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
                     source: App.Changers.TOP,

@@ -47,21 +47,22 @@ export type Model = Readonly<{
     };
 }>;
 
-export const init = (currencies: Array<Currency>, to: string, from: string): [ Model, Cmd<Msg> ] => {
+export const init = (to: Currency, from: Currency, currencies: Array<Currency>): [ Model, Cmd<Msg> ] => {
+    const currencies_ = [ to, from, ...currencies ];
     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-        from,
-        currencies.map(currency => currency.code)
+        from.code,
+        currencies_.map(currency => currency.code)
     );
 
     return [
         {
             cancelRequest: Just(cancelRequestCmd),
-            currencies,
+            currencies: currencies_,
             active: Changers.TOP,
             amount: Nothing,
             changers: {
-                [ Changers.TOP ]: Changer.init(to),
-                [ Changers.BOTTOM ]: Changer.init(from)
+                [ Changers.TOP ]: Changer.init(to.code),
+                [ Changers.BOTTOM ]: Changer.init(from.code)
             }
         },
         fetchRatesCmd
