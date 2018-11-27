@@ -101,7 +101,7 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
     const [ from, to ] = getChangersRoles(model);
 
     const minimum = getCurrencyOfChanger(from, model).map(
-        currency => Utils.trunc(2, -currency.amount)
+        currency => Utils.floor(2, -currency.amount)
     ).getOrElse(amount);
 
     if (amount < minimum) {
@@ -366,7 +366,7 @@ const extractFormatedAmountFor = (
         from,
         amount: model.amount.value.chain(Utils.stringToNumber)
     }).chain(acc => acc.amount >= 0
-        ? acc.from.convertTo(-acc.amount, acc.to).map(amount => Utils.trunc(2, amount))
+        ? acc.from.convertTo(-acc.amount, acc.to).map(amount => Utils.floor(2, amount))
         : acc.to.convertFrom(-acc.amount, acc.from).map(amount => Utils.ceil(2, amount))
     ).map(amount => amount.toFixed(2)).getOrElse('');
 };
@@ -384,13 +384,13 @@ const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: A
     ? acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
         from: acc.from,
         to: acc.to,
-        amountFrom: Utils.trunc(2, amountFrom),
+        amountFrom: Utils.floor(2, amountFrom),
         amountTo: Utils.ceil(2, acc.amount)
     }))
     : acc.to.convertFrom(-acc.amount, acc.from).map(amountTo => ({
         from: acc.from,
         to: acc.to,
-        amountFrom: Utils.trunc(2, acc.amount),
+        amountFrom: Utils.floor(2, acc.amount),
         amountTo: Utils.ceil(2, amountTo)
     }))
 ).chain(acc => acc.amountFrom === 0 || acc.amountTo === 0 ? Nothing : Just(acc));
