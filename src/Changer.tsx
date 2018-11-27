@@ -493,9 +493,9 @@ const extractCurrencies = (currencies: Array<Currency>, currentCode: string): Ma
 
         return acc;
     }, {
-        prev: Nothing as Maybe<Currency>,
+        prev: Nothing,
         current: Nothing as Maybe<Currency>,
-        next: Nothing as Maybe<Currency>
+        next: Nothing
     });
 
     return current.map(currency => ({
@@ -519,24 +519,24 @@ function buildDraggingMouseEvents<T>(
 ): DraggingMouseEvents<T> {
     return dragging.cata<DraggingMouseEvents<T>>({
         Nothing: () => ({
-            onTouchStart: event => Maybe.fromNullable(event.touches[ 0 ]).cata({
-                Nothing: () => {
-                    // do nothing
-                },
-                Just: touch => dispatch(DragStart(touch.screenX))
-            })
+            onTouchStart: event => dispatch(
+                Maybe.fromNullable(event.touches[ 0 ]).cata({
+                    Nothing: () => DragEnd,
+                    Just: touch => DragStart(touch.screenX)
+                })
+            )
         }),
         Just: ({ ref }) => ({
             ref,
-            onTouchMove: event => Maybe.props({
-                touch: Maybe.fromNullable(event.touches[ 0 ]),
-                node: Maybe.fromNullable(ref.current)
-            }).cata({
-                Nothing: () => {
-                    // do nothing
-                },
-                Just: ({ touch, node }) => dispatch(Drag(prev, next, touch.screenX, node.clientWidth))
-            }),
+            onTouchMove: event => dispatch(
+                Maybe.props({
+                    touch: Maybe.fromNullable(event.touches[ 0 ]),
+                    node: Maybe.fromNullable(ref.current)
+                }).cata({
+                    Nothing: () => DragEnd,
+                    Just: ({ touch, node }) => Drag(prev, next, touch.screenX, node.clientWidth)
+                })
+            ),
             onTouchEnd: () => dispatch(DragEnd)
         })
     });
@@ -565,19 +565,16 @@ export const View: React.StatelessComponent<{
             prev={prev}
             next={next}
         >
-            {prev.cata({
-                Nothing: () => null,
-                Just: currency => (
-                    <Slide
-                        dispatch={dispatch}
-                        amount=""
-                        currency={currency}
-                        pair={pair}
-                        preventClicking={model.sliding.isJust()}
-                        disabled
-                    />
-                )
-            })}
+            {prev.fold(() => null, currency => (
+                <Slide
+                    dispatch={dispatch}
+                    amount=""
+                    currency={currency}
+                    pair={pair}
+                    preventClicking={model.sliding.isJust()}
+                    disabled
+                />
+            ))}
 
             <Slide
                 dispatch={dispatch}
@@ -588,19 +585,16 @@ export const View: React.StatelessComponent<{
                 preventClicking={model.sliding.isJust()}
             />
 
-            {next.cata({
-                Nothing: () => null,
-                Just: currency => (
-                    <Slide
-                        dispatch={dispatch}
-                        amount=""
-                        currency={currency}
-                        pair={pair}
-                        preventClicking={model.sliding.isJust()}
-                        disabled
-                    />
-                )
-            })}
+            {next.fold(() => null, currency => (
+                <Slide
+                    dispatch={dispatch}
+                    amount=""
+                    currency={currency}
+                    pair={pair}
+                    preventClicking={model.sliding.isJust()}
+                    disabled
+                />
+            ))}
         </Carousel>
 
         <Line>
