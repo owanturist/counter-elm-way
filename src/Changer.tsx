@@ -98,12 +98,12 @@ const Updated = (currencyChanged: boolean, model: Model): Stage => ({ type: 'UPD
 const AmountChanged = (amount: Maybe<string>): Stage => ({ type: 'AMOUNT_CHANGED', amount });
 
 const luft = (gap: number, delta: number): Maybe<number> => {
-    if (delta > 0) {
-        return delta - gap > 0 ? Just(delta - gap) : Nothing;
+    if (delta - gap > 0) {
+        return Just(delta - gap);
     }
 
-    if (delta < 0) {
-        return delta + gap < 0 ? Just(delta + gap) : Nothing;
+    if (delta + gap < 0) {
+        return Just(delta + gap);
     }
 
     return Nothing;
