@@ -146,7 +146,10 @@ const Exchange = (
     to: Currency,
     amountTo: number
 ): Msg => ({ type: 'EXCHANGE', from, amountFrom, to, amountTo });
-const ChangerMsg = (source: Changers, changerMsg: Changer.Msg): Msg => ({ type: 'CHANGER_MSG', source, changerMsg });
+const ChangerMsg = (
+    source: Changers,
+    changerMsg: Changer.Msg
+): Msg => ({ type: 'CHANGER_MSG', source, changerMsg });
 
 const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
     const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
@@ -334,50 +337,6 @@ export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
  * V I E W
  */
 
-const extractFormatedAmountFor = (
-    source: Changers,
-    from: Maybe<Currency>,
-    to: Maybe<Currency>,
-    model: Model
-): string => {
-    if (model.active === source) {
-        return model.amount.getOrElse('');
-    }
-
-    return Maybe.props({
-        to,
-        from,
-        amount: model.amount.chain(Utils.stringToNumber)
-    }).chain(acc => acc.amount >= 0
-        ? acc.from.convertTo(-acc.amount, acc.to).map(amount => Utils.floor(2, amount))
-        : acc.to.convertFrom(-acc.amount, acc.from).map(amount => Utils.ceil(2, amount))
-    ).map(amount => amount.toFixed(2)).getOrElse('');
-};
-
-const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: Maybe<string>): Maybe<{
-    from: Currency;
-    to: Currency;
-    amountFrom: number;
-    amountTo: number;
-}> => Maybe.props({
-    from,
-    to,
-    amount: amount.chain(Utils.stringToNumber)
-}).chain(acc => acc.amount >= 0
-    ? acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
-        from: acc.from,
-        to: acc.to,
-        amountFrom: Utils.floor(2, amountFrom),
-        amountTo: Utils.ceil(2, acc.amount)
-    }))
-    : acc.to.convertFrom(-acc.amount, acc.from).map(amountTo => ({
-        from: acc.from,
-        to: acc.to,
-        amountFrom: Utils.floor(2, acc.amount),
-        amountTo: Utils.ceil(2, amountTo)
-    }))
-).chain(acc => acc.amountFrom === 0 || acc.amountTo === 0 ? Nothing : Just(acc));
-
 const Root = styled.form`
     display: flex;
     flex-direction: column;
@@ -451,6 +410,50 @@ const ChangerContainer = styled.div<{
     `}
 `;
 
+const extractFormatedAmountFor = (
+    source: Changers,
+    from: Maybe<Currency>,
+    to: Maybe<Currency>,
+    model: Model
+): string => {
+    if (model.active === source) {
+        return model.amount.getOrElse('');
+    }
+
+    return Maybe.props({
+        to,
+        from,
+        amount: model.amount.chain(Utils.stringToNumber)
+    }).chain(acc => acc.amount >= 0
+        ? acc.from.convertTo(-acc.amount, acc.to).map(amount => Utils.floor(2, amount))
+        : acc.to.convertFrom(-acc.amount, acc.from).map(amount => Utils.ceil(2, amount))
+    ).map(amount => amount.toFixed(2)).getOrElse('');
+};
+
+const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: Maybe<string>): Maybe<{
+    from: Currency;
+    to: Currency;
+    amountFrom: number;
+    amountTo: number;
+}> => Maybe.props({
+    from,
+    to,
+    amount: amount.chain(Utils.stringToNumber)
+}).chain(acc => acc.amount >= 0
+    ? acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
+        from: acc.from,
+        to: acc.to,
+        amountFrom: Utils.floor(2, amountFrom),
+        amountTo: Utils.ceil(2, acc.amount)
+    }))
+    : acc.to.convertFrom(-acc.amount, acc.from).map(amountTo => ({
+        from: acc.from,
+        to: acc.to,
+        amountFrom: Utils.floor(2, acc.amount),
+        amountTo: Utils.ceil(2, amountTo)
+    }))
+).chain(acc => acc.amountFrom === 0 || acc.amountTo === 0 ? Nothing : Just(acc));
+
 export const View: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
     model: Model;
@@ -462,12 +465,10 @@ export const View: React.StatelessComponent<{
 
     return (
         <Root noValidate onSubmit={event => {
-            exchangeResult.cata({
-                Nothing: () => {
-                    // do nothing
-                },
-                Just: result => dispatch(Exchange(result.from, result.amountFrom, result.to, result.amountTo))
-            });
+            dispatch(exchangeResult.cata({
+                Nothing: () => NoOp,
+                Just: result => Exchange(result.from, result.amountFrom, result.to, result.amountTo)
+            }));
 
             event.preventDefault();
         }}>
@@ -483,7 +484,7 @@ export const View: React.StatelessComponent<{
                     <Changer.View
                         amount={extractFormatedAmountFor(Changers.TOP, from, to, model)}
                         currencies={model.currencies.filter(
-                            currency => currency.code !== Changer.getCurrencyCode( model.changers[ Changers.BOTTOM ])
+                            currency => currency.code !== Changer.getCurrencyCode(model.changers[ Changers.BOTTOM ])
                         )}
                         pair={getCurrencyOfChanger(model.changers[ Changers.BOTTOM ], model)}
                         model={model.changers[ Changers.TOP ]}
