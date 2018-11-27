@@ -91,35 +91,35 @@ const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Curre
     return Utils.find(currency => currency.code === code, model.currencies);
 };
 
-const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).map(amount => {
+const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).chain(amount => {
     const [ from, to ] = getChangersRoles(model);
 
-    const minimum = getCurrencyOfChanger(from, model).map(
-        currency => Utils.floor(2, -currency.amount)
-    ).getOrElse(amount);
+    return getCurrencyOfChanger(from, model)
+        .chain(currencyFrom => {
+            const minimum = Utils.floor(2, -currencyFrom.amount);
 
-    if (amount < minimum) {
-        return {
-            ...model,
-            amount: Just(minimum.toString())
-        };
-    }
+            if (amount < minimum) {
+                return Just({
+                    ...model,
+                    amount: Just(minimum.toString())
+                });
+            }
 
-    const maximum = Maybe.props({
-        to: getCurrencyOfChanger(to, model),
-        from: getCurrencyOfChanger(from, model)
-    }).chain(
-        acc => acc.to.convertFrom(acc.from.amount, acc.from)
-    ).map(max => Utils.ceil(2, max)).getOrElse(amount);
+            return getCurrencyOfChanger(to, model)
+                .chain(currencyTo => currencyTo.convertFrom(currencyFrom.amount, currencyFrom))
+                .chain(max => {
+                    const maximum = Utils.ceil(2, max);
 
-    if (amount > maximum) {
-        return {
-            ...model,
-            amount: Just(maximum.toString())
-        };
-    }
+                    if (amount > maximum) {
+                        return Just({
+                            ...model,
+                            amount: Just(maximum.toString())
+                        });
+                    }
 
-    return model;
+                    return Nothing;
+                });
+        });
 }).getOrElse(model);
 
 /**
@@ -455,9 +455,9 @@ export const View: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
     model: Model;
 }> = ({ dispatch, model }) => {
-    const [ fromChanger, toChanger ] = getChangersRoles(model);
-    const from = getCurrencyOfChanger(fromChanger, model);
-    const to = getCurrencyOfChanger(toChanger, model);
+    const [ changerFrom, changerTo ] = getChangersRoles(model);
+    const from = getCurrencyOfChanger(changerFrom, model);
+    const to = getCurrencyOfChanger(changerTo, model);
     const exchangeResult = getExchangeResult(from, to, model.amount);
 
     return (
