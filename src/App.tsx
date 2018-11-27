@@ -37,15 +37,11 @@ export enum Changers {
     BOTTOM
 }
 
-type Amount = Readonly<{
-    source: Changers;
-    value: Maybe<string>;
-}>;
-
 export type Model = Readonly<{
     cancelRequest: Maybe<Cmd<Msg>>;
     currencies: Array<Currency>;
-    amount: Amount;
+    active: Changers;
+    amount: Maybe<string>;
     changers: {
         [ Key in Changers ]: Changer.Model
     };
@@ -55,10 +51,8 @@ export const init = (currencies: Array<Currency>, to: string, from: string): [ M
     const initialModel: Model = {
         cancelRequest: Nothing,
         currencies,
-        amount: {
-            source: Changers.TOP,
-            value: Nothing
-        },
+        active: Changers.TOP,
+        amount: Nothing,
         changers: {
             [ Changers.TOP ]: Changer.init(to),
             [ Changers.BOTTOM ]: Changer.init(from)
@@ -76,9 +70,9 @@ export const init = (currencies: Array<Currency>, to: string, from: string): [ M
 };
 
 const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
-    const amount = model.amount.value.chain(Utils.stringToNumber).getOrElse(0);
+    const amount = model.amount.chain(Utils.stringToNumber).getOrElse(0);
 
-    if (model.amount.source === Changers.TOP) {
+    if (model.active === Changers.TOP) {
         return amount >= 0
             ? [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]
             : [ model.changers[ Changers.TOP ], model.changers[ Changers.BOTTOM ] ]
@@ -97,7 +91,7 @@ const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Curre
     return Utils.find(currency => currency.code === code, model.currencies);
 };
 
-const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNumber).map(amount => {
+const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).map(amount => {
     const [ from, to ] = getChangersRoles(model);
 
     const minimum = getCurrencyOfChanger(from, model).map(
@@ -107,10 +101,7 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
     if (amount < minimum) {
         return {
             ...model,
-            amount: {
-                ...model.amount,
-                value: Just(minimum.toString())
-            }
+            amount: Just(minimum.toString())
         };
     }
 
@@ -124,10 +115,7 @@ const limit = (model: Model): Model => model.amount.value.chain(Utils.stringToNu
     if (amount > maximum) {
         return {
             ...model,
-            amount: {
-                ...model.amount,
-                value: Just(maximum.toString())
-            }
+            amount: Just(maximum.toString())
         };
     }
 
@@ -143,7 +131,7 @@ export type Msg
     | { type: 'FETCH_RATES' }
     | { type: 'FETCH_RATES_DONE'; base: string; result: Either<Http.Error, Array<[ string, number ]>> }
     | { type: 'EXCHANGE'; from: Currency; amountFrom: number; to: Currency; amountTo: number }
-    | { type: 'CHANGER_MSG'; source: Changers; changerMsg: Changer.Msg }
+    | { type: 'CHANGER_MSG'; changer: Changers; changerMsg: Changer.Msg }
     ;
 
 const NoOp: Msg = { type: 'NOOP' };
@@ -158,7 +146,7 @@ const Exchange = (
     to: Currency,
     amountTo: number
 ): Msg => ({ type: 'EXCHANGE', from, amountFrom, to, amountTo });
-const ChangerMsg = (source: Changers, changerMsg: Changer.Msg): Msg => ({ type: 'CHANGER_MSG', source, changerMsg });
+const ChangerMsg = (changer: Changers, changerMsg: Changer.Msg): Msg => ({ type: 'CHANGER_MSG', changer, changerMsg });
 
 const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
     const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
@@ -240,17 +228,14 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 {
                     ...model,
                     currencies: nextCurrencies,
-                    amount: {
-                        ...model.amount,
-                        value: Nothing
-                    }
+                    amount: Nothing
                 },
                 Cmd.none
             ];
         }
 
         case 'CHANGER_MSG': {
-            const stage = Changer.update(msg.changerMsg, model.changers[ msg.source ]);
+            const stage = Changer.update(msg.changerMsg, model.changers[ msg.changer ]);
 
             switch (stage.type) {
                 case 'UPDATED': {
@@ -260,7 +245,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                                 ...model,
                                 changers: {
                                     ...model.changers,
-                                    [ msg.source ]: stage.model
+                                    [ msg.changer ]: stage.model
                                 }
                             },
                             Cmd.none
@@ -271,7 +256,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         ...model,
                         changers: {
                             ...model.changers,
-                            [ msg.source ]: stage.model
+                            [ msg.changer ]: stage.model
                         }
                     });
 
@@ -296,10 +281,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 case 'AMOUNT_CHANGED': {
                     const nextModel = limit({
                         ...model,
-                        amount: {
-                            source: msg.source,
-                            value: stage.amount
-                        }
+                        active: msg.changer,
+                        amount: stage.amount
                     });
 
                     const [ from, to ] = getChangersRoles(model);
@@ -352,26 +335,26 @@ export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
  */
 
 const extractFormatedAmountFor = (
-    source: Changers,
+    changer: Changers,
     from: Maybe<Currency>,
     to: Maybe<Currency>,
     model: Model
 ): string => {
-    if (model.amount.source === source) {
-        return model.amount.value.getOrElse('');
+    if (model.active === changer) {
+        return model.amount.getOrElse('');
     }
 
     return Maybe.props({
         to,
         from,
-        amount: model.amount.value.chain(Utils.stringToNumber)
+        amount: model.amount.chain(Utils.stringToNumber)
     }).chain(acc => acc.amount >= 0
         ? acc.from.convertTo(-acc.amount, acc.to).map(amount => Utils.floor(2, amount))
         : acc.to.convertFrom(-acc.amount, acc.from).map(amount => Utils.ceil(2, amount))
     ).map(amount => amount.toFixed(2)).getOrElse('');
 };
 
-const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: Amount): Maybe<{
+const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: Maybe<string>): Maybe<{
     from: Currency;
     to: Currency;
     amountFrom: number;
@@ -379,7 +362,7 @@ const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: A
 }> => Maybe.props({
     from,
     to,
-    amount: amount.value.chain(Utils.stringToNumber)
+    amount: amount.chain(Utils.stringToNumber)
 }).chain(acc => acc.amount >= 0
     ? acc.from.convertTo(-acc.amount, acc.to).map(amountFrom => ({
         from: acc.from,

@@ -7,7 +7,8 @@ jest.mock('../Changer', () => ({
 }));
 
 import {
-    Nothing, Just
+    Nothing,
+    Just
 } from 'Fractal/Maybe';
 import {
     Left,
@@ -57,10 +58,8 @@ describe('App.update()', () => {
         const initialModel: App.Model = {
             cancelRequest: Nothing,
             currencies: [ USD, EUR, RUB ],
-            amount: {
-                source: App.Changers.TOP,
-                value: Nothing
-            },
+            active: App.Changers.TOP,
+            amount: Nothing,
             changers: {
                 [ App.Changers.TOP ]: Changer.init(USD.code),
                 [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
@@ -128,7 +127,7 @@ describe('App.update()', () => {
                 const [ initialModel ] = App.init([ USD, EUR, RUB ], USD.code, EUR.code);
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.TOP,
+                    changer: App.Changers.TOP,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
@@ -155,10 +154,8 @@ describe('App.update()', () => {
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
-                    amount: {
-                        source: App.Changers.TOP,
-                        value: Nothing
-                    },
+                    active: App.Changers.TOP,
+                    amount: Nothing,
                     changers: {
                         [ App.Changers.TOP ]: Changer.init(USD.code),
                         [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
@@ -166,7 +163,7 @@ describe('App.update()', () => {
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.TOP,
+                    changer: App.Changers.TOP,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
@@ -196,10 +193,8 @@ describe('App.update()', () => {
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
-                    amount: {
-                        source: App.Changers.TOP,
-                        value: Just('100')
-                    },
+                    active: App.Changers.TOP,
+                    amount: Just('100'),
                     changers: {
                         [ App.Changers.TOP ]: Changer.init(USD.code),
                         [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
@@ -207,7 +202,7 @@ describe('App.update()', () => {
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.BOTTOM,
+                    changer: App.Changers.BOTTOM,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
@@ -233,10 +228,8 @@ describe('App.update()', () => {
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
-                    amount: {
-                        source: App.Changers.TOP,
-                        value: Nothing
-                    },
+                    active: App.Changers.TOP,
+                    amount: Nothing,
                     changers: {
                         [ App.Changers.TOP ]: Changer.init(USD.code),
                         [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
@@ -244,7 +237,7 @@ describe('App.update()', () => {
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.BOTTOM,
+                    changer: App.Changers.BOTTOM,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
