@@ -127,7 +127,7 @@ describe('App.update()', () => {
                 const [ initialModel ] = App.init([ USD, EUR, RUB ], USD.code, EUR.code);
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    changer: App.Changers.TOP,
+                    source: App.Changers.TOP,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
@@ -163,7 +163,7 @@ describe('App.update()', () => {
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    changer: App.Changers.TOP,
+                    source: App.Changers.TOP,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
@@ -202,7 +202,7 @@ describe('App.update()', () => {
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    changer: App.Changers.BOTTOM,
+                    source: App.Changers.BOTTOM,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 
@@ -237,7 +237,7 @@ describe('App.update()', () => {
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    changer: App.Changers.BOTTOM,
+                    source: App.Changers.BOTTOM,
                     changerMsg: { type: 'SLIDE_END' }
                 }, initialModel);
 

@@ -48,23 +48,22 @@ export type Model = Readonly<{
 }>;
 
 export const init = (currencies: Array<Currency>, to: string, from: string): [ Model, Cmd<Msg> ] => {
-    const initialModel: Model = {
-        cancelRequest: Nothing,
-        currencies,
-        active: Changers.TOP,
-        amount: Nothing,
-        changers: {
-            [ Changers.TOP ]: Changer.init(to),
-            [ Changers.BOTTOM ]: Changer.init(from)
-        }
-    };
     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
         from,
-        initialModel.currencies.map(currency => currency.code)
+        currencies.map(currency => currency.code)
     );
 
     return [
-        { ...initialModel, cancelRequest: Just(cancelRequestCmd) },
+        {
+            cancelRequest: Just(cancelRequestCmd),
+            currencies,
+            active: Changers.TOP,
+            amount: Nothing,
+            changers: {
+                [ Changers.TOP ]: Changer.init(to),
+                [ Changers.BOTTOM ]: Changer.init(from)
+            }
+        },
         fetchRatesCmd
     ];
 };
@@ -131,7 +130,7 @@ export type Msg
     | { type: 'FETCH_RATES' }
     | { type: 'FETCH_RATES_DONE'; base: string; result: Either<Http.Error, Array<[ string, number ]>> }
     | { type: 'EXCHANGE'; from: Currency; amountFrom: number; to: Currency; amountTo: number }
-    | { type: 'CHANGER_MSG'; changer: Changers; changerMsg: Changer.Msg }
+    | { type: 'CHANGER_MSG'; source: Changers; changerMsg: Changer.Msg }
     ;
 
 const NoOp: Msg = { type: 'NOOP' };
@@ -146,7 +145,7 @@ const Exchange = (
     to: Currency,
     amountTo: number
 ): Msg => ({ type: 'EXCHANGE', from, amountFrom, to, amountTo });
-const ChangerMsg = (changer: Changers, changerMsg: Changer.Msg): Msg => ({ type: 'CHANGER_MSG', changer, changerMsg });
+const ChangerMsg = (source: Changers, changerMsg: Changer.Msg): Msg => ({ type: 'CHANGER_MSG', source, changerMsg });
 
 const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
     const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
@@ -235,7 +234,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         }
 
         case 'CHANGER_MSG': {
-            const stage = Changer.update(msg.changerMsg, model.changers[ msg.changer ]);
+            const stage = Changer.update(msg.changerMsg, model.changers[ msg.source ]);
 
             switch (stage.type) {
                 case 'UPDATED': {
@@ -245,7 +244,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                                 ...model,
                                 changers: {
                                     ...model.changers,
-                                    [ msg.changer ]: stage.model
+                                    [ msg.source ]: stage.model
                                 }
                             },
                             Cmd.none
@@ -256,7 +255,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         ...model,
                         changers: {
                             ...model.changers,
-                            [ msg.changer ]: stage.model
+                            [ msg.source ]: stage.model
                         }
                     });
 
@@ -281,7 +280,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 case 'AMOUNT_CHANGED': {
                     const nextModel = limit({
                         ...model,
-                        active: msg.changer,
+                        active: msg.source,
                         amount: stage.amount
                     });
 
@@ -335,12 +334,12 @@ export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
  */
 
 const extractFormatedAmountFor = (
-    changer: Changers,
+    source: Changers,
     from: Maybe<Currency>,
     to: Maybe<Currency>,
     model: Model
 ): string => {
-    if (model.active === changer) {
+    if (model.active === source) {
         return model.amount.getOrElse('');
     }
 
