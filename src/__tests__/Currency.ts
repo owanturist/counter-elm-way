@@ -25,7 +25,7 @@ describe('Currency', () => {
 describe('Currency.registerRates()', () => {
     test('currency has no needed rate', () => {
         expect(
-            EUR.convertTo(1, USD).isJust()
+            EUR.convertTo(1, USD.code).isJust()
         ).toBe(false);
     });
 
@@ -33,7 +33,7 @@ describe('Currency.registerRates()', () => {
         expect(
             EUR.registerRates([
                 [ 'USD', 1.3 ]
-            ]).convertTo(1, USD).isJust()
+            ]).convertTo(1, USD.code).isJust()
         ).toBe(true);
     });
 });
@@ -43,7 +43,7 @@ describe('Currency.convertTo()', () => {
         expect(
             EUR.registerRates([
                 [ 'USD', 2 ]
-            ]).convertTo(1, USD)
+            ]).convertTo(1, USD.code)
         ).toEqual(Just(0.5));
     });
 });
@@ -51,12 +51,9 @@ describe('Currency.convertTo()', () => {
 describe('Currency.convertFrom()', () => {
     test('convert USD from 1 EUR', () => {
         expect(
-            USD.convertFrom(
-                1,
-                EUR.registerRates([
-                    [ 'USD', 2 ]
-                ])
-            )
+            USD.registerRates([
+                [ 'EUR', 0.5 ]
+            ]).convertFrom(1, EUR.code)
         ).toEqual(Just(2));
     });
 });
