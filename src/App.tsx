@@ -102,9 +102,9 @@ const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).
             }
 
             return getCurrencyOfChanger(to, model)
-                .chain(currencyTo => currencyTo.convertFrom(currencyFrom.amount, currencyFrom.code))
+                .chain(currencyTo => currencyFrom.convertFrom(currencyFrom.amount, currencyTo.code))
                 .chain(max => {
-                    const maximum = Utils.ceil(2, max);
+                    const maximum = Utils.floor(2, max);
 
                     if (amount > maximum) {
                         return Just({
@@ -440,13 +440,13 @@ const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: M
         from: acc.from,
         to: acc.to,
         amountFrom: Utils.floor(2, amountFrom),
-        amountTo: Utils.ceil(2, acc.amount)
+        amountTo: Utils.floor(2, acc.amount)
     }))
-    : acc.to.convertFrom(-acc.amount, acc.from.code).map(amountTo => ({
+    : acc.from.convertFrom(-acc.amount, acc.to.code).map(amountTo => ({
         from: acc.from,
         to: acc.to,
         amountFrom: Utils.floor(2, acc.amount),
-        amountTo: Utils.ceil(2, amountTo)
+        amountTo: Utils.floor(2, amountTo)
     }))
 ).chain(acc => acc.amountFrom === 0 || acc.amountTo === 0 ? Nothing : Just(acc));
 
