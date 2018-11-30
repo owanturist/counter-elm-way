@@ -48,16 +48,12 @@ export type Model = Readonly<{
 }>;
 
 export const init = (to: Currency, from: Currency, currencies: Array<Currency>): [ Model, Cmd<Msg> ] => {
-    const currencies_ = [ to, from, ...currencies ];
-    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-        from.code,
-        currencies_.map(currency => currency.code)
-    );
+    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(from.code, to.code);
 
     return [
         {
             cancelRequest: Just(cancelRequestCmd),
-            currencies: currencies_,
+            currencies: [ to, from, ...currencies ],
             active: Changers.TOP,
             amount: Nothing,
             changers: {
@@ -151,12 +147,12 @@ const ChangerMsg = (
     changerMsg: Changer.Msg
 ): Msg => ({ type: 'CHANGER_MSG', source, changerMsg });
 
-const fetchRates = (base: string, currencies: Array<string>): [ Cmd<Msg>, Cmd<Msg> ] => {
-    const [ cancel, request ] = Api.getRatesFor(base, currencies).toCancelableTask();
+const fetchRates = (from: string, to: string): [ Cmd<Msg>, Cmd<Msg> ] => {
+    const [ cancel, request ] = Api.getRatesFor(from, to, []).toCancelableTask();
 
     return [
         cancel.perform(() => NoOp),
-        request.attempt(result => FetchRatesDone(base, result))
+        request.attempt(result => FetchRatesDone(from, result))
     ];
 };
 
@@ -171,7 +167,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
             const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
                 Changer.getCurrencyCode(from),
-                [ Changer.getCurrencyCode(to) ]
+                Changer.getCurrencyCode(to)
             );
 
             return [
@@ -266,7 +262,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     const [ from, to ] = getChangersRoles(nextModel);
                     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
                         Changer.getCurrencyCode(from),
-                        [ Changer.getCurrencyCode(to) ]
+                        Changer.getCurrencyCode(to)
                     );
 
                     return [
@@ -297,7 +293,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
                     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
                         Changer.getCurrencyCode(nextFrom),
-                        [ Changer.getCurrencyCode(nextTo) ]
+                        Changer.getCurrencyCode(nextTo)
                     );
 
                     return [

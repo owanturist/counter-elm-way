@@ -11,10 +11,14 @@ import * as Decode from 'Fractal/Json/Decode';
  *
  * @returns Http.Request<Array<[ string, number ]>>
  */
-export const getRatesFor = (base: string, currencies: Array<string>): Http.Request<Array<[ string, number ]>> => {
+export const getRatesFor = (
+    from: string,
+    to: string,
+    toMore: Array<string>
+): Http.Request<Array<[ string, number ]>> => {
     return Http.get('https://api.exchangeratesapi.io/latest')
-        .withQueryParam('base', base)
-        .withQueryParam('symbols', currencies.filter(currency => currency !== base).join(','))
+        .withQueryParam('base', from)
+        .withQueryParam('symbols', [ to, ...toMore ].filter(currency => currency !== from).join(','))
         .withExpectJson(
             Decode.field('rates', Decode.keyValue(Decode.number.map(rate => rate * 0.95)))
         );
