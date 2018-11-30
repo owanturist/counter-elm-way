@@ -101,20 +101,21 @@ const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).
                 });
             }
 
-            return getCurrencyOfChanger(to, model)
-                .chain(currencyTo => currencyFrom.convertFrom(currencyFrom.amount, currencyTo.code))
-                .chain(max => {
-                    const maximum = Utils.floor(2, max);
+            return currencyFrom.convertFrom(
+                currencyFrom.amount,
+                Changer.getCurrencyCode(to)
+            ).chain(max => {
+                const maximum = Utils.floor(2, max);
 
-                    if (amount > maximum) {
-                        return Just({
-                            ...model,
-                            amount: Just(maximum.toString())
-                        });
-                    }
+                if (amount > maximum) {
+                    return Just({
+                        ...model,
+                        amount: Just(maximum.toString())
+                    });
+                }
 
-                    return Nothing;
-                });
+                return Nothing;
+            });
         });
 }).getOrElse(model);
 
