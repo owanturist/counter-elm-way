@@ -65,20 +65,11 @@ export const init = (to: Currency, from: Currency, currencies: Array<Currency>):
     ];
 };
 
+
 const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
-    const amount = model.amount.chain(Utils.stringToNumber).getOrElse(0);
-
-    if (model.active === Changers.TOP) {
-        return amount >= 0
-            ? [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]
-            : [ model.changers[ Changers.TOP ], model.changers[ Changers.BOTTOM ] ]
-            ;
-    }
-
-    return amount >= 0
-        ? [ model.changers[ Changers.TOP ], model.changers[ Changers.BOTTOM ] ]
-        : [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]
-        ;
+    return (model.amount.chain(Utils.stringToNumber).getOrElse(0) >= 0) === (model.active === Changers.TOP)
+        ? [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]
+        : [ model.changers[ Changers.TOP ], model.changers[ Changers.BOTTOM ] ];
 };
 
 const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Currency> => {
