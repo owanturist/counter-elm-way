@@ -421,9 +421,9 @@ const extractFormatedAmountFor = (
         from,
         amount: model.amount.chain(Utils.stringToNumber)
     }).chain(acc => acc.amount >= 0
-        ? acc.from.convertTo(-acc.amount, acc.to.code).map(amount => Utils.floor(2, amount))
-        : acc.from.convertFrom(-acc.amount, acc.to.code).map(amount => Utils.floor(2, amount))
-    ).map(amount => amount.toFixed(2)).getOrElse('');
+        ? acc.from.convertTo(-acc.amount, acc.to.code)
+        : acc.from.convertFrom(-acc.amount, acc.to.code)
+    ).map(amount => Utils.floor(2, amount).toFixed(2)).getOrElse('');
 };
 
 const getExchangeResult = (from: Maybe<Currency>, to: Maybe<Currency>, amount: Maybe<string>): Maybe<{
