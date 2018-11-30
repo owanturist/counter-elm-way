@@ -321,7 +321,7 @@ const Info = styled.div`
 
 const Input = styled.input`
     width: 100%;
-    padding: 0 0 0 1em;
+    padding: 0 0 0 .25em;
     border: none;
     background: transparent;
     font: inherit;
