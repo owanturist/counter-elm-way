@@ -33,20 +33,20 @@ export class Currency {
         return new Currency(this.code, this.symbol, this.amount, { ...this.rates, ...newRates });
     }
 
-    public convertTo(amount: number, foreign: Currency): Maybe<number> {
-        if (this.code === foreign.code) {
+    public convertTo(amount: number, foreign: string): Maybe<number> {
+        if (this.code === foreign) {
             return Just(amount);
         }
 
-        return Maybe.fromNullable(this.rates[ foreign.code ]).map(rate => amount / rate);
+        return Maybe.fromNullable(this.rates[ foreign ]).map(rate => amount / rate);
     }
 
-    public convertFrom(amount: number, foreign: Currency): Maybe<number> {
-        if (this.code === foreign.code) {
+    public convertFrom(amount: number, foreign: string): Maybe<number> {
+        if (this.code === foreign) {
             return Just(amount);
         }
 
-        return Maybe.fromNullable(foreign.rates[ this.code ]).map(foreignRate => amount * foreignRate);
+        return Maybe.fromNullable(this.rates[ foreign ]).map(rate => amount * rate);
     }
 
     public change(amount: number): Currency {

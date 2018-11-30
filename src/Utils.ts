@@ -24,8 +24,8 @@ export const stringToNumber = (str: string): Maybe<number> => {
     return isNaN(result) ? Nothing : Just(result);
 };
 
-export const trunc = (fractionDigits: number, num: number): number => {
-    return Math.trunc(num * Math.pow(10, fractionDigits)) / Math.pow(10, fractionDigits);
+export const floor = (fractionDigits: number, num: number): number => {
+    return Math.floor(num * Math.pow(10, fractionDigits)) / Math.pow(10, fractionDigits);
 };
 
 export const ceil = (fractionDigits: number, num: number): number => {

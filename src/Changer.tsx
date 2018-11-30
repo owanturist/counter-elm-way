@@ -389,13 +389,13 @@ const stringToAmount = (input: string): Maybe<string> => {
 };
 
 const Rate: React.StatelessComponent<{
-    currency: Currency;
-    pair: Currency;
+    currencySymbol: string;
+    pairSymbol: string;
     rate: number;
-}> = ({ currency, pair, rate }) => (
+}> = ({ currencySymbol, pairSymbol, rate }) => (
     <span>
-        <Small>{currency.symbol}</Small>1&nbsp;=&nbsp;
-        <Small>{pair.symbol}</Small>{rate.toFixed(2)}
+        <Small>{currencySymbol}</Small>1&nbsp;=&nbsp;
+        <Small>{pairSymbol}</Small>{rate.toFixed(2)}
     </span>
 );
 
@@ -433,33 +433,28 @@ export const Slide = styled<{
         </Main>
 
         <Info>
-            <span>You have <Small>{currency.symbol}</Small>{Utils.trunc(2, currency.amount).toFixed(2)}</span>
+            <span>You have <Small>{currency.symbol}</Small>{Utils.floor(2, currency.amount).toFixed(2)}</span>
 
-            {pair.chain(pairCurrency => {
-                const numAmount = Utils.stringToNumber(amount).getOrElse(0);
-
-                if (numAmount > 0) {
-                    return pairCurrency.convertTo(1, currency).map(rate => (
+            {pair.chain(pairCurrency => Utils.stringToNumber(amount).getOrElse(0) >= 0
+                ? pairCurrency
+                    .convertTo(1, currency.code)
+                    .map(rate => (
                         <Rate
-                            currency={currency}
-                            pair={pairCurrency}
-                            rate={Utils.trunc(2, rate)}
-                        />
-                    ));
-                }
-
-                if (numAmount < 0) {
-                    return pairCurrency.convertFrom(1, currency).map(rate => (
-                        <Rate
-                            currency={currency}
-                            pair={pairCurrency}
+                            currencySymbol={currency.symbol}
+                            pairSymbol={pairCurrency.symbol}
                             rate={Utils.ceil(2, rate)}
                         />
-                    ));
-                }
-
-                return Nothing;
-            }).getOrElse(<span />)}
+                    ))
+                : currency
+                    .convertFrom(1, pairCurrency.code)
+                    .map(rate => (
+                        <Rate
+                            currencySymbol={currency.symbol}
+                            pairSymbol={pairCurrency.symbol}
+                            rate={Utils.floor(2, rate)}
+                        />
+                    ))
+            ).getOrElse(<span />)}
         </Info>
     </label>
 ))`
