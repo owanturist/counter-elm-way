@@ -433,7 +433,7 @@ export const Slide = styled<{
         </Main>
 
         <Info>
-            <span>You have <Small>{currency.symbol}</Small>{Utils.floor(2, currency.amount).toFixed(2)}</span>
+            <span>You have <Small>{currency.symbol}</Small>{Utils.trunc(2, currency.amount).toFixed(2)}</span>
 
             {pair.chain(pairCurrency => {
                 const numAmount = Utils.stringToNumber(amount).getOrElse(0);
@@ -443,7 +443,7 @@ export const Slide = styled<{
                         <Rate
                             currency={currency}
                             pair={pairCurrency}
-                            rate={Utils.floor(2, rate)}
+                            rate={Utils.trunc(2, rate)}
                         />
                     ));
                 }

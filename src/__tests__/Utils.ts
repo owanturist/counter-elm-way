@@ -62,41 +62,41 @@ describe('Utils.stringToNumber()', () => {
     });
 });
 
-describe('Utils.floor()', () => {
+describe('Utils.trunc()', () => {
     test('zero', () => {
-        expect(Utils.floor(2, 0)).toBe(0);
+        expect(Utils.trunc(2, 0)).toBe(0);
     });
 
     test('negate number', () => {
-        expect(Utils.floor(2, -1)).toBe(-1);
+        expect(Utils.trunc(2, -1)).toBe(-1);
     });
 
     test('positive number', () => {
-        expect(Utils.floor(2, 1)).toBe(1);
+        expect(Utils.trunc(2, 1)).toBe(1);
     });
 
     test('single decimal', () => {
-        expect(Utils.floor(2, 1.1)).toBe(1.1);
+        expect(Utils.trunc(2, 1.1)).toBe(1.1);
     });
 
     test('double decimal', () => {
-        expect(Utils.floor(2, 1.01)).toBe(1.01);
+        expect(Utils.trunc(2, 1.01)).toBe(1.01);
     });
 
-    test('triple decimal, floor from last 1', () => {
-        expect(Utils.floor(2, 1.011)).toBe(1.01);
+    test('triple decimal, trunc from last 1', () => {
+        expect(Utils.trunc(2, 1.011)).toBe(1.01);
     });
 
-    test('triple decimal, floor from last 5', () => {
-        expect(Utils.floor(2, 1.015)).toBe(1.01);
+    test('triple decimal, trunc from last 5', () => {
+        expect(Utils.trunc(2, 1.015)).toBe(1.01);
     });
 
-    test('triple decimal, floor from last 6', () => {
-        expect(Utils.floor(2, 1.016)).toBe(1.01);
+    test('triple decimal, trunc from last 6', () => {
+        expect(Utils.trunc(2, 1.016)).toBe(1.01);
     });
 
-    test('triple negate decimal, floor from last 6', () => {
-        expect(Utils.floor(2, -1.016)).toBe(-1.01);
+    test('triple negate decimal, trunc from last 6', () => {
+        expect(Utils.trunc(2, -1.016)).toBe(-1.01);
     });
 });
 
