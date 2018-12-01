@@ -17,8 +17,8 @@ export class Currency {
         }
     ) {}
 
-    public registerRates(pairs: Array<[ string, number ]>): Currency {
-        const foreignPairs = pairs.filter(([ code ]) => code !== this.code);
+    public registerRates(rates: Currency.Rates): Currency {
+        const foreignPairs = rates.filter(([ code ]) => code !== this.code);
 
         if (foreignPairs.length === 0) {
             return this;
@@ -56,4 +56,8 @@ export class Currency {
 
         return new Currency(this.code, this.symbol, (this.amount * 100 + amount * 100) / 100, this.rates);
     }
+}
+
+export namespace Currency {
+    export type Rates = Array<[ string, number ]>;
 }

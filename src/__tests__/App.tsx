@@ -76,7 +76,7 @@ describe('App.update()', () => {
         test('request is failed', () => {
             const [ model ] = App.update({
                 type: 'FETCH_RATES_DONE',
-                base: USD.code,
+                from: USD.code,
                 result: Left(Http.Error.NetworkError)
             }, initialModel);
 
@@ -89,7 +89,7 @@ describe('App.update()', () => {
         test('request is succeed', () => {
             const [ model ] = App.update({
                 type: 'FETCH_RATES_DONE',
-                base: USD.code,
+                from: USD.code,
                 result: Right<Array<[ string, number ]>>([
                     [ 'EUR', 1.2 ],
                     [ 'RUB', 0.015 ]
