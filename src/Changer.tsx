@@ -62,8 +62,6 @@ export const init = (currency: string): Model => ({
 
 export const isSame = (first: Model, second: Model) => first === second || first.currency === second.currency;
 
-export const getCurrencyCode = (model: Model): string => model.currency;
-
 /**
  * U P D A T E
  */

@@ -79,9 +79,7 @@ const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
 };
 
 const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Currency> => {
-    const code = Changer.getCurrencyCode(changer);
-
-    return Utils.find(currency => currency.code === code, model.currencies);
+    return Utils.find(currency => currency.code === changer.currency, model.currencies);
 };
 
 const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).chain(amount => {
@@ -98,10 +96,7 @@ const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).
                 });
             }
 
-            return currencyFrom.convertFrom(
-                currencyFrom.amount,
-                Changer.getCurrencyCode(to)
-            ).chain(max => {
+            return currencyFrom.convertFrom(currencyFrom.amount, to.currency).chain(max => {
                 const maximum = Utils.floor(2, max);
 
                 return amount > maximum ? Just({
@@ -150,11 +145,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
         case 'FETCH_RATES': {
             const [ from, to ] = getChangersRoles(model);
-
-            const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                Changer.getCurrencyCode(from),
-                Changer.getCurrencyCode(to)
-            );
+            const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(from.currency, to.currency);
 
             return [
                 {
@@ -195,11 +186,11 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
             const nextCurrencies = model.currencies.map(currency => {
                 switch (currency.code) {
-                    case Changer.getCurrencyCode(from): {
+                    case from.currency: {
                         return currency.change(msg.amountFrom);
                     }
 
-                    case Changer.getCurrencyCode(to): {
+                    case to.currency: {
                         return currency.change(msg.amountTo);
                     }
 
@@ -246,10 +237,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     });
 
                     const [ from, to ] = getChangersRoles(nextModel);
-                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                        Changer.getCurrencyCode(from),
-                        Changer.getCurrencyCode(to)
-                    );
+                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(from.currency, to.currency);
 
                     return [
                         {
@@ -277,10 +265,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         return [ nextModel, Cmd.none ];
                     }
 
-                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                        Changer.getCurrencyCode(nextFrom),
-                        Changer.getCurrencyCode(nextTo)
-                    );
+                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(nextFrom.currency, nextTo.currency);
 
                     return [
                         {
@@ -439,9 +424,10 @@ export const View: React.StatelessComponent<{
     model: Model;
 }> = ({ dispatch, model }) => {
     const [ changerFrom, changerTo ] = getChangersRoles(model);
+    const changerTop = model.changers[ Changers.TOP ];
+    const changerBottom = model.changers[ Changers.BOTTOM ];
     const currencyFrom = getCurrencyOfChanger(changerFrom, model);
-    const currencyCodeTo = Changer.getCurrencyCode(changerTo);
-    const exchangeResult = getExchangeResult(currencyFrom, currencyCodeTo, model.amount);
+    const exchangeResult = getExchangeResult(currencyFrom, changerTo.currency, model.amount);
 
     return (
         <Root noValidate onSubmit={event => {
@@ -462,12 +448,10 @@ export const View: React.StatelessComponent<{
             <Content>
                 <ChangerContainer position={Changers.TOP}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.TOP, currencyFrom, currencyCodeTo, model)}
-                        currencies={model.currencies.filter(
-                            currency => currency.code !== Changer.getCurrencyCode(model.changers[ Changers.BOTTOM ])
-                        )}
-                        pair={getCurrencyOfChanger(model.changers[ Changers.BOTTOM ], model)}
-                        model={model.changers[ Changers.TOP ]}
+                        amount={extractFormatedAmountFor(Changers.TOP, currencyFrom, changerTo.currency, model)}
+                        currencies={model.currencies.filter(currency => currency.code !== changerBottom.currency)}
+                        pair={getCurrencyOfChanger(changerBottom, model)}
+                        model={changerTop}
                         dispatch={changerMsg => dispatch(ChangerMsg(Changers.TOP, changerMsg))}
                         autoFocus
                     />
@@ -475,12 +459,10 @@ export const View: React.StatelessComponent<{
 
                 <ChangerContainer position={Changers.BOTTOM}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.BOTTOM, currencyFrom, currencyCodeTo, model)}
-                        currencies={model.currencies.filter(
-                            currency => currency.code !== Changer.getCurrencyCode(model.changers[ Changers.TOP ])
-                        )}
-                        pair={getCurrencyOfChanger(model.changers[ Changers.TOP ], model)}
-                        model={model.changers[ Changers.BOTTOM ]}
+                        amount={extractFormatedAmountFor(Changers.BOTTOM, currencyFrom, changerTo.currency, model)}
+                        currencies={model.currencies.filter(currency => currency.code !== changerTop.currency)}
+                        pair={getCurrencyOfChanger(changerTop, model)}
+                        model={changerBottom}
                         dispatch={changerMsg => dispatch(ChangerMsg(Changers.BOTTOM, changerMsg))}
                     />
                 </ChangerContainer>
