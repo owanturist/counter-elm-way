@@ -3,13 +3,17 @@ import {
     Just
 } from 'Fractal/Maybe';
 
+import {
+    ID as ID_
+} from './ID';
+
 export class Currency {
     public static of(code: string, symbol: string, amount: number) {
-        return new Currency(code, symbol, amount, {});
+        return new Currency(ID_.fromString(code), symbol, amount, {});
     }
 
     constructor(
-        public readonly code: string,
+        public readonly code: Currency.ID,
         public readonly symbol: string,
         public readonly amount: number,
         private readonly rates: {
@@ -18,7 +22,7 @@ export class Currency {
     ) {}
 
     public registerRates(rates: Currency.Rates): Currency {
-        const foreignPairs = rates.filter(([ code ]) => code !== this.code);
+        const foreignPairs = rates.filter(([ code ]) => !this.code.isEqual(code));
 
         if (foreignPairs.length === 0) {
             return this;
@@ -27,26 +31,26 @@ export class Currency {
         const newRates: {[ code: string ]: number } = {};
 
         for (const [ code, rate ] of foreignPairs) {
-            newRates[ code ] = rate;
+            newRates[ code.toString() ] = rate;
         }
 
         return new Currency(this.code, this.symbol, this.amount, { ...this.rates, ...newRates });
     }
 
-    public convertTo(amount: number, foreign: string): Maybe<number> {
-        if (this.code === foreign) {
+    public convertTo(amount: number, foreign: Currency.ID): Maybe<number> {
+        if (this.code.isEqual(foreign)) {
             return Just(amount);
         }
 
-        return Maybe.fromNullable(this.rates[ foreign ]).map(rate => amount / rate);
+        return Maybe.fromNullable(this.rates[ foreign.toString() ]).map(rate => amount / rate);
     }
 
-    public convertFrom(amount: number, foreign: string): Maybe<number> {
-        if (this.code === foreign) {
+    public convertFrom(amount: number, foreign: Currency.ID): Maybe<number> {
+        if (this.code.isEqual(foreign)) {
             return Just(amount);
         }
 
-        return Maybe.fromNullable(this.rates[ foreign ]).map(rate => amount * rate);
+        return Maybe.fromNullable(this.rates[ foreign.toString() ]).map(rate => amount * rate);
     }
 
     public change(amount: number): Currency {
@@ -59,5 +63,7 @@ export class Currency {
 }
 
 export namespace Currency {
-    export type Rates = Array<[ string, number ]>;
+    export type ID = ID_<'CURRENCY'>;
+
+    export type Rates = Array<[ ID, number ]>;
 }

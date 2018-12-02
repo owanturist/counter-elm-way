@@ -79,7 +79,7 @@ const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
 };
 
 const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Currency> => {
-    return Utils.find(currency => currency.code === changer.currency, model.currencies);
+    return Utils.find(currency => currency.code.isEqual(changer.currency), model.currencies);
 };
 
 const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).chain(amount => {
@@ -114,7 +114,7 @@ const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).
 export type Msg
     = { type: 'NOOP' }
     | { type: 'FETCH_RATES' }
-    | { type: 'FETCH_RATES_DONE'; from: string; result: Either<Http.Error, Currency.Rates> }
+    | { type: 'FETCH_RATES_DONE'; from: Currency.ID; result: Either<Http.Error, Currency.Rates> }
     | { type: 'EXCHANGE'; amountFrom: number; amountTo: number }
     | { type: 'CHANGER_MSG'; source: Changers; changerMsg: Changer.Msg }
     ;
@@ -122,13 +122,13 @@ export type Msg
 const NoOp: Msg = { type: 'NOOP' };
 const FetchRates: Msg = { type: 'FETCH_RATES' };
 const FetchRatesDone = (
-    from: string,
+    from: Currency.ID,
     result: Either<Http.Error, Currency.Rates>
 ): Msg => ({ type: 'FETCH_RATES_DONE', from, result });
 const Exchange = (amountFrom: number, amountTo: number): Msg => ({ type: 'EXCHANGE', amountFrom, amountTo });
 const ChangerMsg = (source: Changers, changerMsg: Changer.Msg): Msg => ({ type: 'CHANGER_MSG', source, changerMsg });
 
-const fetchRates = (from: string, to: string): [ Cmd<Msg>, Cmd<Msg> ] => {
+const fetchRates = (from: Currency.ID, to: Currency.ID): [ Cmd<Msg>, Cmd<Msg> ] => {
     const [ cancel, request ] = Api.getRatesFor(from, to, []).toCancelableTask();
 
     return [
@@ -350,7 +350,7 @@ const ChangerContainer = styled.div<{
     background: ${props => props.position === Changers.BOTTOM ? 'rgba(0, 0, 0, .25)' : null};
     ${props => props.position === Changers.TOP ? `
         padding-bottom: 1em;
-        ` : `
+    ` : `
         &:before,
         &:after {
             content: "";
@@ -380,7 +380,7 @@ const ChangerContainer = styled.div<{
 const extractFormatedAmountFor = (
     source: Changers,
     fromCurrency: Maybe<Currency>,
-    toCurrencyCode: string,
+    toCurrencyCode: Currency.ID,
     model: Model
 ): string => {
     if (model.active === source) {
@@ -400,7 +400,7 @@ const extractFormatedAmountFor = (
 
 const getExchangeResult = (
     fromCurrency: Maybe<Currency>,
-    toCurrencyCode: string,
+    toCurrencyCode: Currency.ID,
     amount: Maybe<string>
 ): Maybe<{
     amountFrom: number;

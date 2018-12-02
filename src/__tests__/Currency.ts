@@ -2,6 +2,9 @@ import {
     Just
 } from 'Fractal/Maybe';
 import {
+    ID
+} from '../ID';
+import {
     Currency
 } from '../Currency';
 
@@ -10,7 +13,7 @@ const USD = Currency.of('USD', '$', 0);
 
 describe('Currency', () => {
     test('code', () => {
-        expect(EUR.code).toBe('EUR');
+        expect(EUR.code).toEqual(ID.fromString('EUR'));
     });
 
     test('symbol', () => {
@@ -32,7 +35,7 @@ describe('Currency.registerRates()', () => {
     test('currency has needed rate', () => {
         expect(
             EUR.registerRates([
-                [ 'USD', 1.3 ]
+                [ USD.code, 1.3 ]
             ]).convertTo(1, USD.code).isJust()
         ).toBe(true);
     });
@@ -42,7 +45,7 @@ describe('Currency.convertTo()', () => {
     test('convert EUR to 1 USD', () => {
         expect(
             EUR.registerRates([
-                [ 'USD', 2 ]
+                [ USD.code, 2 ]
             ]).convertTo(1, USD.code)
         ).toEqual(Just(0.5));
     });
@@ -52,7 +55,7 @@ describe('Currency.convertFrom()', () => {
     test('convert USD from 1 EUR', () => {
         expect(
             USD.registerRates([
-                [ 'EUR', 0.5 ]
+                [ EUR.code, 0.5 ]
             ]).convertFrom(1, EUR.code)
         ).toEqual(Just(0.5));
     });

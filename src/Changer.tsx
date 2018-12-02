@@ -33,7 +33,7 @@ type Dragging = Readonly<{
 }>;
 
 type Sliding = Readonly<{
-    currency: Maybe<string>;
+    currency: Maybe<Currency.ID>;
     duration: number;
     destination: number;
 }>;
@@ -49,38 +49,38 @@ const calcSlidingDuration = (distance: number): number => Utils.clamp(
 );
 
 export type Model = Readonly<{
-    currency: string;
+    currency: Currency.ID;
     dragging: Maybe<Dragging>;
     sliding: Maybe<Sliding>;
 }>;
 
-export const init = (currency: string): Model => ({
+export const init = (currency: Currency.ID): Model => ({
     currency,
     dragging: Nothing,
     sliding: Nothing
 });
 
-export const isSame = (first: Model, second: Model) => first === second || first.currency === second.currency;
+export const isSame = (first: Model, second: Model) => first.currency.isEqual(second.currency);
 
 /**
  * U P D A T E
  */
 
 export type Msg
-    = { type: 'CHANGE_CURRENCY'; currency: string }
+    = { type: 'CHANGE_CURRENCY'; currency: Currency.ID }
     | { type: 'CHANGE_AMOUNT'; amount: Maybe<string> }
     | { type: 'DRAG_START'; start: number }
-    | { type: 'DRAG'; prev: Maybe<string>; next: Maybe<string>; end: number; width: number }
+    | { type: 'DRAG'; prev: Maybe<Currency.ID>; next: Maybe<Currency.ID>; end: number; width: number }
     | { type: 'DRAG_END' }
     | { type: 'SLIDE_END' }
     ;
 
-const ChangeCurrency = (currency: string): Msg => ({ type: 'CHANGE_CURRENCY', currency });
+const ChangeCurrency = (currency: Currency.ID): Msg => ({ type: 'CHANGE_CURRENCY', currency });
 const ChangeAmount = (amount: Maybe<string>): Msg => ({ type: 'CHANGE_AMOUNT', amount });
 const DragStart = (start: number): Msg => ({ type: 'DRAG_START', start });
 const Drag = (
-    prev: Maybe<string>,
-    next: Maybe<string>,
+    prev: Maybe<Currency.ID>,
+    next: Maybe<Currency.ID>,
     end: number,
     width: number
 ): Msg => ({ type: 'DRAG', prev, next, end, width });
@@ -424,7 +424,7 @@ export const Slide = styled<{
         }
     }}>
         <Main>
-            {currency.code}
+            {currency.code.toString()}
 
             <Input
                 type="text"
@@ -478,13 +478,13 @@ export const Slide = styled<{
 
 Slide.displayName = 'Slide';
 
-const extractCurrencies = (currencies: Array<Currency>, currentCode: string): Maybe<{
+const extractCurrencies = (currencies: Array<Currency>, currentCode: Currency.ID): Maybe<{
     prev: Maybe<Currency>;
     current: Currency;
     next: Maybe<Currency>;
 }> => {
     const { prev, current, next } = currencies.reduce((acc, currency) => {
-        if (currency.code === currentCode) {
+        if (currency.code.isEqual(currentCode)) {
             return { ...acc, current: Just(currency) };
         }
 
@@ -518,8 +518,8 @@ interface DraggingMouseEvents<T> {
 
 function buildDraggingMouseEvents<T>(
     dispatch: Dispatch<Msg>,
-    prev: Maybe<string>,
-    next: Maybe<string>,
+    prev: Maybe<Currency.ID>,
+    next: Maybe<Currency.ID>,
     dragging: Maybe<Dragging>
 ): DraggingMouseEvents<T> {
     return dragging.cata<DraggingMouseEvents<T>>({
@@ -605,9 +605,9 @@ export const View: React.StatelessComponent<{
         <Line>
             {currencies.map(currency => (
                 <Point
-                    active={currency.code === model.currency}
+                    active={currency.code.isEqual(model.currency)}
                     onClick={() => dispatch(ChangeCurrency(currency.code))}
-                    key={currency.code}
+                    key={currency.code.toString()}
                 />
             ))}
         </Line>
