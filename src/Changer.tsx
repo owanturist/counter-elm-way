@@ -379,6 +379,18 @@ const stringToAmount = (input: string): Maybe<string> => {
     return result === '' ? Nothing : Just(result);
 };
 
+const negateAmount = (amount: string): Maybe<string> => {
+    if (/^-/.test(amount)) {
+        if (amount.length === 0) {
+            return Nothing;
+        }
+
+        return Just(amount.replace(/^-/, ''));
+    }
+
+    return Just(`-${amount}`);
+};
+
 const Rate: React.StatelessComponent<{
     currencySymbol: string;
     pairSymbol: string;
@@ -419,6 +431,13 @@ export const Slide = styled<{
                 inputMode="numeric"
                 value={amount}
                 onChange={event => dispatch(ChangeAmount(stringToAmount(event.currentTarget.value)))}
+                onKeyPress={event => {
+                    if (event.key === '-') {
+                        dispatch(ChangeAmount(negateAmount(amount)));
+
+                        event.preventDefault();
+                    }
+                }}
                 {...inputProps}
             />
         </Main>
