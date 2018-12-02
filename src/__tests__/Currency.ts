@@ -54,7 +54,7 @@ describe('Currency.convertFrom()', () => {
             USD.registerRates([
                 [ 'EUR', 0.5 ]
             ]).convertFrom(1, EUR.code)
-        ).toEqual(Just(2));
+        ).toEqual(Just(0.5));
     });
 });
 
