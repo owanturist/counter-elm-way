@@ -92,7 +92,7 @@ const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).
             if (amount < minimum) {
                 return Just({
                     ...model,
-                    amount: Just(minimum.toString())
+                    amount: Just(minimum.toFixed(2))
                 });
             }
 
@@ -101,7 +101,7 @@ const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).
 
                 return amount > maximum ? Just({
                     ...model,
-                    amount: Just(maximum.toString())
+                    amount: Just(maximum.toFixed(2))
                 }) : Nothing;
             });
         });

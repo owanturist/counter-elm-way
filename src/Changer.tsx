@@ -369,7 +369,12 @@ const Point = styled.li<{
 Point.displayName = 'Point';
 
 const stringToAmount = (input: string): Maybe<string> => {
-    const result = input.trim().replace(/^(-|\+)?(-|\+)*(0*(?=\d+))?(\d*(\.|,)?\d{0,2})(.*)$/, '$1$4');
+    const result = input
+        .replace(/,/g, '.')                       // replace all commas to decimals
+        .replace(/[^0-9^\-^.]/g, '')              // keep only numbers, minuses and decimals
+        .replace(/^(-?)0+(?!(\.|$))/, '$1')       // remove leading zeros
+        .replace(/^(-?)\./, '$10.')               // add zero before leading decimal
+        .replace(/(^-?\d*(\.\d{0,2})?).*/, '$1'); // format output number
 
     return result === '' ? Nothing : Just(result);
 };
