@@ -368,18 +368,6 @@ const Point = styled.li<{
 
 Point.displayName = 'Point';
 
-const calcStep = (amount: string): number => {
-    if (/(\.|,)\d[1-9]\d*/.test(amount)) {
-        return 0.01;
-    }
-
-    if (/(\.|,)[1-9]\d*/.test(amount)) {
-        return 0.1;
-    }
-
-    return 1;
-};
-
 const stringToAmount = (input: string): Maybe<string> => {
     const result = input.trim().replace(/^(-|\+)?(-|\+)*(0*(?=\d+))?(\d*(\.|,)?\d{0,2})(.*)$/, '$1$4');
 
@@ -422,9 +410,9 @@ export const Slide = styled<{
             {currency.code}
 
             <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={amount}
-                step={calcStep(amount).toString()}
                 onChange={event => dispatch(ChangeAmount(stringToAmount(event.currentTarget.value)))}
                 {...inputProps}
             />
