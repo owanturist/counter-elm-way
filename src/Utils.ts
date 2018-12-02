@@ -25,11 +25,18 @@ export const stringToNumber = (str: string): Maybe<number> => {
 };
 
 export const floor = (fractionDigits: number, num: number): number => {
-    return Math.floor(num * Math.pow(10, fractionDigits)) / Math.pow(10, fractionDigits);
+    const exponent = Math.pow(10, fractionDigits);
+
+    return Math.floor(num * exponent) / exponent;
 };
 
 export const ceil = (fractionDigits: number, num: number): number => {
-    return Math.ceil(num * Math.pow(10, fractionDigits)) / Math.pow(10, fractionDigits);
+    const exponent = Math.pow(10, fractionDigits);
+
+    return Math.ceil(
+        // prevent 1.1 * 100 === 110.00000000000001 issue
+        Math.floor(num * exponent * 10) / 10
+    ) / exponent;
 };
 
 export const clamp = (low: number, high: number, value: number): number => {

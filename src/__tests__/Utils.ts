@@ -96,7 +96,45 @@ describe('Utils.floor()', () => {
     });
 
     test('triple negate decimal, floor from last 6', () => {
-        expect(Utils.floor(2, -1.016)).toBe(-1.01);
+        expect(Utils.floor(2, -1.016)).toBe(-1.02);
+    });
+});
+
+describe('Utils.ceil()', () => {
+    test('zero', () => {
+        expect(Utils.ceil(2, 0)).toBe(0);
+    });
+
+    test('negate number', () => {
+        expect(Utils.ceil(2, -1)).toBe(-1);
+    });
+
+    test('positive number', () => {
+        expect(Utils.ceil(2, 1)).toBe(1);
+    });
+
+    test('single decimal', () => {
+        expect(Utils.ceil(2, 1.1)).toBe(1.1);
+    });
+
+    test('double decimal', () => {
+        expect(Utils.ceil(2, 1.01)).toBe(1.01);
+    });
+
+    test('triple decimal, ceil from last 1', () => {
+        expect(Utils.ceil(2, 1.011)).toBe(1.02);
+    });
+
+    test('triple decimal, ceil from last 5', () => {
+        expect(Utils.ceil(2, 1.015)).toBe(1.02);
+    });
+
+    test('triple decimal, ceil from last 6', () => {
+        expect(Utils.ceil(2, 1.016)).toBe(1.02);
+    });
+
+    test('triple negate decimal, ceil from last 6', () => {
+        expect(Utils.ceil(2, -1.016)).toBe(-1.01);
     });
 });
 
