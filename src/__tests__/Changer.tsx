@@ -13,9 +13,12 @@ import {
 } from '../Currency';
 import * as Changer from '../Changer';
 
+const RUB = Currency.of('RUB', '₽', 100);
+const EUR = Currency.of('EUR', '€', 50);
+
 test('Changer.init()', () => {
-    expect(Changer.init('RUB')).toEqual({
-        currency: 'RUB',
+    expect(Changer.init(RUB.code)).toEqual({
+        currency: RUB.code,
         dragging: Nothing,
         sliding: Nothing
     });
@@ -23,17 +26,17 @@ test('Changer.init()', () => {
 
 describe('Changer.update()', () => {
     test('CHANGE_CURRENCY', () => {
-        const initialModel = Changer.init('EUR');
+        const initialModel = Changer.init(EUR.code);
 
         expect(
             Changer.update(
-                { type: 'CHANGE_CURRENCY', currency: 'RUB'},
+                { type: 'CHANGE_CURRENCY', currency: RUB.code},
                 initialModel
             )
         ).toEqual({
             type: 'UPDATED',
             currencyChanged: true,
-            model: { ...initialModel, currency: 'RUB' }
+            model: { ...initialModel, currency: RUB.code }
         });
     });
 
@@ -42,7 +45,7 @@ describe('Changer.update()', () => {
             expect(
                 Changer.update(
                     { type: 'CHANGE_AMOUNT', amount: Nothing },
-                    Changer.init('EUR')
+                    Changer.init(EUR.code)
                 )
             ).toEqual({
                 type: 'AMOUNT_CHANGED',
@@ -54,7 +57,7 @@ describe('Changer.update()', () => {
             expect(
                 Changer.update(
                     { type: 'CHANGE_AMOUNT', amount: Just('20') },
-                    Changer.init('EUR')
+                    Changer.init(EUR.code)
                 )
             ).toEqual({
                 type: 'AMOUNT_CHANGED',
@@ -65,7 +68,7 @@ describe('Changer.update()', () => {
     });
 
     test('DRAG_START', () => {
-        const initialModel = Changer.init('EUR');
+        const initialModel = Changer.init(EUR.code);
 
         expect(
             Changer.update(
@@ -88,7 +91,7 @@ describe('Changer.update()', () => {
 
     describe('DRAG', () => {
         test('drag has not been started', () => {
-            const initialModel = Changer.init('EUR');
+            const initialModel = Changer.init(EUR.code);
 
             expect(
                 Changer.update(
@@ -107,7 +110,7 @@ describe('Changer.update()', () => {
 
         test('dragging delta is less then luft', () => {
             const initialModel: Changer.Model = {
-                currency: 'EUR',
+                currency: EUR.code,
                 dragging: Just({
                     ref: React.createRef<HTMLDivElement>(),
                     start: 100,
@@ -135,7 +138,7 @@ describe('Changer.update()', () => {
                 delta: Nothing
             };
             const initialModel: Changer.Model = {
-                currency: 'EUR',
+                currency: EUR.code,
                 dragging: Just(initialDragging),
                 sliding: Nothing
             };
@@ -160,7 +163,7 @@ describe('Changer.update()', () => {
 
         test('dragging delta is less then third of width without next Currency', () => {
             const initialModel: Changer.Model = {
-                currency: 'EUR',
+                currency: EUR.code,
                 dragging: Just({
                     ref: React.createRef<HTMLDivElement>(),
                     start: 100,
@@ -191,7 +194,7 @@ describe('Changer.update()', () => {
 
         test('dragging delta is more then third of width without prev Currency', () => {
             const initialModel: Changer.Model = {
-                currency: 'EUR',
+                currency: EUR.code,
                 dragging: Just({
                     ref: React.createRef<HTMLDivElement>(),
                     start: 100,
@@ -222,7 +225,7 @@ describe('Changer.update()', () => {
 
         test('dragging delta is less then third of width next Currency', () => {
             const initialModel: Changer.Model = {
-                currency: 'EUR',
+                currency: EUR.code,
                 dragging: Just({
                     ref: React.createRef<HTMLDivElement>(),
                     start: 100,
@@ -233,17 +236,17 @@ describe('Changer.update()', () => {
 
             expect(
                 Changer.update(
-                    { type: 'DRAG', prev: Nothing, next: Just('RUB'), end: -200, width: 800 },
+                    { type: 'DRAG', prev: Nothing, next: Just(RUB.code), end: -200, width: 800 },
                     initialModel
                 )
             ).toEqual({
                 type: 'UPDATED',
                 currencyChanged: true,
                 model: {
-                    currency: 'RUB',
+                    currency: RUB.code,
                     dragging: Nothing,
                     sliding: Just({
-                        currency: Just('EUR'),
+                        currency: Just(EUR.code),
                         duration: 300,
                         destination: -800
                     })
@@ -253,7 +256,7 @@ describe('Changer.update()', () => {
 
         test('dragging delta is more then third of width prev Currency', () => {
             const initialModel: Changer.Model = {
-                currency: 'EUR',
+                currency: EUR.code,
                 dragging: Just({
                     ref: React.createRef<HTMLDivElement>(),
                     start: 100,
@@ -264,17 +267,17 @@ describe('Changer.update()', () => {
 
             expect(
                 Changer.update(
-                    { type: 'DRAG', prev: Just('RUB'), next: Nothing, end: 400, width: 800 },
+                    { type: 'DRAG', prev: Just(RUB.code), next: Nothing, end: 400, width: 800 },
                     initialModel
                 )
             ).toEqual({
                 type: 'UPDATED',
                 currencyChanged: true,
                 model: {
-                    currency: 'RUB',
+                    currency: RUB.code,
                     dragging: Nothing,
                     sliding: Just({
-                        currency: Just('EUR'),
+                        currency: Just(EUR.code),
                         duration: 300,
                         destination: 800
                     })
@@ -285,7 +288,7 @@ describe('Changer.update()', () => {
 
     describe('DRAG_END', () => {
         test('drag has not been started', () => {
-            const initialModel = Changer.init('EUR');
+            const initialModel = Changer.init(EUR.code);
 
             expect(
                 Changer.update(
@@ -304,7 +307,7 @@ describe('Changer.update()', () => {
 
         test('dragging delta is nothing', () => {
             const initialModel: Changer.Model = {
-                currency: 'EUR',
+                currency: EUR.code,
                 dragging: Just({
                     ref: React.createRef<HTMLDivElement>(),
                     start: 100,
@@ -330,7 +333,7 @@ describe('Changer.update()', () => {
 
         test('dragging delta is exists', () => {
             const initialModel: Changer.Model = {
-                currency: 'EUR',
+                currency: EUR.code,
                 dragging: Just({
                     ref: React.createRef<HTMLDivElement>(),
                     start: 100,
@@ -361,7 +364,7 @@ describe('Changer.update()', () => {
     });
 
     test('SLIDE_END', () => {
-        const initialModel = Changer.init('EUR');
+        const initialModel = Changer.init(EUR.code);
 
         expect(
             Changer.update(
@@ -391,7 +394,7 @@ describe('Changer.View', () => {
         const wrapper = shallow(
             <Changer.View
                 dispatch={dispatch}
-                model={Changer.init('RUB')}
+                model={Changer.init(RUB.code)}
                 amount="100"
                 currencies={[ Currency.of('USD', '$', 0) ]}
                 pair={Nothing}
