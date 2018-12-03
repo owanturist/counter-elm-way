@@ -79,7 +79,10 @@ const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
 };
 
 const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Currency> => {
-    return Utils.find(currency => currency.code.isEqual(changer.currency), model.currencies);
+    return Utils.find(
+        currency => Changer.getCurrency(changer).isEqual(currency.code),
+        model.currencies
+    );
 };
 
 const limit = (model: Model): Model => Utils.stringToNumber(model.amount).chain(amount => {
@@ -96,7 +99,7 @@ const limit = (model: Model): Model => Utils.stringToNumber(model.amount).chain(
                 });
             }
 
-            return currencyFrom.convertFrom(currencyFrom.amount, to.currency).chain(max => {
+            return currencyFrom.convertFrom(currencyFrom.amount, Changer.getCurrency(to)).chain(max => {
                 const maximum = Utils.floor(2, max);
 
                 return amount > maximum ? Just({
@@ -145,7 +148,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
         case 'FETCH_RATES': {
             const [ from, to ] = getChangersRoles(model);
-            const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(from.currency, to.currency);
+            const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+                Changer.getCurrency(from),
+                Changer.getCurrency(to)
+            );
 
             return [
                 {
@@ -168,13 +174,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     Right: rates => limit({
                         ...model,
                         cancelRequest: Nothing,
-                        currencies: model.currencies.map(currency => {
-                            if (currency.code !== msg.from) {
-                                return currency;
-                            }
-
-                            return currency.registerRates(rates);
-                        })
+                        currencies: model.currencies.map(currency => currency.code.isEqual(msg.from)
+                            ? currency.registerRates(rates)
+                            : currency
+                        )
                     })
                 }),
                 Cmd.none
@@ -185,19 +188,15 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             const [ from, to ] = getChangersRoles(model);
 
             const nextCurrencies = model.currencies.map(currency => {
-                switch (currency.code) {
-                    case from.currency: {
-                        return currency.change(msg.amountFrom);
-                    }
-
-                    case to.currency: {
-                        return currency.change(msg.amountTo);
-                    }
-
-                    default: {
-                        return currency;
-                    }
+                if (Changer.getCurrency(from).isEqual(currency.code)) {
+                    return currency.change(msg.amountFrom);
                 }
+
+                if (Changer.getCurrency(to).isEqual(currency.code)) {
+                    return currency.change(msg.amountTo);
+                }
+
+                return currency;
             });
 
             return [
@@ -237,7 +236,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     });
 
                     const [ from, to ] = getChangersRoles(nextModel);
-                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(from.currency, to.currency);
+                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+                        Changer.getCurrency(from),
+                        Changer.getCurrency(to)
+                    );
 
                     return [
                         {
@@ -265,7 +267,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                         return [ nextModel, Cmd.none ];
                     }
 
-                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(nextFrom.currency, nextTo.currency);
+                    const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
+                        Changer.getCurrency(nextFrom),
+                        Changer.getCurrency(nextTo)
+                    );
 
                     return [
                         {
@@ -426,8 +431,9 @@ export const View: React.StatelessComponent<{
     const [ changerFrom, changerTo ] = getChangersRoles(model);
     const changerTop = model.changers[ Changers.TOP ];
     const changerBottom = model.changers[ Changers.BOTTOM ];
+    const changerToCurrency = Changer.getCurrency(changerTo);
     const currencyFrom = getCurrencyOfChanger(changerFrom, model);
-    const exchangeResult = getExchangeResult(currencyFrom, changerTo.currency, model.amount);
+    const exchangeResult = getExchangeResult(currencyFrom, changerToCurrency, model.amount);
 
     return (
         <Root noValidate onSubmit={event => {
@@ -448,8 +454,10 @@ export const View: React.StatelessComponent<{
             <Content>
                 <ChangerContainer position={Changers.TOP}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.TOP, currencyFrom, changerTo.currency, model)}
-                        currencies={model.currencies.filter(currency => currency.code !== changerBottom.currency)}
+                        amount={extractFormatedAmountFor(Changers.TOP, currencyFrom, changerToCurrency, model)}
+                        currencies={model.currencies.filter(
+                            currency => !Changer.getCurrency(changerBottom).isEqual(currency.code)
+                        )}
                         pair={getCurrencyOfChanger(changerBottom, model)}
                         model={changerTop}
                         dispatch={changerMsg => dispatch(ChangerMsg(Changers.TOP, changerMsg))}
@@ -459,8 +467,10 @@ export const View: React.StatelessComponent<{
 
                 <ChangerContainer position={Changers.BOTTOM}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.BOTTOM, currencyFrom, changerTo.currency, model)}
-                        currencies={model.currencies.filter(currency => currency.code !== changerTop.currency)}
+                        amount={extractFormatedAmountFor(Changers.BOTTOM, currencyFrom, changerToCurrency, model)}
+                        currencies={model.currencies.filter(
+                            currency => !Changer.getCurrency(changerTop).isEqual(currency.code)
+                        )}
                         pair={getCurrencyOfChanger(changerTop, model)}
                         model={changerBottom}
                         dispatch={changerMsg => dispatch(ChangerMsg(Changers.BOTTOM, changerMsg))}
