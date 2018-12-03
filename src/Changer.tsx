@@ -368,10 +368,10 @@ const Point = styled.li<{
 
 Point.displayName = 'Point';
 
-const stringToAmount = (input: string): Maybe<string> => {
+export const stringToAmount = (input: string): Maybe<string> => {
     const result = input
         .replace(/,/g, '.')                       // replace all commas to decimals
-        .replace(/[^0-9^\-^.]/g, '')              // keep only numbers, minuses and decimals
+        .replace(/[^0-9^\-^.]/g, '')              // keep only numbers, minuses and decimal
         .replace(/^(-?)0+(?!(\.|$))/, '$1')       // remove leading zeros
         .replace(/^(-?)\./, '$10.')               // add zero before leading decimal
         .replace(/(^-?\d*(\.\d{0,2})?).*/, '$1'); // format output number
@@ -402,7 +402,7 @@ const Rate: React.StatelessComponent<{
     </span>
 );
 
-export const Slide = styled<{
+const Slide = styled<{
     dispatch: Dispatch<Msg>;
     amount: string;
     currency: Currency;

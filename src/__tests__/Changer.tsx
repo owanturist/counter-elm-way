@@ -721,3 +721,94 @@ describe('Changer.View', () => {
         });
     });
 });
+
+describe('Changer.stringToAmount()', () => {
+    test('empty string', () => {
+        expect(Changer.stringToAmount('')).toEqual(Nothing);
+        expect(Changer.stringToAmount('  ')).toEqual(Nothing);
+    });
+
+    test('zero', () => {
+        expect(Changer.stringToAmount('0')).toEqual(Just('0'));
+        expect(Changer.stringToAmount('-0')).toEqual(Just('-0'));
+    });
+
+    test('integer', () => {
+        expect(Changer.stringToAmount('1')).toEqual(Just('1'));
+        expect(Changer.stringToAmount('-1')).toEqual(Just('-1'));
+    });
+
+    test('float', () => {
+        expect(Changer.stringToAmount('1.0')).toEqual(Just('1.0'));
+        expect(Changer.stringToAmount('1.1')).toEqual(Just('1.1'));
+        expect(Changer.stringToAmount('-1.0')).toEqual(Just('-1.0'));
+        expect(Changer.stringToAmount('-1.1')).toEqual(Just('-1.1'));
+    });
+
+    test('replace commas to decimal', () => {
+        expect(Changer.stringToAmount('0,')).toEqual(Just('0.'));
+        expect(Changer.stringToAmount('0,1')).toEqual(Just('0.1'));
+        expect(Changer.stringToAmount('-0,1')).toEqual(Just('-0.1'));
+        expect(Changer.stringToAmount('1,')).toEqual(Just('1.'));
+        expect(Changer.stringToAmount('1,1')).toEqual(Just('1.1'));
+        expect(Changer.stringToAmount('-1,')).toEqual(Just('-1.'));
+        expect(Changer.stringToAmount('-1,1')).toEqual(Just('-1.1'));
+
+    });
+
+    test('keep single decimal', () => {
+        expect(Changer.stringToAmount('0..')).toEqual(Just('0.'));
+        expect(Changer.stringToAmount('0.,')).toEqual(Just('0.'));
+        expect(Changer.stringToAmount('0,.')).toEqual(Just('0.'));
+        expect(Changer.stringToAmount('0,,')).toEqual(Just('0.'));
+        expect(Changer.stringToAmount('0.1.')).toEqual(Just('0.1'));
+        expect(Changer.stringToAmount('0.1,')).toEqual(Just('0.1'));
+        expect(Changer.stringToAmount('0,1.')).toEqual(Just('0.1'));
+        expect(Changer.stringToAmount('0,1,')).toEqual(Just('0.1'));
+    });
+
+    test('keep only numbers, minuses and decimal', () => {
+        expect(Changer.stringToAmount(
+            '\`~!@#$%^&*()_+= qwertyuiop[]\\ asdfghjkl;\' zxcvbnm QWERTYUIOP{}| ASDFGHJKL:" ZXCVBNM<>?'
+        )).toEqual(Nothing);
+
+        expect(Changer.stringToAmount(
+            '-1234567890.'
+        )).toEqual(Just('-1234567890.'));
+
+        expect(Changer.stringToAmount('10e')).toEqual(Just('10'));
+        expect(Changer.stringToAmount('1e0')).toEqual(Just('10'));
+        expect(Changer.stringToAmount('e10')).toEqual(Just('10'));
+    });
+
+    test('remove leading zeros', () => {
+        expect(Changer.stringToAmount('00')).toEqual(Just('0'));
+        expect(Changer.stringToAmount('-00')).toEqual(Just('-0'));
+        expect(Changer.stringToAmount('01')).toEqual(Just('1'));
+        expect(Changer.stringToAmount('-01')).toEqual(Just('-1'));
+        expect(Changer.stringToAmount('01.')).toEqual(Just('1.'));
+        expect(Changer.stringToAmount('-01.')).toEqual(Just('-1.'));
+        expect(Changer.stringToAmount('0001')).toEqual(Just('1'));
+        expect(Changer.stringToAmount('-0001')).toEqual(Just('-1'));
+    });
+
+    test('add zero before leading decimal', () => {
+        expect(Changer.stringToAmount('.')).toEqual(Just('0.'));
+        expect(Changer.stringToAmount('..')).toEqual(Just('0.'));
+        expect(Changer.stringToAmount('-.')).toEqual(Just('-0.'));
+        expect(Changer.stringToAmount('-..')).toEqual(Just('-0.'));
+        expect(Changer.stringToAmount('.0')).toEqual(Just('0.0'));
+        expect(Changer.stringToAmount('..0')).toEqual(Just('0.'));
+        expect(Changer.stringToAmount('-.0')).toEqual(Just('-0.0'));
+        expect(Changer.stringToAmount('-..0')).toEqual(Just('-0.'));
+    });
+
+    test('format output number', () => {
+        expect(Changer.stringToAmount('.00000')).toEqual(Just('0.00'));
+        expect(Changer.stringToAmount('-.00000')).toEqual(Just('-0.00'));
+        expect(Changer.stringToAmount('-.99999')).toEqual(Just('-0.99'));
+        expect(Changer.stringToAmount('99999')).toEqual(Just('99999'));
+        expect(Changer.stringToAmount('9.0')).toEqual(Just('9.0'));
+        expect(Changer.stringToAmount('99999.00000')).toEqual(Just('99999.00'));
+    });
+});
