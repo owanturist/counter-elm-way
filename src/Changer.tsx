@@ -68,7 +68,7 @@ export const isSame = (first: Model, second: Model) => first.currency.isEqual(se
 
 export type Msg
     = { type: 'CHANGE_CURRENCY'; currency: Currency.ID }
-    | { type: 'CHANGE_AMOUNT'; amount: Maybe<string> }
+    | { type: 'CHANGE_AMOUNT'; amount: string }
     | { type: 'DRAG_START'; start: number }
     | { type: 'DRAG'; prev: Maybe<Currency.ID>; next: Maybe<Currency.ID>; end: number; width: number }
     | { type: 'DRAG_END' }
@@ -76,7 +76,7 @@ export type Msg
     ;
 
 const ChangeCurrency = (currency: Currency.ID): Msg => ({ type: 'CHANGE_CURRENCY', currency });
-const ChangeAmount = (amount: Maybe<string>): Msg => ({ type: 'CHANGE_AMOUNT', amount });
+const ChangeAmount = (amount: string): Msg => ({ type: 'CHANGE_AMOUNT', amount });
 const DragStart = (start: number): Msg => ({ type: 'DRAG_START', start });
 const Drag = (
     prev: Maybe<Currency.ID>,
@@ -89,11 +89,11 @@ const SlideEnd: Msg = { type: 'SLIDE_END' };
 
 export type Stage
     = { type: 'UPDATED'; currencyChanged: boolean; model: Model }
-    | { type: 'AMOUNT_CHANGED'; amount: Maybe<string> }
+    | { type: 'AMOUNT_CHANGED'; amount: string }
     ;
 
 const Updated = (currencyChanged: boolean, model: Model): Stage => ({ type: 'UPDATED', currencyChanged, model });
-const AmountChanged = (amount: Maybe<string>): Stage => ({ type: 'AMOUNT_CHANGED', amount });
+const AmountChanged = (amount: string): Stage => ({ type: 'AMOUNT_CHANGED', amount });
 
 const luft = (gap: number, delta: number): Maybe<number> => {
     if (delta - gap > 0) {
@@ -368,27 +368,17 @@ const Point = styled.li<{
 
 Point.displayName = 'Point';
 
-export const stringToAmount = (input: string): Maybe<string> => {
-    const result = input
+export const stringToAmount = (input: string): string => {
+    return input
         .replace(/,/g, '.')                       // replace all commas to decimals
         .replace(/[^0-9^\-^.]/g, '')              // keep only numbers, minuses and decimal
         .replace(/^(-?)0+(?!(\.|$))/, '$1')       // remove leading zeros
         .replace(/^(-?)\./, '$10.')               // add zero before leading decimal
         .replace(/(^-?\d*(\.\d{0,2})?).*/, '$1'); // format output number
-
-    return result === '' ? Nothing : Just(result);
 };
 
-const negateAmount = (amount: string): Maybe<string> => {
-    if (/^-/.test(amount)) {
-        if (amount.length === 0) {
-            return Nothing;
-        }
-
-        return Just(amount.replace(/^-/, ''));
-    }
-
-    return Just(`-${amount}`);
+export const negateAmount = (amount: string): string => {
+    return /^-/.test(amount) ? amount.replace(/^-/, '') : `-${amount}`;
 };
 
 const Rate: React.StatelessComponent<{

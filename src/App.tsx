@@ -41,7 +41,7 @@ export type Model = Readonly<{
     cancelRequest: Maybe<Cmd<Msg>>;
     currencies: Array<Currency>;
     active: Changers;
-    amount: Maybe<string>;
+    amount: string;
     changers: {
         [ Key in Changers ]: Changer.Model
     };
@@ -55,7 +55,7 @@ export const init = (to: Currency, from: Currency, currencies: Array<Currency>):
             cancelRequest: Just(cancelRequestCmd),
             currencies: [ to, from, ...currencies ],
             active: Changers.TOP,
-            amount: Nothing,
+            amount: '',
             changers: {
                 [ Changers.TOP ]: Changer.init(to.code),
                 [ Changers.BOTTOM ]: Changer.init(from.code)
@@ -67,7 +67,7 @@ export const init = (to: Currency, from: Currency, currencies: Array<Currency>):
 
 
 const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
-    if (model.amount.chain(Utils.stringToNumber).getOrElse(0) >= 0) {
+    if (Utils.stringToNumber(model.amount).getOrElse(0) >= 0) {
         return model.active === Changers.TOP
             ? [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]
             : [ model.changers[ Changers.TOP ], model.changers[ Changers.BOTTOM ] ];
@@ -82,7 +82,7 @@ const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Curre
     return Utils.find(currency => currency.code.isEqual(changer.currency), model.currencies);
 };
 
-const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).chain(amount => {
+const limit = (model: Model): Model => Utils.stringToNumber(model.amount).chain(amount => {
     const [ from, to ] = getChangersRoles(model);
 
     return getCurrencyOfChanger(from, model)
@@ -92,7 +92,7 @@ const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).
             if (amount < minimum) {
                 return Just({
                     ...model,
-                    amount: Just(minimum.toFixed(2))
+                    amount: minimum.toFixed(2)
                 });
             }
 
@@ -101,7 +101,7 @@ const limit = (model: Model): Model => model.amount.chain(Utils.stringToNumber).
 
                 return amount > maximum ? Just({
                     ...model,
-                    amount: Just(maximum.toFixed(2))
+                    amount: maximum.toFixed(2)
                 }) : Nothing;
             });
         });
@@ -204,7 +204,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                 {
                     ...model,
                     currencies: nextCurrencies,
-                    amount: Nothing
+                    amount: ''
                 },
                 Cmd.none
             ];
@@ -384,12 +384,12 @@ const extractFormatedAmountFor = (
     model: Model
 ): string => {
     if (model.active === source) {
-        return model.amount.getOrElse('');
+        return model.amount;
     }
 
     return Maybe.props({
         from: fromCurrency,
-        amount: model.amount.chain(Utils.stringToNumber)
+        amount: Utils.stringToNumber(model.amount)
     }).chain(acc => acc.amount >= 0
         ? acc.from.convertTo(-acc.amount, toCurrencyCode)
         : acc.from.convertFrom(-acc.amount, toCurrencyCode)
@@ -401,14 +401,14 @@ const extractFormatedAmountFor = (
 const getExchangeResult = (
     fromCurrency: Maybe<Currency>,
     toCurrencyCode: Currency.ID,
-    amount: Maybe<string>
+    amount: string
 ): Maybe<{
     amountFrom: number;
     amountTo: number;
 }> => {
     return Maybe.props({
         from: fromCurrency,
-        amount: amount.chain(Utils.stringToNumber)
+        amount: Utils.stringToNumber(amount)
     }).chain(acc => acc.amount >= 0
         ? acc.from.convertTo(-acc.amount, toCurrencyCode).map(amountFrom => [ amountFrom, acc.amount ])
         : acc.from.convertFrom(-acc.amount, toCurrencyCode).map(amountTo => [ acc.amount, amountTo ])
