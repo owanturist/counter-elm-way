@@ -468,7 +468,7 @@ const Slide = styled<{
 
 Slide.displayName = 'Slide';
 
-const extractCurrencies = (currencies: Array<Currency>, currentCode: Currency.ID): Maybe<{
+export const extractCurrencies = (currencies: Array<Currency>, currentCode: Currency.ID): Maybe<{
     prev: Maybe<Currency>;
     current: Currency;
     next: Maybe<Currency>;

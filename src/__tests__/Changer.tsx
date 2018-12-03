@@ -15,6 +15,9 @@ import * as Changer from '../Changer';
 
 const RUB = Currency.of('RUB', '₽', 100);
 const EUR = Currency.of('EUR', '€', 50);
+const USD = Currency.of('USD', '$', 200);
+const GBP = Currency.of('GBP', '£', 25);
+const SEK = Currency.of('GBP', 'Kr', 150);
 
 test('Changer.init()', () => {
     expect(Changer.init(RUB.code)).toEqual({
@@ -812,18 +815,92 @@ describe('Changer.stringToAmount()', () => {
 
 describe('Changer.negateAmount()', () => {
     test('to negate', () => {
-        expect(Changer.negateAmount('')).toEqual('-');
-        expect(Changer.negateAmount('0')).toEqual('-0');
-        expect(Changer.negateAmount('0.0')).toEqual('-0.0');
-        expect(Changer.negateAmount('1')).toEqual('-1');
-        expect(Changer.negateAmount('1.1')).toEqual('-1.1');
+        expect(Changer.negateAmount('')).toBe('-');
+        expect(Changer.negateAmount('0')).toBe('-0');
+        expect(Changer.negateAmount('0.0')).toBe('-0.0');
+        expect(Changer.negateAmount('1')).toBe('-1');
+        expect(Changer.negateAmount('1.1')).toBe('-1.1');
     });
 
     test('to positive', () => {
-        expect(Changer.negateAmount('-')).toEqual('');
-        expect(Changer.negateAmount('-0')).toEqual('0');
-        expect(Changer.negateAmount('-0.0')).toEqual('0.0');
-        expect(Changer.negateAmount('-1')).toEqual('1');
-        expect(Changer.negateAmount('-1.1')).toEqual('1.1');
+        expect(Changer.negateAmount('-')).toBe('');
+        expect(Changer.negateAmount('-0')).toBe('0');
+        expect(Changer.negateAmount('-0.0')).toBe('0.0');
+        expect(Changer.negateAmount('-1')).toBe('1');
+        expect(Changer.negateAmount('-1.1')).toBe('1.1');
+    });
+});
+
+describe('Changer.extractCurrencies()', () => {
+    test('empty currencies', () => {
+        expect(Changer.extractCurrencies([], RUB.code)).toEqual(Nothing);
+    });
+
+    test('currency doesn\'t exist in list', () => {
+        expect(Changer.extractCurrencies([ EUR, USD, GBP, SEK ], RUB.code)).toEqual(Nothing);
+    });
+
+    test('currency is alone', () => {
+        expect(Changer.extractCurrencies([ RUB ], RUB.code)).toEqual(Just({
+            prev: Nothing,
+            current: RUB,
+            next: Nothing
+        }));
+    });
+
+    test('prev currency exists', () => {
+        expect(Changer.extractCurrencies([ EUR, RUB ], RUB.code)).toEqual(Just({
+            prev: Just(EUR),
+            current: RUB,
+            next: Nothing
+        }));
+    });
+
+    test('next currency exists', () => {
+        expect(Changer.extractCurrencies([ RUB, USD ], RUB.code)).toEqual(Just({
+            prev: Nothing,
+            current: RUB,
+            next: Just(USD)
+        }));
+    });
+
+    test('next and prev currencies exist', () => {
+        expect(Changer.extractCurrencies([ EUR, RUB, USD ], RUB.code)).toEqual(Just({
+            prev: Just(EUR),
+            current: RUB,
+            next: Just(USD)
+        }));
+    });
+
+    test('different position', () => {
+        expect(Changer.extractCurrencies([ RUB, EUR, USD, GBP, SEK ], RUB.code)).toEqual(Just({
+            prev: Nothing,
+            current: RUB,
+            next: Just(EUR)
+        }));
+
+        expect(Changer.extractCurrencies([ EUR, RUB, USD, GBP, SEK ], RUB.code)).toEqual(Just({
+            prev: Just(EUR),
+            current: RUB,
+            next: Just(USD)
+        }));
+
+        expect(Changer.extractCurrencies([ EUR, USD, RUB, GBP, SEK ], RUB.code)).toEqual(Just({
+            prev: Just(USD),
+            current: RUB,
+            next: Just(GBP)
+        }));
+
+        expect(Changer.extractCurrencies([ EUR, USD, GBP, RUB, SEK ], RUB.code)).toEqual(Just({
+            prev: Just(GBP),
+            current: RUB,
+            next: Just(SEK)
+        }));
+
+        expect(Changer.extractCurrencies([ EUR, USD, GBP, SEK, RUB ], RUB.code)).toEqual(Just({
+            prev: Just(SEK),
+            current: RUB,
+            next: Nothing
+        }));
     });
 });
