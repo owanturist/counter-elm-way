@@ -66,7 +66,7 @@ export const init = (to: Currency, from: Currency, currencies: Array<Currency>):
 };
 
 
-const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
+export const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
     if (Utils.stringToNumber(model.amount).getOrElse(0) >= 0) {
         return model.active === Changers.TOP
             ? [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]

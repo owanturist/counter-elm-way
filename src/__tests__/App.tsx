@@ -273,3 +273,117 @@ describe('App.update()', () => {
         });
     });
 });
+
+describe('App.getChangersRoles()', () => {
+    describe('Amount is empty string', () => {
+        test('TOP is active', () => {
+            expect(App.getChangersRoles({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.TOP,
+                amount: '',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            })).toEqual([ Changer.init(EUR.code), Changer.init(USD.code) ]);
+        });
+
+        test('BOTTOM is active', () => {
+            expect(App.getChangersRoles({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.BOTTOM,
+                amount: '',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            })).toEqual([ Changer.init(USD.code), Changer.init(EUR.code) ]);
+        });
+    });
+
+    describe('Amount is zero', () => {
+        test('TOP is active', () => {
+            expect(App.getChangersRoles({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.TOP,
+                amount: '0',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            })).toEqual([ Changer.init(EUR.code), Changer.init(USD.code) ]);
+        });
+
+        test('BOTTOM is active', () => {
+            expect(App.getChangersRoles({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.BOTTOM,
+                amount: '0',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            })).toEqual([ Changer.init(USD.code), Changer.init(EUR.code) ]);
+        });
+    });
+
+    describe('Amount is more than zero', () => {
+        test('TOP is active', () => {
+            expect(App.getChangersRoles({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.TOP,
+                amount: '5',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            })).toEqual([ Changer.init(EUR.code), Changer.init(USD.code) ]);
+        });
+
+        test('BOTTOM is active', () => {
+            expect(App.getChangersRoles({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.BOTTOM,
+                amount: '5',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            })).toEqual([ Changer.init(USD.code), Changer.init(EUR.code) ]);
+        });
+    });
+
+    describe('Amount is less than zero', () => {
+        test('TOP is active', () => {
+            expect(App.getChangersRoles({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.TOP,
+                amount: '-5',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            })).toEqual([ Changer.init(USD.code), Changer.init(EUR.code) ]);
+        });
+
+        test('BOTTOM is active', () => {
+            expect(App.getChangersRoles({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.BOTTOM,
+                amount: '-5',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            })).toEqual([ Changer.init(EUR.code), Changer.init(USD.code) ]);
+        });
+    });
+});
