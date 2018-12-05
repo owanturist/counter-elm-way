@@ -24,8 +24,6 @@ import * as Time from 'Fractal/Time';
  * M O D E L
  */
 
-const DRAGGING_LUFT_GAP = 20;
-
 type Dragging = Readonly<{
     ref: React.RefObject<HTMLDivElement>;
     start: number;
@@ -112,19 +110,10 @@ class DragStart extends Msg {
     }
 }
 
-const luft = (gap: number, delta: number): Maybe<number> => {
-    if (delta - gap > 0) {
-        return Just(delta - gap);
-    }
-
-    if (delta + gap < 0) {
-        return Just(delta + gap);
-    }
-
-    return Nothing;
-};
-
 class Drag extends Msg {
+    private static LUFT_GAP = 20;
+
+
     constructor(
         private readonly prev: Maybe<Currency.ID>,
         private readonly next: Maybe<Currency.ID>,
@@ -136,7 +125,7 @@ class Drag extends Msg {
 
     public update(model: Model): Stage {
         return model.dragging.map(
-            dragging => luft(DRAGGING_LUFT_GAP, this.end - dragging.start).cata({
+            dragging => this.luft(dragging.start).cata({
                 Nothing: () => new Updated(false, {
                     ...model,
                     dragging: Just({
@@ -211,6 +200,20 @@ class Drag extends Msg {
             ...model,
             dragging: Nothing
         }));
+    }
+
+    private luft(dragStart: number): Maybe<number> {
+        const delta = this.end - dragStart;
+
+        if (delta - Drag.LUFT_GAP > 0) {
+            return Just(delta - Drag.LUFT_GAP);
+        }
+
+        if (delta + Drag.LUFT_GAP < 0) {
+            return Just(delta + Drag.LUFT_GAP);
+        }
+
+        return Nothing;
     }
 }
 
