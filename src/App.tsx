@@ -85,7 +85,7 @@ const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Curre
     );
 };
 
-const limit = (model: Model): Model => Utils.stringToNumber(model.amount).chain(amount => {
+export const limit = (model: Model): Model => Utils.stringToNumber(model.amount).chain(amount => {
     const [ from, to ] = getChangersRoles(model);
 
     return getCurrencyOfChanger(from, model)

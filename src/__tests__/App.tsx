@@ -13,9 +13,9 @@ import {
 import * as App from '../App';
 import * as Changer from '../Changer';
 
-const USD = Currency.of('USD', '$', 10);
-const EUR = Currency.of('EUR', '€', 20);
-const RUB = Currency.of('RUB', '₽', 30);
+const USD = Currency.of('USD', '$', 10.35);
+const EUR = Currency.of('EUR', '€', 20.51);
+const RUB = Currency.of('RUB', '₽', 30.87);
 
 
 test('App.init()', () => {
@@ -384,6 +384,110 @@ describe('App.getChangersRoles()', () => {
                     [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
                 }
             })).toEqual([ Changer.init(EUR.code), Changer.init(USD.code) ]);
+        });
+    });
+});
+
+describe('App.limit()', () => {
+    test('amount is not number', () => {
+        const model: App.Model = {
+            cancelRequest: Nothing,
+            currencies: [ USD, EUR, RUB ],
+            active: App.Changers.TOP,
+            amount: '',
+            changers: {
+                [ App.Changers.TOP ]: Changer.init(USD.code),
+                [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+            }
+        };
+
+        expect(App.limit(model)).toBe(model);
+    });
+
+    test('from currency does not exist', () => {
+        const model: App.Model = {
+            cancelRequest: Nothing,
+            currencies: [ USD, RUB ],
+            active: App.Changers.TOP,
+            amount: '5',
+            changers: {
+                [ App.Changers.TOP ]: Changer.init(USD.code),
+                [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+            }
+        };
+
+        expect(App.limit(model)).toBe(model);
+    });
+
+    test('amount less than from', () => {
+        const model: App.Model = {
+            cancelRequest: Nothing,
+            currencies: [ USD, EUR, RUB ],
+            active: App.Changers.TOP,
+            amount: '-11',
+            changers: {
+                [ App.Changers.TOP ]: Changer.init(USD.code),
+                [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+            }
+        };
+
+        expect(App.limit(model)).toEqual({
+            ...model,
+            amount: '-10.35'
+        });
+    });
+
+    test('pair rate does not exist', () => {
+        const model: App.Model = {
+            cancelRequest: Nothing,
+            currencies: [ USD, EUR, RUB ],
+            active: App.Changers.TOP,
+            amount: '5',
+            changers: {
+                [ App.Changers.TOP ]: Changer.init(USD.code),
+                [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+            }
+        };
+
+        expect(App.limit(model)).toBe(model);
+    });
+
+    test('pair rate exists', () => {
+        const USD_ = USD.registerRates([
+            [ EUR.code, 1.05 ]
+        ]);
+        const model: App.Model = {
+            cancelRequest: Nothing,
+            currencies: [ USD_, EUR, RUB ],
+            active: App.Changers.TOP,
+            amount: '5',
+            changers: {
+                [ App.Changers.TOP ]: Changer.init(USD_.code),
+                [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+            }
+        };
+
+        expect(App.limit(model)).toBe(model);
+    });
+
+    test('pair rate exists but amount more than from', () => {
+        const EUR_ = EUR.registerRates([
+            [ USD.code, 0.92 ]
+        ]);
+        const model: App.Model = {
+            cancelRequest: Nothing,
+            currencies: [ USD, EUR_, RUB ],
+            active: App.Changers.TOP,
+            amount: '19',
+            changers: {
+                [ App.Changers.TOP ]: Changer.init(USD.code),
+                [ App.Changers.BOTTOM ]: Changer.init(EUR_.code)
+            }
+        };
+
+        expect(App.limit(model)).toEqual({
+            ...model,
+            amount: '18.86'
         });
     });
 });
