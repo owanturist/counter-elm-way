@@ -24,19 +24,20 @@ export const stringToNumber = (str: string): Maybe<number> => {
     return isNaN(result) ? Nothing : Just(result);
 };
 
-export const floor = (fractionDigits: number, num: number): number => {
-    const exponent = Math.pow(10, fractionDigits);
+export const floor = (precision: number, num: number): number => {
+    const precision_ = Math.max(precision, 0);
 
-    return Math.floor(num * exponent) / exponent;
+    return Number(
+        Math.floor(Number(`${num}e${precision_}`)) + `e-${precision_}`
+    );
 };
 
-export const ceil = (fractionDigits: number, num: number): number => {
-    const exponent = Math.pow(10, fractionDigits);
+export const ceil = (precision: number, num: number): number => {
+    const precision_ = Math.max(precision, 0);
 
-    return Math.ceil(
-        // prevent 1.1 * 100 === 110.00000000000001 issue
-        Math.floor(num * exponent * 10) / 10
-    ) / exponent;
+    return Number(
+        Math.ceil(Number(`${num}e${precision_}`)) + `e-${precision_}`
+    );
 };
 
 export const clamp = (low: number, high: number, value: number): number => {

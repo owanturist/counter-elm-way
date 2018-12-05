@@ -67,6 +67,14 @@ describe('Utils.floor()', () => {
         expect(Utils.floor(2, 0)).toBe(0);
     });
 
+    test('zero precision', () => {
+        expect(Utils.floor(0, 12.54)).toBe(12);
+    });
+
+    test('negate precision', () => {
+        expect(Utils.floor(-1, 12.54)).toBe(12);
+    });
+
     test('negate number', () => {
         expect(Utils.floor(2, -1)).toBe(-1);
     });
@@ -103,6 +111,14 @@ describe('Utils.floor()', () => {
 describe('Utils.ceil()', () => {
     test('zero', () => {
         expect(Utils.ceil(2, 0)).toBe(0);
+    });
+
+    test('zero precision', () => {
+        expect(Utils.ceil(0, 12.54)).toBe(13);
+    });
+
+    test('negate precision', () => {
+        expect(Utils.ceil(-1, 12.54)).toBe(13);
     });
 
     test('negate number', () => {
