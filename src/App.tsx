@@ -407,37 +407,49 @@ export const extractFormatedAmountFor = (source: Changers, model: Model): string
     ).getOrElse('');
 };
 
-const getExchangeResult = (
-    fromCurrency: Maybe<Currency>,
-    toCurrencyCode: Currency.ID,
-    amount: string
-): Maybe<{
+export const getExchangeResult = (model: Model): Maybe<{
     amountFrom: number;
     amountTo: number;
 }> => {
+    const [ from, to ] = getChangersRoles(model);
+
     return Maybe.props({
-        from: fromCurrency,
-        amount: Utils.stringToNumber(amount)
-    }).chain(acc => acc.amount >= 0
-        ? acc.from.convertTo(-acc.amount, toCurrencyCode).map(amountFrom => [ amountFrom, acc.amount ])
-        : acc.from.convertFrom(-acc.amount, toCurrencyCode).map(amountTo => [ acc.amount, amountTo ])
-    ).map(
-        ([ amountFrom, amountTo ]) => [ Utils.floor(2, amountFrom), Utils.floor(2, amountTo) ]
-    ).chain(
-        ([ amountFrom, amountTo ]) => amountFrom === 0 || amountTo === 0 ? Nothing : Just({ amountFrom, amountTo })
-    );
+        from: getCurrencyOfChanger(from, model),
+        amount: Utils.stringToNumber(model.amount)
+    }).chain(acc => {
+        if (acc.amount === 0) {
+            return Nothing;
+        }
+
+        if (acc.amount > 0) {
+            return acc.from
+                .convertTo(-acc.amount, Changer.getCurrencyCode(to))
+                .map(amountFrom => [ amountFrom, acc.amount ]);
+        }
+
+        return acc.from
+            .convertFrom(-acc.amount, Changer.getCurrencyCode(to))
+            .map(amountTo => [ acc.amount, amountTo ]);
+
+    }).map(([ amountFrom, amountTo ]) => [
+        Utils.floor(2, amountFrom),
+        Utils.floor(2, amountTo)
+    ]).chain(([ amountFrom, amountTo ]) => {
+        if (amountFrom === 0 || amountTo === 0) {
+            return Nothing;
+        }
+
+        return Just({ amountFrom, amountTo });
+    });
 };
 
 export const View: React.StatelessComponent<{
     dispatch: Dispatch<Msg>;
     model: Model;
 }> = ({ dispatch, model }) => {
-    const [ changerFrom, changerTo ] = getChangersRoles(model);
     const changerTop = model.changers[ Changers.TOP ];
     const changerBottom = model.changers[ Changers.BOTTOM ];
-    const changerToCurrency = Changer.getCurrencyCode(changerTo);
-    const currencyFrom = getCurrencyOfChanger(changerFrom, model);
-    const exchangeResult = getExchangeResult(currencyFrom, changerToCurrency, model.amount);
+    const exchangeResult = getExchangeResult(model);
 
     return (
         <Root noValidate onSubmit={event => {

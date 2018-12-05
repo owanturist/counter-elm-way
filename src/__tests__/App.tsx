@@ -1,5 +1,6 @@
 import {
-    Nothing
+    Nothing,
+    Just
 } from 'Fractal/Maybe';
 import {
     Left,
@@ -632,6 +633,98 @@ describe('App.extractFormatedAmountFor()', () => {
                     }
                 }
             )).toBe('0.00');
+        });
+    });
+});
+
+describe('App.getExchangeResult()', () => {
+    test('amount is not number', () => {
+        expect(App.getExchangeResult({
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.TOP,
+                amount: '-',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            }
+        )).toEqual(Nothing);
+    });
+
+    test('from currency does not exist', () => {
+        expect(App.getExchangeResult({
+                cancelRequest: Nothing,
+                currencies: [ USD, RUB ],
+                active: App.Changers.TOP,
+                amount: '5',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            }
+        )).toEqual(Nothing);
+    });
+
+    describe('from rate exists', () => {
+        test('amount is more than zero', () => {
+            const EUR_ = EUR.registerRates([
+                [ USD.code, 1.078471 ]
+            ]);
+
+            expect(App.getExchangeResult({
+                    cancelRequest: Nothing,
+                    currencies: [ USD, EUR_, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '4',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR_.code)
+                    }
+                }
+            )).toEqual(Just({
+                amountFrom: -3.71,
+                amountTo: 4
+            }));
+        });
+
+        test('amount is less than zero', () => {
+            const USD_ = USD.registerRates([
+                [ EUR.code, 0.907238 ]
+            ]);
+
+            expect(App.getExchangeResult({
+                    cancelRequest: Nothing,
+                    currencies: [ USD_, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '-4',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD_.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                }
+            )).toEqual(Just({
+                amountFrom: -4,
+                amountTo: 3.62
+            }));
+        });
+
+        test('prevents zeros', () => {
+            const USD_ = USD.registerRates([
+                [ EUR.code, 0.907238 ]
+            ]);
+
+            expect(App.getExchangeResult({
+                    cancelRequest: Nothing,
+                    currencies: [ USD_, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '-0.01',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD_.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                }
+            )).toEqual(Nothing);
         });
     });
 });
