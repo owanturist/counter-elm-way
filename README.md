@@ -33,17 +33,6 @@ Open `{your_id}:3000` from another devices which plased in the same local networ
 
 ## Known issues
 
-### Unhandled input
-
-There is a strange behaviour of handling `onChange` event from `<input type="number" />`
-when user type invalid format of number. How to reproduce:
-  1. open the app
-  1. focus at any field of changer (top or bottom)
-  1. type `-` and then `-` again or do the same with any non digit allowed symbol
-(`-`, `,`, `+`, `.`, `e`, etc)
-  1. React stops handle any change of the input until it become valid again
-  1. type any digits or allowed symbols and you'll see that input was changed but nothing else happens
-
 ### No production build
 
 There is no produciton build configuration of webpack.
@@ -55,7 +44,8 @@ For good performace at least js should be tree-shaked and uglified,
 
 ### Enzyme + styled-components is broken
 
-Styled components 4 uses the new `ContextConsumer` component, which [breaks tests that use wrapper.dive()](https://github.com/airbnb/enzyme/issues/1647).
+Styled components 4 uses the new `ContextConsumer` component, 
+which [breaks tests that use wrapper.dive()](https://github.com/airbnb/enzyme/issues/1647).
 
 ### No tests for Fractal's containers
 
