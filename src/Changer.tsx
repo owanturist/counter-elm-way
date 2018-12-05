@@ -60,7 +60,7 @@ export const init = (currency: Currency.ID): Model => ({
     sliding: Nothing
 });
 
-export const getCurrency = (model: Model): Currency.ID => model.currency;
+export const getCurrencyCode = (model: Model): Currency.ID => model.currency;
 
 export const isSame = (first: Model, second: Model) => first.currency.isEqual(second.currency);
 

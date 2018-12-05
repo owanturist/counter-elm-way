@@ -1,14 +1,5 @@
-const Changer$init = jest.fn();
-const Changer$update = jest.fn();
-
-jest.mock('../Changer', () => ({
-    init: Changer$init,
-    update: Changer$update
-}));
-
 import {
-    Nothing,
-    Just
+    Nothing
 } from 'Fractal/Maybe';
 import {
     Left,
@@ -26,22 +17,17 @@ const USD = Currency.of('USD', '$', 10);
 const EUR = Currency.of('EUR', '€', 20);
 const RUB = Currency.of('RUB', '₽', 30);
 
-beforeAll(() => {
-    Changer$init.mockImplementation((code: string) => `__${code}__`);
-});
 
 test('App.init()', () => {
     const [ initialModel ] = App.init(USD, EUR, [ RUB ]);
 
     expect(initialModel).toMatchObject({
         currencies: [ USD, EUR, RUB ],
-        amount: {
-            source: App.Changers.TOP,
-            value: Nothing
-        },
+        active: App.Changers.TOP,
+        amount: '',
         changers: {
-            from: '__USD__',
-            to: '__EUR__'
+            [ App.Changers.TOP ]: Changer.init(USD.code),
+            [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
         }
     });
 });
@@ -59,7 +45,7 @@ describe('App.update()', () => {
             cancelRequest: Nothing,
             currencies: [ USD, EUR, RUB ],
             active: App.Changers.TOP,
-            amount: Nothing,
+            amount: '',
             changers: {
                 [ App.Changers.TOP ]: Changer.init(USD.code),
                 [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
@@ -87,23 +73,21 @@ describe('App.update()', () => {
         });
 
         test('request is succeed', () => {
+            const rates: Currency.Rates = [
+                [ EUR.code, 1.2 ],
+                [ RUB.code, 0.015 ]
+            ];
             const [ model ] = App.update({
                 type: 'FETCH_RATES_DONE',
                 from: USD.code,
-                result: Right<Array<[ string, number ]>>([
-                    [ 'EUR', 1.2 ],
-                    [ 'RUB', 0.015 ]
-                ])
+                result: Right(rates)
             }, initialModel);
 
             expect(model).toEqual({
                 ...initialModel,
                 cancelRequest: Nothing,
                 currencies: [
-                    USD.registerRates([
-                        [ 'EUR', 1.2 ],
-                        [ 'RUB', 0.015 ]
-                    ]),
+                    USD.registerRates(rates),
                     EUR,
                     RUB
                 ]
@@ -111,19 +95,11 @@ describe('App.update()', () => {
         });
     });
 
-    describe('CHANGER_MSG', () => {
-        afterEach(() => {
-            Changer$update.mockReset();
-        });
+    // describe('EXCHANGE', () => {});
 
+    describe('CHANGER_MSG', () => {
         describe('Changer.UPDATED', () => {
             test('currency has not been changed', () => {
-                Changer$update.mockReturnValueOnce({
-                    type: 'UPDATED',
-                    currencyChanged: false,
-                    model: 'next_FROM_Changer'
-                });
-
                 const [ initialModel ] = App.init(USD, EUR, [ RUB ]);
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
@@ -135,27 +111,21 @@ describe('App.update()', () => {
                     ...initialModel,
                     changers: {
                         ...model.changers,
-                        from: 'next_FROM_Changer'
+                        [ App.Changers.TOP ]: {
+                            currency: USD.code,
+                            dragging: Nothing,
+                            sliding: Nothing
+                        }
                     }
                 });
-                expect(Changer$update.mock.calls[ 0 ]).toEqual([
-                    { type: 'SLIDE_END' },
-                    initialModel.changers[ App.Changers.TOP ]
-                ]);
             });
 
             test('currency has been changed', () => {
-                Changer$update.mockReturnValueOnce({
-                    type: 'UPDATED',
-                    currencyChanged: true,
-                    model: 'next_FROM_Changer'
-                });
-
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
                     active: App.Changers.TOP,
-                    amount: Nothing,
+                    amount: '',
                     changers: {
                         [ App.Changers.TOP ]: Changer.init(USD.code),
                         [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
@@ -164,37 +134,33 @@ describe('App.update()', () => {
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
                     source: App.Changers.TOP,
-                    changerMsg: { type: 'SLIDE_END' }
+                    changerMsg: { type: 'CHANGE_CURRENCY', currency: RUB.code }
                 }, initialModel);
 
                 expect(model).toMatchObject({
                     currencies: initialModel.currencies,
+                    active: initialModel.active,
                     amount: initialModel.amount,
                     changers: {
                         ...model.changers,
-                        from: 'next_FROM_Changer'
+                        [ App.Changers.TOP ]: {
+                            currency: RUB.code,
+                            dragging: Nothing,
+                            sliding: Nothing
+                        }
                     }
                 });
                 expect(model.cancelRequest.isJust()).toBe(true);
-                expect(Changer$update.mock.calls[ 0 ]).toEqual([
-                    { type: 'SLIDE_END' },
-                    initialModel.changers[ App.Changers.TOP ]
-                ]);
             });
         });
 
         describe('Changer.AMOUNT_CHANGED', () => {
-            test('to Nothing from Just', () => {
-                Changer$update.mockReturnValueOnce({
-                    type: 'AMOUNT_CHANGED',
-                    amount: Nothing
-                });
-
+            test('source and sign of amount have not been changed', () => {
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
                     active: App.Changers.TOP,
-                    amount: Just('100'),
+                    amount: '5',
                     changers: {
                         [ App.Changers.TOP ]: Changer.init(USD.code),
                         [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
@@ -202,34 +168,22 @@ describe('App.update()', () => {
                 };
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
-                    source: App.Changers.BOTTOM,
-                    changerMsg: { type: 'SLIDE_END' }
+                    source: App.Changers.TOP,
+                    changerMsg: { type: 'CHANGE_AMOUNT', amount: '6' }
                 }, initialModel);
 
                 expect(model).toEqual({
                     ...initialModel,
-                    amount: {
-                        source: App.Changers.BOTTOM,
-                        value: Nothing
-                    }
+                    amount: '6'
                 });
-                expect(Changer$update.mock.calls[ 0 ]).toEqual([
-                    { type: 'SLIDE_END' },
-                    initialModel.changers[ App.Changers.BOTTOM ]
-                ]);
             });
 
-            test('to Just from Nothing', () => {
-                Changer$update.mockReturnValueOnce({
-                    type: 'AMOUNT_CHANGED',
-                    amount: Just('100')
-                });
-
+            test('source and sign of amount have been changed', () => {
                 const initialModel: App.Model = {
                     cancelRequest: Nothing,
                     currencies: [ USD, EUR, RUB ],
                     active: App.Changers.TOP,
-                    amount: Nothing,
+                    amount: '5',
                     changers: {
                         [ App.Changers.TOP ]: Changer.init(USD.code),
                         [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
@@ -238,20 +192,66 @@ describe('App.update()', () => {
                 const [ model ] = App.update({
                     type: 'CHANGER_MSG',
                     source: App.Changers.BOTTOM,
-                    changerMsg: { type: 'SLIDE_END' }
+                    changerMsg: { type: 'CHANGE_AMOUNT', amount: '-6' }
                 }, initialModel);
 
                 expect(model).toEqual({
                     ...initialModel,
-                    amount: {
-                        source: App.Changers.BOTTOM,
-                        value: Just('100')
-                    }
+                    active: App.Changers.BOTTOM,
+                    amount: '-6'
                 });
-                expect(Changer$update.mock.calls[ 0 ]).toEqual([
-                    { type: 'SLIDE_END' },
-                    initialModel.changers[ App.Changers.BOTTOM ]
-                ]);
+            });
+
+            test('source has not been changed but sign has been changed', () => {
+                const initialModel: App.Model = {
+                    cancelRequest: Nothing,
+                    currencies: [ USD, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '5',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                };
+                const [ model ] = App.update({
+                    type: 'CHANGER_MSG',
+                    source: App.Changers.TOP,
+                    changerMsg: { type: 'CHANGE_AMOUNT', amount: '-6' }
+                }, initialModel);
+
+                expect(model).toMatchObject({
+                    currencies: model.currencies,
+                    active: model.active,
+                    amount: '-6',
+                    changers: model.changers
+                });
+                expect(model.cancelRequest.isJust()).toBe(true);
+            });
+
+            test('source has been changed but sign has not been changed', () => {
+                const initialModel: App.Model = {
+                    cancelRequest: Nothing,
+                    currencies: [ USD, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '5',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                };
+                const [ model ] = App.update({
+                    type: 'CHANGER_MSG',
+                    source: App.Changers.BOTTOM,
+                    changerMsg: { type: 'CHANGE_AMOUNT', amount: '6' }
+                }, initialModel);
+
+                expect(model).toMatchObject({
+                    currencies: model.currencies,
+                    active: App.Changers.BOTTOM,
+                    amount: '6',
+                    changers: model.changers
+                });
+                expect(model.cancelRequest.isJust()).toBe(true);
             });
         });
     });

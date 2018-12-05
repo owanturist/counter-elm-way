@@ -80,7 +80,7 @@ const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
 
 const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Currency> => {
     return Utils.find(
-        currency => Changer.getCurrency(changer).isEqual(currency.code),
+        currency => Changer.getCurrencyCode(changer).isEqual(currency.code),
         model.currencies
     );
 };
@@ -99,7 +99,7 @@ const limit = (model: Model): Model => Utils.stringToNumber(model.amount).chain(
                 });
             }
 
-            return currencyFrom.convertFrom(currencyFrom.amount, Changer.getCurrency(to)).chain(max => {
+            return currencyFrom.convertFrom(currencyFrom.amount, Changer.getCurrencyCode(to)).chain(max => {
                 const maximum = Utils.floor(2, max);
 
                 return amount > maximum ? Just({
@@ -149,8 +149,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
         case 'FETCH_RATES': {
             const [ from, to ] = getChangersRoles(model);
             const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                Changer.getCurrency(from),
-                Changer.getCurrency(to)
+                Changer.getCurrencyCode(from),
+                Changer.getCurrencyCode(to)
             );
 
             return [
@@ -188,11 +188,11 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             const [ from, to ] = getChangersRoles(model);
 
             const nextCurrencies = model.currencies.map(currency => {
-                if (Changer.getCurrency(from).isEqual(currency.code)) {
+                if (Changer.getCurrencyCode(from).isEqual(currency.code)) {
                     return currency.change(msg.amountFrom);
                 }
 
-                if (Changer.getCurrency(to).isEqual(currency.code)) {
+                if (Changer.getCurrencyCode(to).isEqual(currency.code)) {
                     return currency.change(msg.amountTo);
                 }
 
@@ -237,8 +237,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 
                     const [ from, to ] = getChangersRoles(nextModel);
                     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                        Changer.getCurrency(from),
-                        Changer.getCurrency(to)
+                        Changer.getCurrencyCode(from),
+                        Changer.getCurrencyCode(to)
                     );
 
                     return [
@@ -268,8 +268,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
                     }
 
                     const [ cancelRequestCmd, fetchRatesCmd ] = fetchRates(
-                        Changer.getCurrency(nextFrom),
-                        Changer.getCurrency(nextTo)
+                        Changer.getCurrencyCode(nextFrom),
+                        Changer.getCurrencyCode(nextTo)
                     );
 
                     return [
@@ -431,7 +431,7 @@ export const View: React.StatelessComponent<{
     const [ changerFrom, changerTo ] = getChangersRoles(model);
     const changerTop = model.changers[ Changers.TOP ];
     const changerBottom = model.changers[ Changers.BOTTOM ];
-    const changerToCurrency = Changer.getCurrency(changerTo);
+    const changerToCurrency = Changer.getCurrencyCode(changerTo);
     const currencyFrom = getCurrencyOfChanger(changerFrom, model);
     const exchangeResult = getExchangeResult(currencyFrom, changerToCurrency, model.amount);
 
@@ -456,7 +456,7 @@ export const View: React.StatelessComponent<{
                     <Changer.View
                         amount={extractFormatedAmountFor(Changers.TOP, currencyFrom, changerToCurrency, model)}
                         currencies={model.currencies.filter(
-                            currency => !Changer.getCurrency(changerBottom).isEqual(currency.code)
+                            currency => !Changer.getCurrencyCode(changerBottom).isEqual(currency.code)
                         )}
                         pair={getCurrencyOfChanger(changerBottom, model)}
                         model={changerTop}
@@ -469,7 +469,7 @@ export const View: React.StatelessComponent<{
                     <Changer.View
                         amount={extractFormatedAmountFor(Changers.BOTTOM, currencyFrom, changerToCurrency, model)}
                         currencies={model.currencies.filter(
-                            currency => !Changer.getCurrency(changerTop).isEqual(currency.code)
+                            currency => !Changer.getCurrencyCode(changerTop).isEqual(currency.code)
                         )}
                         pair={getCurrencyOfChanger(changerTop, model)}
                         model={changerBottom}
