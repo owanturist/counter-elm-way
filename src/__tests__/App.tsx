@@ -95,7 +95,24 @@ describe('App.update()', () => {
         });
     });
 
-    // describe('EXCHANGE', () => {});
+    test('EXCHANGE', () => {
+        const [ initialModel ] = App.init(USD, EUR, [ RUB ]);
+        const [ model ] = App.update({
+            type: 'EXCHANGE',
+            amountFrom: -5,
+            amountTo: 6
+        }, initialModel);
+
+        expect(model).toEqual({
+            ...initialModel,
+            currencies: [
+                USD.change(6),
+                EUR.change(-5),
+                RUB
+            ],
+            amount: ''
+        });
+    });
 
     describe('CHANGER_MSG', () => {
         describe('Changer.UPDATED', () => {
