@@ -25,7 +25,7 @@ export const stringToNumber = (str: string): Maybe<number> => {
 };
 
 export const floor = (precision: number, num: number): number => {
-    const precision_ = Math.max(precision, 0);
+    const precision_ = clamp(0, 10, precision);
 
     return Number(
         Math.floor(Number(`${num}e${precision_}`)) + `e-${precision_}`
@@ -33,10 +33,18 @@ export const floor = (precision: number, num: number): number => {
 };
 
 export const ceil = (precision: number, num: number): number => {
-    const precision_ = Math.max(precision, 0);
+    const precision_ = clamp(0, 10, precision);
 
     return Number(
         Math.ceil(Number(`${num}e${precision_}`)) + `e-${precision_}`
+    );
+};
+
+export const round = (precision: number, num: number): number => {
+    const precision_ = clamp(0, 10, precision);
+
+    return Number(
+        Math.round(Number(`${num}e${precision_}`)) + `e-${precision_}`
     );
 };
 

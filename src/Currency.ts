@@ -6,6 +6,7 @@ import {
 import {
     ID as ID_
 } from './ID';
+import * as Utils from './Utils';
 
 export class Currency {
     public static of(code: string, symbol: string, amount: number) {
@@ -58,7 +59,7 @@ export class Currency {
             return this;
         }
 
-        return new Currency(this.code, this.symbol, this.amount + amount, this.rates);
+        return new Currency(this.code, this.symbol, Utils.round(2, this.amount + amount), this.rates);
     }
 }
 

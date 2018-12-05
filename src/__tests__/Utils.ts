@@ -154,6 +154,56 @@ describe('Utils.ceil()', () => {
     });
 });
 
+describe('Utils.round()', () => {
+    test('zero', () => {
+        expect(Utils.round(2, 0)).toBe(0);
+    });
+
+    test('zero precision', () => {
+        expect(Utils.round(0, 12.54)).toBe(13);
+    });
+
+    test('negate precision', () => {
+        expect(Utils.round(-1, 12.54)).toBe(13);
+    });
+
+    test('negate number', () => {
+        expect(Utils.round(2, -1)).toBe(-1);
+    });
+
+    test('positive number', () => {
+        expect(Utils.round(2, 1)).toBe(1);
+    });
+
+    test('single decimal', () => {
+        expect(Utils.round(2, 1.1)).toBe(1.1);
+    });
+
+    test('double decimal', () => {
+        expect(Utils.round(2, 1.01)).toBe(1.01);
+    });
+
+    test('triple decimal, round from last 1', () => {
+        expect(Utils.round(2, 1.011)).toBe(1.01);
+    });
+
+    test('triple decimal, round from last 5', () => {
+        expect(Utils.round(2, 1.015)).toBe(1.02);
+    });
+
+    test('triple negate decimal, round from last 5', () => {
+        expect(Utils.round(2, -1.015)).toBe(-1.01);
+    });
+
+    test('triple decimal, round from last 6', () => {
+        expect(Utils.round(2, 1.016)).toBe(1.02);
+    });
+
+    test('triple negate decimal, round from last 6', () => {
+        expect(Utils.round(2, -1.016)).toBe(-1.02);
+    });
+});
+
 describe('Urils.clamp()', () => {
     test('between', () => {
         expect(Utils.clamp(50, 100, 75)).toBe(75);
