@@ -382,23 +382,27 @@ const ChangerContainer = styled.div<{
     `}
 `;
 
-const extractFormatedAmountFor = (
-    source: Changers,
-    fromCurrency: Maybe<Currency>,
-    toCurrencyCode: Currency.ID,
-    model: Model
-): string => {
+export const extractFormatedAmountFor = (source: Changers, model: Model): string => {
     if (model.active === source) {
         return model.amount;
     }
 
+    const [ from, to ] = getChangersRoles(model);
+
     return Maybe.props({
-        from: fromCurrency,
+        from: getCurrencyOfChanger(from, model),
         amount: Utils.stringToNumber(model.amount)
-    }).chain(acc => acc.amount >= 0
-        ? acc.from.convertTo(-acc.amount, toCurrencyCode)
-        : acc.from.convertFrom(-acc.amount, toCurrencyCode)
-    ).map(
+    }).chain(acc => {
+        if (acc.amount === 0) {
+            return Just(0);
+        }
+
+        if (acc.amount > 0) {
+            return acc.from.convertTo(-acc.amount, Changer.getCurrencyCode(to));
+        }
+
+        return acc.from.convertFrom(-acc.amount, Changer.getCurrencyCode(to));
+    }).map(
         amount => Utils.floor(2, amount).toFixed(2)
     ).getOrElse('');
 };
@@ -454,7 +458,7 @@ export const View: React.StatelessComponent<{
             <Content>
                 <ChangerContainer position={Changers.TOP}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.TOP, currencyFrom, changerToCurrency, model)}
+                        amount={extractFormatedAmountFor(Changers.TOP, model)}
                         currencies={model.currencies.filter(
                             currency => !Changer.getCurrencyCode(changerBottom).isEqual(currency.code)
                         )}
@@ -467,7 +471,7 @@ export const View: React.StatelessComponent<{
 
                 <ChangerContainer position={Changers.BOTTOM}>
                     <Changer.View
-                        amount={extractFormatedAmountFor(Changers.BOTTOM, currencyFrom, changerToCurrency, model)}
+                        amount={extractFormatedAmountFor(Changers.BOTTOM, model)}
                         currencies={model.currencies.filter(
                             currency => !Changer.getCurrencyCode(changerTop).isEqual(currency.code)
                         )}

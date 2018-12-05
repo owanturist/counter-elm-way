@@ -74,8 +74,8 @@ describe('App.update()', () => {
 
         test('request is succeed', () => {
             const rates: Currency.Rates = [
-                [ EUR.code, 1.2 ],
-                [ RUB.code, 0.015 ]
+                [ EUR.code, 0.927238 ],
+                [ RUB.code, 70.123471 ]
             ];
             const [ model ] = App.update({
                 type: 'FETCH_RATES_DONE',
@@ -454,7 +454,7 @@ describe('App.limit()', () => {
 
     test('pair rate exists', () => {
         const USD_ = USD.registerRates([
-            [ EUR.code, 1.05 ]
+            [ EUR.code, 0.927238 ]
         ]);
         const model: App.Model = {
             cancelRequest: Nothing,
@@ -472,13 +472,13 @@ describe('App.limit()', () => {
 
     test('pair rate exists but amount more than from', () => {
         const EUR_ = EUR.registerRates([
-            [ USD.code, 0.92 ]
+            [ USD.code, 1.078471 ]
         ]);
         const model: App.Model = {
             cancelRequest: Nothing,
             currencies: [ USD, EUR_, RUB ],
             active: App.Changers.TOP,
-            amount: '19',
+            amount: '23',
             changers: {
                 [ App.Changers.TOP ]: Changer.init(USD.code),
                 [ App.Changers.BOTTOM ]: Changer.init(EUR_.code)
@@ -487,7 +487,151 @@ describe('App.limit()', () => {
 
         expect(App.limit(model)).toEqual({
             ...model,
-            amount: '18.86'
+            amount: '22.11'
+        });
+    });
+});
+
+describe('App.extractFormatedAmountFor()', () => {
+    test('source is active', () => {
+        expect(App.extractFormatedAmountFor(App.Changers.TOP, {
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.TOP,
+                amount: '5',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            }
+        )).toBe('5');
+    });
+
+    test('amount is not number', () => {
+        expect(App.extractFormatedAmountFor(App.Changers.BOTTOM, {
+                cancelRequest: Nothing,
+                currencies: [ USD, EUR, RUB ],
+                active: App.Changers.TOP,
+                amount: '-',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            }
+        )).toBe('');
+    });
+
+    test('from currency does not exist', () => {
+        expect(App.extractFormatedAmountFor(App.Changers.BOTTOM, {
+                cancelRequest: Nothing,
+                currencies: [ USD, RUB ],
+                active: App.Changers.TOP,
+                amount: '5',
+                changers: {
+                    [ App.Changers.TOP ]: Changer.init(USD.code),
+                    [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                }
+            }
+        )).toBe('');
+    });
+
+    describe('from rate does not exist', () => {
+        test('amount is zero', () => {
+            expect(App.extractFormatedAmountFor(App.Changers.BOTTOM, {
+                    cancelRequest: Nothing,
+                    currencies: [ USD, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '0',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                }
+            )).toBe('0.00');
+        });
+
+        test('amount is more than zero', () => {
+            expect(App.extractFormatedAmountFor(App.Changers.BOTTOM, {
+                    cancelRequest: Nothing,
+                    currencies: [ USD, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '5',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                }
+            )).toBe('');
+        });
+
+        test('amount is less than zero', () => {
+            expect(App.extractFormatedAmountFor(App.Changers.BOTTOM, {
+                    cancelRequest: Nothing,
+                    currencies: [ USD, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '-5',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                }
+            )).toBe('');
+        });
+    });
+
+    describe('from rate exists', () => {
+        test('amount is more than zero', () => {
+            const EUR_ = EUR.registerRates([
+                [ USD.code, 1.078471 ]
+            ]);
+
+            expect(App.extractFormatedAmountFor(App.Changers.BOTTOM, {
+                    cancelRequest: Nothing,
+                    currencies: [ USD, EUR_, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '4',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR_.code)
+                    }
+                }
+            )).toBe('-3.71');
+        });
+
+        test('amount is less than zero', () => {
+            const USD_ = USD.registerRates([
+                [ EUR.code, 0.907238 ]
+            ]);
+
+            expect(App.extractFormatedAmountFor(App.Changers.BOTTOM, {
+                    cancelRequest: Nothing,
+                    currencies: [ USD_, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '-4',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD_.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                }
+            )).toBe('3.62');
+        });
+
+        test('prevents making money', () => {
+            const USD_ = USD.registerRates([
+                [ EUR.code, 0.907238 ]
+            ]);
+
+            expect(App.extractFormatedAmountFor(App.Changers.BOTTOM, {
+                    cancelRequest: Nothing,
+                    currencies: [ USD_, EUR, RUB ],
+                    active: App.Changers.TOP,
+                    amount: '-0.01',
+                    changers: {
+                        [ App.Changers.TOP ]: Changer.init(USD_.code),
+                        [ App.Changers.BOTTOM ]: Changer.init(EUR.code)
+                    }
+                }
+            )).toBe('0.00');
         });
     });
 });
