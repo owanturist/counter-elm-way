@@ -406,7 +406,7 @@ const Point = styled.li<{
 
 Point.displayName = 'Point';
 
-export const stringToAmount = (input: string): string => {
+const stringToAmount = (input: string): string => {
     return input
         .replace(/,/g, '.')                       // replace all commas to decimals
         .replace(/[^0-9^\-^.]/g, '')              // keep only numbers, minuses and decimal
@@ -415,7 +415,7 @@ export const stringToAmount = (input: string): string => {
         .replace(/(^-?\d*(\.\d{0,2})?).*/, '$1'); // format output number
 };
 
-export const negateAmount = (amount: string): string => {
+const negateAmount = (amount: string): string => {
     return /^-/.test(amount) ? amount.replace(/^-/, '') : `-${amount}`;
 };
 
@@ -506,7 +506,7 @@ const Slide = styled<{
 
 Slide.displayName = 'Slide';
 
-export const extractCurrencies = (currencies: Array<Currency>, currentCode: Currency.ID): Maybe<{
+const extractCurrencies = (currencies: Array<Currency>, currentCode: Currency.ID): Maybe<{
     prev: Maybe<Currency>;
     current: Currency;
     next: Maybe<Currency>;

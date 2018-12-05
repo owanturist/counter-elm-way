@@ -74,7 +74,7 @@ const fetchRates = (from: Currency.ID, to: Currency.ID): [ Cmd<Msg>, Cmd<Msg> ] 
     ];
 };
 
-export const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
+const getChangersRoles = (model: Model): [ Changer.Model, Changer.Model ] => {
     if (Utils.stringToNumber(model.amount).getOrElse(0) >= 0) {
         return model.active === Changers.TOP
             ? [ model.changers[ Changers.BOTTOM ], model.changers[ Changers.TOP ] ]
@@ -93,7 +93,7 @@ const getCurrencyOfChanger = (changer: Changer.Model, model: Model): Maybe<Curre
     );
 };
 
-export const limit = (model: Model): Model => Utils.stringToNumber(model.amount).chain(amount => {
+const limit = (model: Model): Model => Utils.stringToNumber(model.amount).chain(amount => {
     const [ from, to ] = getChangersRoles(model);
 
     return getCurrencyOfChanger(from, model)
@@ -393,7 +393,7 @@ const ChangerContainer = styled.div<{
     `}
 `;
 
-export const extractFormatedAmountFor = (source: Changers, model: Model): string => {
+const extractFormatedAmountFor = (source: Changers, model: Model): string => {
     if (model.active === source) {
         return model.amount;
     }
@@ -418,7 +418,7 @@ export const extractFormatedAmountFor = (source: Changers, model: Model): string
     ).getOrElse('');
 };
 
-export const getExchangeResult = (model: Model): Maybe<{
+const getExchangeResult = (model: Model): Maybe<{
     amountFrom: number;
     amountTo: number;
 }> => {
