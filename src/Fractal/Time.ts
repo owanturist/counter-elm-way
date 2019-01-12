@@ -7,8 +7,8 @@ import {
 } from './Platform/Sub';
 
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static of<E, T>(executor: (fail: (error: E) => void, succeed: (value: T) => void) => void): Task<E, T> {
-        return Task.of(executor);
+    public static spawn<E, T>(spawner: (callback: (task: Task<E, T>) => void) => void): Task<E, T> {
+        return Task.spawn(spawner);
     }
 }
 
@@ -40,6 +40,10 @@ export const every = <Msg>(delay: number, tagger: (posix: number) => Msg): Sub<M
     );
 };
 
-export const now: Task<never, number> = InternalTask.of(
-    (_fail: (error: never) => void, succeed: (posix: number) => void) => succeed(Date.now())
+export const now: Task<never, number> = InternalTask.spawn(
+    (callback: (task: Task<never, number>) => void): void => {
+        callback(
+            Task.succeed(Date.now())
+        );
+    }
 );

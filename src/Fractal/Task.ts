@@ -13,11 +13,6 @@ abstract class InternalCmd<M> extends Cmd<M> {
     }
 }
 
-type Executor<E, T> = (
-    fail: (error: E) => void,
-    succeed: (value: T) => void
-) => void;
-
 export abstract class Task<E, T> {
     public static succeed<T>(value: T): Task<never, T> {
         return new Succeed(value);
@@ -67,8 +62,8 @@ export abstract class Task<E, T> {
         return acc;
     }
 
-    protected static of<E, T>(executor: Executor<E, T>): Task<E, T> {
-        return new Cons(executor);
+    protected static spawn<E, T>(spawner: (callback: (task: Task<E, T>) => void) => void): Task<E, T> {
+        return new Spawn(spawner);
     }
 
     protected static execute<E, T>(task: Task<E, T>): Promise<T> {
@@ -144,14 +139,14 @@ class Pipe<E, T, R> extends Streamable<E, R> {
     }
 }
 
-class Cons<E, T> extends Streamable<E, T> {
-    constructor(private readonly executor: Executor<E, T>) {
+class Spawn<E, T> extends Streamable<E, T> {
+    constructor(private readonly spawner: (callback: (task: Task<E, T>) => void) => void) {
         super();
     }
 
     protected execute(): Promise<T> {
         return new Promise((resolve: (value: T) => void, reject: (error: E) => void): void => {
-            this.executor(reject, resolve);
+            this.spawner((task: Task<E, T>) => Task.execute(task).then(resolve, reject));
         });
     }
 }

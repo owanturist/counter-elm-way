@@ -64,8 +64,8 @@ const parseHeaders = (rawHeaders: string): {[ name: string ]: string } => {
 /* T A S K */
 
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static of<E, T>(executor: (fail: (error: E) => void, succeed: (value: T) => void) => void): Task<E, T> {
-        return super.of(executor);
+    public static spawn<E, T>(spawner: (callback: (task: Task<E, T>) => void) => void): Task<E, T> {
+        return super.spawn(spawner);
     }
 }
 
@@ -383,22 +383,30 @@ export class Request<T> {
         let abortRequest = noop;
 
         return [
-            InternalTask.of((_fail: (error: never) => void, succeed: (value: void) => void): void => {
+            InternalTask.spawn((callback: (task: Task<never, void>) => void): void => {
                 abortRequest();
 
-                succeed(undefined);
+                callback(
+                    Task.succeed(undefined)
+                );
             }),
-            InternalTask.of((fail: (error: Error) => void, succeed: (value: T) => void): void => {
+            InternalTask.spawn((callback: (task: Task<Error, T>) => void): void => {
                 const xhr = new XMLHttpRequest();
 
                 xhr.addEventListener('error', () => {
                     abortRequest = noop;
-                    fail(Error.NetworkError);
+
+                    callback(
+                        Task.fail(Error.NetworkError)
+                    );
                 });
 
                 xhr.addEventListener('timeout', () => {
                     abortRequest = noop;
-                    fail(Error.Timeout);
+
+                    callback(
+                        Task.fail(Error.Timeout)
+                    );
                 });
 
                 xhr.addEventListener('load', () => {
@@ -413,7 +421,11 @@ export class Request<T> {
                     };
 
                     if (xhr.status < 200 || xhr.status >= 300) {
-                        return fail(Error.BadStatus(stringResponse));
+                        callback(
+                            Task.fail(Error.BadStatus(stringResponse))
+                        );
+
+                        return;
                     }
 
                     PhantomExpect.toResult({
@@ -421,17 +433,27 @@ export class Request<T> {
                         body: xhr.response as string
                     }, this.config.expect).cata({
                         Left(decodeError: Decode.Error): void {
-                            fail(Error.BadBody(decodeError, stringResponse));
+                            callback(
+                                Task.fail(Error.BadBody(decodeError, stringResponse))
+                            );
                         },
 
-                        Right: succeed
+                        Right(value: T): void {
+                            callback(
+                                Task.succeed(value)
+                            );
+                        }
                     });
                 });
 
                 try {
                     xhr.open(this.config.method, buildUrlWithQuery(this.config.url, this.config.queryParams), true);
                 } catch (e) {
-                    return fail(Error.BadUrl(this.config.url));
+                    callback(
+                        Task.fail(Error.BadUrl(this.config.url))
+                    );
+
+                    return;
                 }
 
                 for (const requestHeader of this.config.headers) {
