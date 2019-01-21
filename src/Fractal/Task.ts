@@ -1,4 +1,9 @@
 import {
+    Maybe,
+    Nothing,
+    Just
+} from './Maybe';
+import {
     Either,
     Left,
     Right
@@ -6,10 +11,24 @@ import {
 import {
     Cmd
 } from './Platform/Cmd';
+import {
+    Process
+} from './Process';
+
 
 abstract class InternalCmd<M> extends Cmd<M> {
     public static of<M>(callPromise: () => Promise<M>): Cmd<M> {
         return super.of(callPromise);
+    }
+}
+
+abstract class InternalProcess extends Process {
+    public static of(abort: () => void): Process {
+        return super.of(abort);
+    }
+
+    public static get none(): Process {
+        return super.none;
     }
 }
 
@@ -62,13 +81,21 @@ export abstract class Task<E, T> {
         return acc;
     }
 
-    protected static spawn<E, T>(spawner: (callback: (task: Task<E, T>) => void) => void): Task<E, T> {
-        return new Spawn(spawner);
+    protected static of<E, T>(
+        callback: (done: (task: Task<E, T>) => void) => Process
+    ): Task<E, T> {
+        return new Single(callback);
     }
 
     protected static execute<E, T>(task: Task<E, T>): Promise<T> {
         return task.execute();
     }
+
+    protected static getProcess<E, T>(task: Task<E, T>): Maybe<Process> {
+        return task.process;
+    }
+
+    protected process: Maybe<Process> = Nothing;
 
     public map<R>(fn: (value: T) => R): Task<E, R> {
         return new Map(fn, this);
@@ -106,6 +133,8 @@ export abstract class Task<E, T> {
             : never
     ): Task<[ E ] extends [ never ] ? S : E, T extends (value: unknown) => infer U ? U : T>;
 
+    public abstract spawn(): Task<never, Process>;
+
     protected abstract execute(): Promise<T>;
 }
 
@@ -120,8 +149,6 @@ abstract class Streamable<E, T> extends Task<E, T> {
             (value: A) => T extends (value: unknown) => U ? U : T
         >);
     }
-
-    protected abstract execute(): Promise<T>;
 }
 
 class Pipe<E, T, R> extends Streamable<E, R> {
@@ -132,6 +159,10 @@ class Pipe<E, T, R> extends Streamable<E, R> {
         super();
     }
 
+    public spawn(): Task<never, Process> {
+        return this.fn.spawn();
+    }
+
     public execute(): Promise<R> {
         return Task.execute(this.fn).then(
             (fn: (value: T) => R): Promise<R> => Task.execute(this.value).then(fn)
@@ -139,14 +170,35 @@ class Pipe<E, T, R> extends Streamable<E, R> {
     }
 }
 
-class Spawn<E, T> extends Streamable<E, T> {
-    constructor(private readonly spawner: (callback: (task: Task<E, T>) => void) => void) {
+class Single<E, T> extends Streamable<E, T> {
+    constructor(
+        private readonly callback: (done: (task: Task<E, T>) => void) => Process
+    ) {
         super();
+    }
+
+    public spawn(): Task<never, Process> {
+        return Task.of((done: (task: Task<never, Process>) => void): Process => {
+            this.execute();
+
+            done(Task.succeed(this.process.getOrElse(InternalProcess.none)));
+
+            return InternalProcess.none;
+        });
     }
 
     protected execute(): Promise<T> {
         return new Promise((resolve: (value: T) => void, reject: (error: E) => void): void => {
-            this.spawner((task: Task<E, T>) => Task.execute(task).then(resolve, reject));
+            const process = this.callback((task: Task<E, T>) => {
+                return Task
+                    .execute(task)
+                    .then(resolve, reject)
+                    .then((): void => {
+                        this.process = Nothing;
+                    });
+            });
+
+            this.process = Just(process);
         });
     }
 }
@@ -154,6 +206,10 @@ class Spawn<E, T> extends Streamable<E, T> {
 class Succeed<T> extends Streamable<never, T> {
     constructor(private readonly value: T) {
         super();
+    }
+
+    public spawn(): Task<never, Process> {
+        return Task.succeed(InternalProcess.none);
     }
 
     protected execute(): Promise<T> {
@@ -164,6 +220,10 @@ class Succeed<T> extends Streamable<never, T> {
 class Fail<E> extends Streamable<E, never> {
     constructor(private readonly error: E) {
         super();
+    }
+
+    public spawn(): Task<never, Process> {
+        return Task.succeed(InternalProcess.none);
     }
 
     protected execute<T>(): Promise<T> {
@@ -179,6 +239,10 @@ class Map<E, T, R> extends Streamable<E, R> {
         super();
     }
 
+    public spawn(): Task<never, Process> {
+        return this.task.spawn();
+    }
+
     protected execute(): Promise<R> {
         return Task.execute(this.task).then(this.fn);
     }
@@ -190,6 +254,10 @@ class Chain<E, T, R> extends Streamable<E, R> {
         private readonly task: Task<E, T>
     ) {
         super();
+    }
+
+    public spawn(): Task<never, Process> {
+        return this.task.spawn();
     }
 
     protected execute(): Promise<R> {
@@ -205,6 +273,10 @@ class OnError<E, T, S> extends Streamable<S, T> {
         super();
     }
 
+    public spawn(): Task<never, Process> {
+        return this.task.spawn();
+    }
+
     protected execute(): Promise<T> {
         return Task.execute(this.task).catch((error: E): Promise<T> => Task.execute(this.fn(error)));
     }
@@ -216,6 +288,10 @@ class MapError<E, T, S> extends Streamable<S, T> {
         private readonly task: Task<E, T>
     ) {
         super();
+    }
+
+    public spawn(): Task<never, Process> {
+        return this.task.spawn();
     }
 
     protected execute(): Promise<T> {

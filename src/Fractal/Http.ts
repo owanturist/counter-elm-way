@@ -14,6 +14,9 @@ import {
     Task
 } from './Task';
 import {
+    Process
+} from './Process';
+import {
     Cmd
 } from './Platform/Cmd';
 import * as Decode from './Json/Decode';
@@ -61,11 +64,21 @@ const parseHeaders = (rawHeaders: string): {[ name: string ]: string } => {
     return headers;
 };
 
-/* T A S K */
+/* I N T E R N A L */
 
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static spawn<E, T>(spawner: (callback: (task: Task<E, T>) => void) => void): Task<E, T> {
-        return super.spawn(spawner);
+    public static of<E, T>(create: (done: (task: Task<E, T>) => void) => Process): Task<E, T> {
+        return super.of(create);
+    }
+}
+
+abstract class InternalProcess extends Process {
+    public static of(abort: () => void): Process {
+        return super.of(abort);
+    }
+
+    public static get none(): Process {
+        return super.none;
     }
 }
 
@@ -379,125 +392,104 @@ export class Request<T> {
         return this.withExpect(expectJson(decoder));
     }
 
-    public toCancelableTask(): [ Task<never, void>, Task<Error, T> ] {
-        let abortRequest = noop;
+    public toTask(): Task<Error, T> {
+        return InternalTask.of((done: (task: Task<Error, T>) => void): Process => {
+            const xhr = new XMLHttpRequest();
 
-        return [
-            InternalTask.spawn((callback: (task: Task<never, void>) => void): void => {
-                abortRequest();
-
-                callback(
-                    Task.succeed(undefined)
+            xhr.addEventListener('error', () => {
+                done(
+                    Task.fail(Error.NetworkError)
                 );
-            }),
-            InternalTask.spawn((callback: (task: Task<Error, T>) => void): void => {
-                const xhr = new XMLHttpRequest();
+            });
 
-                xhr.addEventListener('error', () => {
-                    abortRequest = noop;
+            xhr.addEventListener('timeout', () => {
+                done(
+                    Task.fail(Error.Timeout)
+                );
+            });
 
-                    callback(
-                        Task.fail(Error.NetworkError)
-                    );
-                });
+            xhr.addEventListener('load', () => {
+                const stringResponse: Response<string> = {
+                    url: xhr.responseURL,
+                    statusCode: xhr.status,
+                    statusText: xhr.statusText,
+                    headers: parseHeaders(xhr.getAllResponseHeaders()),
+                    body: xhr.responseText
+                };
 
-                xhr.addEventListener('timeout', () => {
-                    abortRequest = noop;
-
-                    callback(
-                        Task.fail(Error.Timeout)
-                    );
-                });
-
-                xhr.addEventListener('load', () => {
-                    abortRequest = noop;
-
-                    const stringResponse: Response<string> = {
-                        url: xhr.responseURL,
-                        statusCode: xhr.status,
-                        statusText: xhr.statusText,
-                        headers: parseHeaders(xhr.getAllResponseHeaders()),
-                        body: xhr.responseText
-                    };
-
-                    if (xhr.status < 200 || xhr.status >= 300) {
-                        callback(
-                            Task.fail(Error.BadStatus(stringResponse))
-                        );
-
-                        return;
-                    }
-
-                    PhantomExpect.toResult({
-                        ...stringResponse,
-                        body: xhr.response as string
-                    }, this.config.expect).cata({
-                        Left(decodeError: Decode.Error): void {
-                            callback(
-                                Task.fail(Error.BadBody(decodeError, stringResponse))
-                            );
-                        },
-
-                        Right(value: T): void {
-                            callback(
-                                Task.succeed(value)
-                            );
-                        }
-                    });
-                });
-
-                try {
-                    xhr.open(this.config.method, buildUrlWithQuery(this.config.url, this.config.queryParams), true);
-                } catch (e) {
-                    callback(
-                        Task.fail(Error.BadUrl(this.config.url))
+                if (xhr.status < 200 || xhr.status >= 300) {
+                    done(
+                        Task.fail(Error.BadStatus(stringResponse))
                     );
 
                     return;
                 }
 
-                for (const requestHeader of this.config.headers) {
-                    xhr.setRequestHeader(
-                        PhantomHeader.getName(requestHeader),
-                        PhantomHeader.getValue(requestHeader)
-                    );
+                PhantomExpect.toResult({
+                    ...stringResponse,
+                    body: xhr.response as string
+                }, this.config.expect).cata({
+                    Left(decodeError: Decode.Error): void {
+                        done(
+                            Task.fail(Error.BadBody(decodeError, stringResponse))
+                        );
+                    },
+
+                    Right(value: T): void {
+                        done(
+                            Task.succeed(value)
+                        );
+                    }
+                });
+            });
+
+            try {
+                xhr.open(this.config.method, buildUrlWithQuery(this.config.url, this.config.queryParams), true);
+            } catch (e) {
+                done(
+                    Task.fail(Error.BadUrl(this.config.url))
+                );
+
+                return InternalProcess.none;
+            }
+
+            for (const requestHeader of this.config.headers) {
+                xhr.setRequestHeader(
+                    PhantomHeader.getName(requestHeader),
+                    PhantomHeader.getValue(requestHeader)
+                );
+            }
+
+            xhr.responseType = PhantomExpect.getType(this.config.expect);
+            xhr.withCredentials = this.config.withCredentials;
+
+            this.config.timeout.cata({
+                Nothing(): void {
+                    // do nothing
+                },
+
+                Just(timeout: number): void {
+                    xhr.timeout = timeout;
                 }
+            });
 
-                xhr.responseType = PhantomExpect.getType(this.config.expect);
-                xhr.withCredentials = this.config.withCredentials;
+            PhantomBody.getContent(this.config.body).cata({
+                Nothing(): void {
+                    xhr.send();
+                },
 
-                this.config.timeout.cata({
-                    Nothing(): void {
-                        // do nothing
-                    },
+                Just({ type, value }: BodyContent): void {
+                    xhr.setRequestHeader('Content-Type', type);
+                    xhr.send(value);
+                }
+            });
 
-                    Just(timeout: number): void {
-                        xhr.timeout = timeout;
-                    }
-                });
-
-                PhantomBody.getContent(this.config.body).cata({
-                    Nothing(): void {
-                        xhr.send();
-                    },
-
-                    Just({ type, value }: BodyContent): void {
-                        xhr.setRequestHeader('Content-Type', type);
-                        xhr.send(value);
-                    }
-                });
-
-                abortRequest = () => {
+            return InternalProcess.of(() => {
+                if (xhr.readyState > 0 && xhr.readyState < 4) {
                     xhr.abort();
-                };
-            })
-        ];
-    }
-
-    public toTask(): Task<Error, T> {
-        const [ , task ] = this.toCancelableTask();
-
-        return task;
+                }
+            });
+        });
     }
 
     public send<R>(tagger: (result: Either<Error, T>) => R): Cmd<R> {

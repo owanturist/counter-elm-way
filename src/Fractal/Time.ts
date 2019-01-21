@@ -1,49 +1,167 @@
-import * as Encode from './Json/Encode';
 import {
     Task
 } from './Task';
 import {
+    Process
+} from './Process';
+import {
+    Router,
+    Effect
+} from './Router';
+import {
     Sub
 } from './Platform/Sub';
 
+
+/* I N T E R N A L */
+
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static spawn<E, T>(spawner: (callback: (task: Task<E, T>) => void) => void): Task<E, T> {
-        return Task.spawn(spawner);
+    public static of<E, T>(create: (done: (task: Task<E, T>) => void) => Process): Task<E, T> {
+        return super.of(create);
     }
 }
 
-abstract class InternalSub<Msg> extends Sub<Msg> {
-    public static of<T, Msg>(
-        namespace: string,
-        key: Encode.Encoder,
-        tagger: (config: T) => Msg,
-        executor: (callback: (config: T) => void) => () => void
-    ): Sub<Msg> {
-        return Sub.of(namespace, key, tagger, executor);
+abstract class InternalProcess extends Process {
+    public static of(abort: () => void): Process {
+        return super.of(abort);
+    }
+
+    public static get none(): Process {
+        return super.none;
     }
 }
 
-export const every = <Msg>(delay: number, tagger: (posix: number) => Msg): Sub<Msg> => {
-    return InternalSub.of(
-        'TIME',
-        Encode.number(delay),
-        tagger,
-        (callback: (posix: number) => void) => {
-            const intervalID = setInterval(() => {
-                callback(Date.now());
-            }, delay);
+type Processes = Map<number, Process>;
 
-            return () => {
-                clearInterval(intervalID);
-            };
+type Taggers<Msg> = Map<number, Array<(posix: number) => Msg>>;
+
+interface State<Msg> {
+    taggers: Taggers<Msg>;
+    processes: Processes;
+}
+
+class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
+    public init(): Task<never, State<Msg>> {
+        return Task.succeed({
+            taggers: new Map(),
+            processes: new Map()
+        });
+    }
+
+    public onEffects(
+        sendToSelf: (interval: number) => Task<never, void>,
+        effects: Array<Time<Msg>>,
+        { processes }: State<Msg>
+    ): Task<never, State<Msg>> {
+        const expiredProcesses: Array<Process> = [];
+        const newIntervals: Array<number> = [];
+        const existingProcesses: Processes = new Map();
+        const newTaggers: Taggers<Msg> = effects.reduce(
+            (acc: Taggers<Msg>, effect: Time<Msg>): Taggers<Msg> => Time.register(acc, effect),
+            new Map()
+        );
+
+        for (const [ interval, existingProcess ] of processes) {
+            if (newTaggers.has(interval)) {
+                existingProcesses.set(interval, existingProcess);
+            } else {
+                expiredProcesses.push(existingProcess);
+            }
         }
-    );
+
+        for (const interval of newTaggers.keys()) {
+            if (!existingProcesses.has(interval)) {
+                newIntervals.push(interval);
+            }
+        }
+
+        return Task.sequence(expiredProcesses.map((process: Process): Task<never, void> => process.kill()))
+            .chain(() => newIntervals.reduce(
+                (acc: Task<never, Processes>, interval: number): Task<never, Processes> => {
+                    return setEvery(interval, sendToSelf(interval))
+                        .spawn()
+                        .map((process: Process) => (newProcesses: Processes) => newProcesses.set(interval, process))
+                        .pipe(acc);
+                },
+                Task.succeed(existingProcesses)
+            )).map((newProcesses: Processes): State<Msg> => ({
+                taggers: newTaggers,
+                processes: newProcesses
+            }));
+    }
+
+    public onSelfMsg(
+        sendToApp: (msg: Msg) => Task<never, void>,
+        interval: number,
+        state: State<Msg>
+    ): Task<never, State<Msg>> {
+        const taggers = state.taggers.get(interval);
+
+        if (typeof taggers === 'undefined') {
+            return Task.succeed(state);
+        }
+
+        const now = Date.now();
+
+        return Task.sequence(taggers.map(
+            (tagger: (posix: number) => Msg): Task<never, void> => sendToApp(tagger(now))
+        )).chain(() => Task.succeed(state));
+    }
+}
+
+const setEvery = (timeout: number, task: Task<never, void>): Task<never, void> => {
+    return InternalTask.of((done: (task: Task<never, void>) => void): Process => {
+        const intervalId = setInterval(() => done(task), timeout);
+
+        return InternalProcess.of(() => clearInterval(intervalId));
+    });
 };
 
-export const now: Task<never, number> = InternalTask.spawn(
-    (callback: (task: Task<never, number>) => void): void => {
-        callback(
-            Task.succeed(Date.now())
+export const now: Task<never, number> = InternalTask.of((done: (task: Task<never, number>) => void): Process => {
+    done(Task.succeed(Date.now()));
+
+    return InternalProcess.none;
+});
+
+
+abstract class Time<Msg> extends Effect<Msg> {
+    public static register<Msg>(taggers: Taggers<Msg>, effect: Time<Msg>) {
+        return effect.register(taggers);
+    }
+
+    public router: Router<Msg, number, State<Msg>> = new TimeRouter();
+
+    protected abstract register(taggers: Taggers<Msg>): Taggers<Msg>;
+}
+
+class Every<Msg> extends Time<Msg> {
+    public constructor(
+        private readonly interval: number,
+        private readonly tagger: (poxis: number) => Msg
+    ) {
+        super();
+    }
+
+    public map<R>(fn: (msg: Msg) => R): Time<R> {
+        return new Every(
+            this.interval,
+            (posix: number): R => fn(this.tagger(posix))
         );
     }
-);
+
+    protected register(taggers: Taggers<Msg>): Taggers<Msg> {
+        const bag = taggers.get(this.interval);
+
+        if (typeof bag === 'undefined') {
+            taggers.set(this.interval, [ this.tagger ]);
+        } else {
+            bag.push(this.tagger);
+        }
+
+        return taggers;
+    }
+}
+
+export const every = <Msg>(interval: number, tagger: (posix: number) => Msg): Sub<Msg> => {
+    return new Every(interval, tagger).toSub();
+};

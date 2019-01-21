@@ -1,3 +1,7 @@
+import {
+    Task
+} from '../Task';
+
 export abstract class Cmd<Msg> {
     public static batch<Msg>(cmds: Array<Cmd<Msg>>): Cmd<Msg> {
         const nonEmptyCmds = cmds.filter((cmd: Cmd<Msg>): boolean => !Cmd.isEmpty(cmd));
@@ -88,7 +92,7 @@ class Map<T, Msg> extends Cmd<Msg> {
     }
 }
 
-class None<Msg> extends Cmd<Msg> {
+const none: Cmd<never> = new class None<Msg> extends Cmd<Msg> {
     public map<R>(): Cmd<R> {
         return this as any as Cmd<R>;
     }
@@ -100,9 +104,7 @@ class None<Msg> extends Cmd<Msg> {
     protected isEmpty(): boolean {
         return true;
     }
-}
-
-const none: Cmd<never> = new None();
+}();
 
 class Batch<Msg> extends Cmd<Msg> {
     constructor(private readonly cmds: Array<Cmd<Msg>>) {

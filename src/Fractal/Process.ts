@@ -2,27 +2,49 @@ import {
     Task
 } from './Task';
 
+
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static spawn<E, T>(spawner: (callback: (task: Task<E, T>) => void) => void): Task<E, T> {
-        return Task.spawn(spawner);
+    public static of<E, T>(callback: (done: (task: Task<E, T>) => void) => Process): Task<E, T> {
+        return Task.of(callback);
     }
 }
 
-export const sleep = (delay: number): Task<never, NodeJS.Timer> => InternalTask.spawn(
-    (callback: (task: Task<never, NodeJS.Timer>) => void): void => {
-        const timeoutID: NodeJS.Timer = setTimeout(
-            () => callback(
-                Task.succeed(timeoutID)
-            ),
-            delay
-        );
-    }
-);
+export abstract class Process {
+    public static sleep(delay: number): Task<never, void> {
+        return InternalTask.of((done: (task: Task<never, void>) => void): Process => {
+            const timeoutID = setTimeout(() => done(Task.succeed(undefined)), delay);
 
-export const kill = (processID: NodeJS.Timer): Task<never, void> => InternalTask.spawn(
-    (callback: (task: Task<never, void>) => void): void => {
-        callback(
-            Task.succeed(clearTimeout(processID))
-        );
+            return Process.of(() => clearTimeout(timeoutID));
+        });
     }
-);
+
+    protected static of(abort: () => void): Process {
+        return new Single(abort);
+    }
+
+    protected static get none(): Process {
+        return none;
+    }
+
+    public abstract kill(): Task<never, void>;
+}
+
+class Single extends Process {
+    public constructor(private readonly abort: () => void) {
+        super();
+    }
+
+    public kill(): Task<never, void> {
+        return InternalTask.of((done: (task: Task<never, void>) => void): Process => {
+            done(Task.succeed(this.abort()));
+
+            return Process.none;
+        });
+    }
+}
+
+const none: Process = new class extends Process {
+    public kill(): Task<never, void> {
+        return Task.succeed(undefined);
+    }
+}();

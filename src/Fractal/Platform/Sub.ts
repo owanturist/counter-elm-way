@@ -1,9 +1,6 @@
 import {
-    Subscriber
-} from '../Platform';
-import {
-    Encoder
-} from '../Json/Encode';
+    Effect
+} from '../Router';
 
 export abstract class Sub<Msg> {
     public static batch<Msg>(subs: Array<Sub<Msg>>): Sub<Msg> {
@@ -28,17 +25,12 @@ export abstract class Sub<Msg> {
         return none;
     }
 
-    protected static of<T, Msg>(
-        namespace: string,
-        key: Encoder,
-        tagger: (config: T) => Msg,
-        executor: (callback: (config: T) => void) => () => void
-    ): Sub<Msg> {
-        return new Single(namespace, key.encode(0), tagger, executor);
+    protected static fromEffect<Msg>(effect: Effect<Msg>): Sub<Msg> {
+        return new Single(effect);
     }
 
-    protected static configure<Msg, T>(sub: Sub<Msg>): Array<Subscriber<Msg, T>> {
-        return sub.configure();
+    protected static toEffects<Msg>(sub: Sub<Msg>): Array<Effect<Msg>> {
+        return sub.toEffects();
     }
 
     protected static isEmpty<Msg>(sub: Sub<Msg>): boolean {
@@ -47,37 +39,24 @@ export abstract class Sub<Msg> {
 
     public abstract map<R>(fn: (msg: Msg) => R): Sub<R>;
 
-    protected abstract configure(): Array<Subscriber<Msg>>;
+    protected abstract toEffects(): Array<Effect<Msg>>;
 
     protected abstract isEmpty(): boolean;
 }
 
-class Single<T, Msg> extends Sub<Msg> {
-    constructor(
-        private readonly namespace: string,
-        private readonly key: string,
-        private readonly tagger: (config: T) => Msg,
-        private readonly executor: (callback: (config: T) => void) => () => void
-    ) {
+class Single<Msg> extends Sub<Msg> {
+    constructor(private readonly effect: Effect<Msg>) {
         super();
     }
 
     public map<R>(fn: (msg: Msg) => R): Sub<R> {
         return new Single(
-            this.namespace,
-            this.key,
-            (config: T): R => fn(this.tagger(config)),
-            this.executor
+            this.effect.map(fn)
         );
     }
 
-    protected configure(): Array<Subscriber<Msg>> {
-        return [{
-            namespace: this.namespace,
-            key: this.key,
-            tagger: this.tagger,
-            executor: this.executor
-        }];
+    protected toEffects(): Array<Effect<Msg>> {
+        return [ this.effect ];
     }
 
     protected isEmpty(): boolean {
@@ -85,21 +64,19 @@ class Single<T, Msg> extends Sub<Msg> {
     }
 }
 
-class None<Msg> extends Sub<Msg> {
+const none: Sub<never> = new class None<Msg> extends Sub<Msg> {
     public map<R>(): Sub<R> {
         return this as any as Sub<R>;
     }
 
-    protected configure(): Array<Subscriber<Msg>> {
+    protected toEffects(): Array<Effect<Msg>> {
         return [];
     }
 
     protected isEmpty(): boolean {
         return true;
     }
-}
-
-const none: Sub<never> = new None();
+}();
 
 class Batch<Msg> extends Sub<Msg> {
     constructor(private readonly subs: Array<Sub<Msg>>) {
@@ -116,11 +93,11 @@ class Batch<Msg> extends Sub<Msg> {
         return new Batch(result);
     }
 
-    protected configure(): Array<Subscriber<Msg>> {
-        const result: Array<Subscriber<Msg>> = [];
+    protected toEffects(): Array<Effect<Msg>> {
+        const result: Array<Effect<Msg>> = [];
 
         for (const sub of this.subs) {
-            result.push(...Sub.configure(sub));
+            result.push(...Sub.toEffects(sub));
         }
 
         return result;
