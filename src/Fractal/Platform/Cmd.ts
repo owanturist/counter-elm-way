@@ -1,4 +1,9 @@
 import {
+    Either,
+    Left,
+    Right
+} from '../Either';
+import {
     Task
 } from '../Task';
 
@@ -25,11 +30,11 @@ export abstract class Cmd<Msg> {
         return none;
     }
 
-    protected static of<Msg>(callPromise: () => Promise<Msg>): Cmd<Msg> {
-        return new Single(callPromise);
+    protected static of<E, T, Msg>(tagger: (result: Either<E, T>) => Msg, task: Task<E, T>): Cmd<Msg> {
+        return new Single(tagger, task);
     }
 
-    protected static execute<Msg>(cmd: Cmd<Msg>): Array<Promise<Msg>> {
+    protected static execute<Msg>(cmd: Cmd<Msg>): Array<Task<never, Msg>> {
         return cmd.execute();
     }
 
@@ -39,56 +44,36 @@ export abstract class Cmd<Msg> {
 
     public abstract map<R>(fn: (msg: Msg) => R): Cmd<R>;
 
-    protected abstract execute(): Array<Promise<Msg>>;
+    protected abstract execute(): Array<Task<never, Msg>>;
 
     protected abstract isEmpty(): boolean;
 }
 
-class Single<Msg> extends Cmd<Msg> {
-    constructor(private readonly callPromise: () => Promise<Msg>) {
-        super();
-    }
-
-    public map<R>(fn: (msg: Msg) => R): Cmd<R> {
-        return new Map(fn, this);
-    }
-
-    protected execute(): Array<Promise<Msg>> {
-        return [ this.callPromise() ];
-    }
-
-    protected isEmpty(): boolean {
-        return false;
-    }
-}
-
-class Map<T, Msg> extends Cmd<Msg> {
+class Single<E, T, Msg> extends Cmd<Msg> {
     constructor(
-        private readonly fn: (msg: T) => Msg,
-        private readonly cmd: Cmd<T>
+        private readonly tagger: (result: Either<E, T>) => Msg,
+        private readonly task: Task<E, T>
     ) {
         super();
     }
 
     public map<R>(fn: (msg: Msg) => R): Cmd<R> {
-        return new Map(
-            (msg: T): R => fn(this.fn(msg)),
-            this.cmd
+        return new Single(
+            (result: Either<E, T>): R => fn(this.tagger(result)),
+            this.task
         );
     }
 
-    protected execute(): Array<Promise<Msg>> {
-        const result: Array<Promise<Msg>> = [];
-
-        for (const promise of Cmd.execute(this.cmd)) {
-            result.push(promise.then(this.fn));
-        }
-
-        return result;
+    protected execute(): Array<Task<never, Msg>> {
+        return [
+            this.task
+                .map((value: T): Msg => this.tagger(Right(value)))
+                .onError((error: E): Task<never, Msg> => Task.succeed(this.tagger(Left(error))))
+        ];
     }
 
     protected isEmpty(): boolean {
-        return Cmd.isEmpty(this.cmd);
+        return false;
     }
 }
 
@@ -97,7 +82,7 @@ const none: Cmd<never> = new class None<Msg> extends Cmd<Msg> {
         return this as any as Cmd<R>;
     }
 
-    protected execute(): Array<Promise<Msg>> {
+    protected execute(): Array<Task<never, Msg>> {
         return [];
     }
 
@@ -121,8 +106,8 @@ class Batch<Msg> extends Cmd<Msg> {
         return new Batch(result);
     }
 
-    protected execute(): Array<Promise<Msg>> {
-        const result: Array<Promise<Msg>> = [];
+    protected execute(): Array<Task<never, Msg>> {
+        const result: Array<Task<never, Msg>> = [];
 
         for (const cmd of this.cmds) {
             result.push(...Cmd.execute(cmd));

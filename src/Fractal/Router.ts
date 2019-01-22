@@ -1,7 +1,4 @@
 import {
-    Process
-} from './Process';
-import {
     Task
 } from './Task';
 import {
@@ -11,26 +8,14 @@ import {
     Sub
 } from './Platform/Sub';
 
-abstract class InternalProcess extends Process {
-    public static get none(): Process {
-        return super.none;
-    }
-}
-
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static of<E, T>(
-        callback: (done: (task: Task<E, T>) => void) => Process
-    ): Task<E, T> {
-        return super.of(callback);
-    }
-
     public static execute<E, T>(task: Task<E, T>): Promise<T> {
         return super.execute(task);
     }
 }
 
 abstract class InternalCmd<Msg> extends Cmd<Msg> {
-    public static execute<Msg>(cmd: Cmd<Msg>): Array<Promise<Msg>> {
+    public static execute<Msg>(cmd: Cmd<Msg>): Array<Task<never, Msg>> {
         return super.execute(cmd);
     }
 }
@@ -91,38 +76,61 @@ export class Program<Flags, Model, Msg> {
     ) {}
 
     public init(flags: Flags): Runtime<Model, Msg> {
-        return new Runtime(this.init_(flags), this.update, this.subscriptions);
+        return InternalRuntime.create(this.init_(flags), this.update, this.subscriptions);
     }
 }
 
 class Runtime<Model, Msg> {
+    protected static create<Model, Msg>(
+        initials: [ Model, Cmd<Msg> ],
+        update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
+        subscriptions: (model: Model) => Sub<Msg>
+    ): Runtime<Model, Msg> {
+        return new Runtime(initials, update, subscriptions);
+    }
+
     private routers: Map<Router<Msg, unknown, unknown>, unknown> = new Map();
 
     private model: Model;
 
     private readonly subscribers: Array<(model: Model) => void> = [];
 
-    public constructor(
+    protected constructor(
         [ initialModel, initialCmd ]: [ Model, Cmd<Msg> ],
         private readonly update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
         private readonly subscriptions: (model: Model) => Sub<Msg>
     ) {
         this.model = initialModel;
 
-        this.executeCmd(initialCmd).then(() => {
-            console.log('Initial Cmd has been done'); // tslint:disable-line:no-console
+        Promise.all([
+            InternalTask.execute(this.executeCmd(initialCmd)),
+            InternalTask.execute(this.executeSub(subscriptions(initialModel)))
+        ]).then(() => {
+            console.log('Initial Cmd and Sub have been done'); // tslint:disable-line:no-console
         });
     }
 
-    private dispatch(msg: Msg): Promise<Array<Msg>> {
-        const [ nextModel, cmd ] = this.update(msg, this.model);
-
-        this.executeSub(this.subscriptions(nextModel));
-
-        return this.applyChanges(nextModel, cmd);
+    public getModel(): Model {
+        return this.model;
     }
 
-    private applyChanges(nextModel: Model, cmd: Cmd<Msg>): Promise<Array<Msg>> {
+    public dispatch(msg: Msg): void {
+        this.applyMsg(msg);
+    }
+
+    public subscribe(listener: () => void): () => void {
+        this.subscribers.push(listener);
+
+        return () => {
+            this.subscribers.splice(this.subscribers.indexOf(listener), 1);
+        };
+    }
+
+    private applyMsg(msg: Msg): Task<never, Array<Msg>> {
+        const [ nextModel, cmd ] = this.update(msg, this.model);
+
+        InternalTask.execute(this.executeSub(this.subscriptions(nextModel)));
+
         if (this.model !== nextModel) {
             this.model = nextModel;
 
@@ -134,19 +142,19 @@ class Runtime<Model, Msg> {
         return this.executeCmd(cmd);
     }
 
-    private executeCmd(cmd: Cmd<Msg>): Promise<Array<Msg>> {
-        const result: Array<Promise<Array<Msg>>> = [];
+    private executeCmd(cmd: Cmd<Msg>): Task<never, Array<Msg>> {
+        const result: Array<Task<never, Array<Msg>>> = [];
 
-        for (const promise of InternalCmd.execute(cmd)) {
-            result.push(promise.then((msg: Msg): Promise<Array<Msg>> => this.dispatch(msg)));
+        for (const task of InternalCmd.execute(cmd)) {
+            result.push(task.chain((msg: Msg): Task<never, Array<Msg>> => this.applyMsg(msg)));
         }
 
-        return Promise.all(result).then(
+        return Task.sequence(result).map(
             (arrayOfArrays: Array<Array<Msg>>): Array<Msg> => ([] as Array<Msg>).concat(...arrayOfArrays)
         );
     }
 
-    private executeSub(sub: Sub<Msg>): Promise<Array<void>> {
+    private executeSub(sub: Sub<Msg>): Task<never, Array<void>> {
         const bags: Map<Router<Msg, unknown, unknown>, Array<Effect<Msg>>> = new Map();
 
         for (const effect of InternalSub.toEffects(sub)) {
@@ -170,19 +178,13 @@ class Runtime<Model, Msg> {
             routers.push([ router, router.init(), effects ]);
         }
 
-        const result: Array<Promise<void>> = [];
+        const result: Array<Task<never, void>> = [];
 
         for (const [ router, state, effects ] of routers) {
             const task = router.onEffects(
                 (selfMsg: unknown): Task<never, void> => {
                     return router.onSelfMsg(
-                        (msg: Msg): Task<never, void> => InternalTask.of(
-                            (done: (task: Task<never, void>) => void): Process => {
-                                this.dispatch(msg).then(() => done(Task.succeed(undefined)));
-
-                                return InternalProcess.none;
-                            }
-                        ),
+                        (msg: Msg): Task<never, void> => this.applyMsg(msg).map(() => undefined),
                         selfMsg,
                         state
                     ).chain((nextState: unknown): Task<never, void> => {
@@ -199,9 +201,19 @@ class Runtime<Model, Msg> {
                 return Task.succeed(undefined);
             });
 
-            result.push(InternalTask.execute(task));
+            result.push(task);
         }
 
-        return Promise.all(result);
+        return Task.sequence(result);
+    }
+}
+
+abstract class InternalRuntime<Msg, Model> extends Runtime<Msg, Model> {
+    public static create<Model, Msg>(
+        initials: [ Model, Cmd<Msg> ],
+        update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
+        subscriptions: (model: Model) => Sub<Msg>
+    ): Runtime<Model, Msg> {
+        return super.create(initials, update, subscriptions);
     }
 }

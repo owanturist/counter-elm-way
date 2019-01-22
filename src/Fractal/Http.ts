@@ -24,10 +24,6 @@ import * as Encode from './Json/Encode';
 
 /* H E L P E R S */
 
-const noop = () => {
-    // do nothing
-};
-
 const queryEscape = (str: string): string => encodeURIComponent(str).replace(/%20/g, '+');
 
 const queryPair = ([ key, value ]: [ string, string ]): string => queryEscape(key) + '=' + queryEscape(value);

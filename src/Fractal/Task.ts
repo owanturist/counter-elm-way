@@ -4,9 +4,7 @@ import {
     Just
 } from './Maybe';
 import {
-    Either,
-    Left,
-    Right
+    Either
 } from './Either';
 import {
     Cmd
@@ -17,8 +15,8 @@ import {
 
 
 abstract class InternalCmd<M> extends Cmd<M> {
-    public static of<M>(callPromise: () => Promise<M>): Cmd<M> {
-        return super.of(callPromise);
+    public static of<E, T, M>(tagger: (result: Either<E, T>) => M, task: Task<E, T>): Cmd<M> {
+        return super.of(tagger, task);
     }
 }
 
@@ -114,17 +112,11 @@ export abstract class Task<E, T> {
     }
 
     public attempt<M>(tagger: (either: Either<E, T>) => M): Cmd<M> {
-        return InternalCmd.of(
-            () => this.execute()
-                .then((value: T) => tagger(Right(value)))
-                .catch((error: E) => tagger(Left(error)))
-        );
+        return InternalCmd.of(tagger, this);
     }
 
     public perform<M>(tagger: [ E ] extends [ never ] ? (value: T) => M : never): Cmd<M> {
-        return InternalCmd.of(
-            () => this.execute().then(tagger)
-        );
+        return InternalCmd.of(tagger as unknown as (result: Either<E, T>) => M, this);
     }
 
     public abstract pipe<S>(
