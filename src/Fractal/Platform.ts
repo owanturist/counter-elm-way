@@ -1,9 +1,10 @@
-/**
- * Solution based on:
- * @link https://github.com/redux-loop/redux-loop
- */
-import React from 'react';
-
+import {
+    Task
+} from './Task';
+import {
+    Router,
+    Effect
+} from './Router';
 import {
     Cmd
 } from './Platform/Cmd';
@@ -11,198 +12,172 @@ import {
     Sub
 } from './Platform/Sub';
 
-export interface Subscriber<Msg, T = any> {
-    namespace: string;
-    key: string;
-    tagger(config: T): Msg;
-    executor(callback: (config: T) => void): () => void;
-}
-
-interface Process<Msg, T = any> {
-    mailbox: Array<(config: T) => Msg>;
-    kill(): void;
-}
-
-interface Mailbox<Msg, T> {
-    mailbox: Array<(config: T) => Msg>;
-    executor(callback: (config: T) => void): () => void;
+abstract class InternalTask<E, T> extends Task<E, T> {
+    public static execute<E, T>(task: Task<E, T>): Promise<T> {
+        return super.execute(task);
+    }
 }
 
 abstract class InternalCmd<Msg> extends Cmd<Msg> {
-    public static execute<Msg>(cmd: Cmd<Msg>): Array<Promise<Msg>> {
+    public static execute<Msg>(cmd: Cmd<Msg>): Array<Task<never, Msg>> {
         return super.execute(cmd);
     }
 }
 
-abstract class InternalSub<Msg> extends Sub<Msg> {
-    public static configure<Msg, T>(sub: Sub<Msg>): Array<Subscriber<Msg, T>> {
-        return super.configure(sub);
+export class Program<Flags, Model, Msg> {
+    public static worker<Flags, Model, Msg>(config: {
+        init(flags: Flags): [ Model, Cmd<Msg> ];
+        update(msg: Msg, model: Model): [ Model, Cmd<Msg> ];
+        subscriptions(model: Model): Sub<Msg>;
+    }): Program<Flags, Model, Msg> {
+        return new Program(config.init, config.update, config.subscriptions);
+    }
+
+    protected constructor(
+        private readonly init_: (flags: Flags) => [ Model, Cmd<Msg> ],
+        private readonly update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
+        private readonly subscriptions: (model: Model) => Sub<Msg>
+    ) {}
+
+    public init(flags: Flags): Runtime<Model, Msg> {
+        return InternalRuntime.create(this.init_(flags), this.update, this.subscriptions);
     }
 }
 
-export type Dispatch<Msg> = (msg: Msg) => void;
+class Runtime<Model, Msg> {
+    protected static create<Model, Msg>(
+        initials: [ Model, Cmd<Msg> ],
+        update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
+        subscriptions: (model: Model) => Sub<Msg>
+    ): Runtime<Model, Msg> {
+        return new Runtime(initials, update, subscriptions);
+    }
 
-export interface Configuration<Msg, Model> {
-    view: React.StatelessComponent<{
-        dispatch: Dispatch<Msg>;
-        model: Model;
-    }>;
-    init(): [ Model, Cmd<Msg> ];
-    update(msg: Msg, model: Model): [ Model, Cmd<Msg> ];
-    subscriptions(model: Model): Sub<Msg>;
-}
+    private routers: Map<Router<Msg, unknown, unknown>, unknown> = new Map();
 
-export class Application<Msg, Model> extends React.Component<Configuration<Msg, Model>, Model> {
-    private readonly processes: Map<string, Map<string, Process<Msg>>> = new Map();
+    private model: Model;
 
-    constructor(props: Configuration<Msg, Model>, context: any) {
-        super(props, context);
+    private readonly subscribers: Array<(model: Model) => void> = [];
 
-        const [ initialModel, initialCmd ] = props.init();
+    protected constructor(
+        [ initialModel, initialCmd ]: [ Model, Cmd<Msg> ],
+        private readonly update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
+        private readonly subscriptions: (model: Model) => Sub<Msg>
+    ) {
+        this.model = initialModel;
 
-        this.state = initialModel;
-
-        this.executeCmd(initialCmd).then(() => {
-            console.log('Initial Cmd has been done'); // tslint:disable-line:no-console
+        Promise.all([
+            InternalTask.execute(this.executeCmd(initialCmd)),
+            InternalTask.execute(this.executeSub(subscriptions(initialModel)))
+        ]).then(() => {
+            console.log('Initial Cmd and Sub have been done'); // tslint:disable-line:no-console
         });
     }
 
-    public render() {
-        return React.createElement(
-            this.props.view,
-            {
-                model: this.state,
-                dispatch: (msg: Msg): void => {
-                    this.dispatch(msg);
-                }
-            }
-        );
+    public getModel(): Model {
+        return this.model;
     }
 
-    private executeCmd(cmd: Cmd<Msg>): Promise<Array<Msg>> {
-        const result: Array<Promise<Array<Msg>>> = [];
-
-        for (const promise of InternalCmd.execute(cmd)) {
-            result.push(promise.then(this.dispatch));
-        }
-
-        return Promise.all(result).then((arrayOfArrays: Array<Array<Msg>>): Array<Msg> => {
-            const result: Array<Msg> = [];
-
-            for (const arrayOfMsgs of arrayOfArrays) {
-                result.push(...arrayOfMsgs);
-            }
-
-            return result;
-        });
+    public dispatch(msg: Msg): void {
+        this.applyMsg(msg);
     }
 
-    private applyChanges(nextModel: Model, cmd: Cmd<Msg>): Promise<Array<Msg>> {
-        if (this.state !== nextModel) {
-            this.setState(nextModel);
-        }
+    public subscribe(listener: () => void): () => void {
+        this.subscribers.push(listener);
 
-        this.executeSub(this.props.subscriptions(nextModel));
+        return () => {
+            this.subscribers.splice(this.subscribers.indexOf(listener), 1);
+        };
+    }
+
+    private applyMsg(msg: Msg): Task<never, Array<Msg>> {
+        const [ nextModel, cmd ] = this.update(msg, this.model);
+
+        InternalTask.execute(this.executeSub(this.subscriptions(nextModel)));
+
+        if (this.model !== nextModel) {
+            this.model = nextModel;
+
+            for (const subscriber of this.subscribers) {
+                subscriber(nextModel);
+            }
+        }
 
         return this.executeCmd(cmd);
     }
 
-    private readonly dispatch = (msg: Msg): Promise<Array<Msg>> => {
-        const [ nextModel, cmd ] = this.props.update(msg, this.state);
+    private executeCmd(cmd: Cmd<Msg>): Task<never, Array<Msg>> {
+        const result: Array<Task<never, Array<Msg>>> = [];
 
-        return this.applyChanges(nextModel, cmd);
+        for (const task of InternalCmd.execute(cmd)) {
+            result.push(task.chain((msg: Msg): Task<never, Array<Msg>> => this.applyMsg(msg)));
+        }
+
+        return Task.sequence(result).map(
+            (arrayOfArrays: Array<Array<Msg>>): Array<Msg> => ([] as Array<Msg>).concat(...arrayOfArrays)
+        );
     }
 
-    private sequence(msgs: Array<Msg>): Promise<Array<Msg>> {
-        if (msgs.length === 0) {
-            return Promise.resolve([]);
-        }
+    private executeSub(sub: Sub<Msg>): Task<never, Array<void>> {
+        const bags: Map<Router<Msg, unknown, unknown>, Array<Effect<Msg>>> = new Map();
 
-        let nextModel: Model = this.state;
-        const cmds: Array<Cmd<Msg>> = [];
+        for (const effect of Effect.fromSub(sub)) {
+            const bag = bags.get(effect.router);
 
-        for (const msg of msgs) {
-            const [ model, cmd ] = this.props.update(msg, nextModel);
-
-            nextModel = model;
-            cmds.push(cmd);
-        }
-
-        return this.applyChanges(nextModel, Cmd.batch(cmds));
-    }
-
-    private executeSub<T>(sub: Sub<Msg>): void {
-        const nextProcessess: Map<string, Map<string, Mailbox<Msg, T>>> = new Map();
-
-        for (const subscriber of InternalSub.configure<Msg, T>(sub)) {
-            const bag = nextProcessess.get(subscriber.namespace) || new Map();
-            const process: Mailbox<Msg, T> = bag.get(subscriber.key) || {
-                mailbox: [],
-                executor: subscriber.executor
-            };
-
-            process.mailbox.push(subscriber.tagger);
-
-            if (!bag.has(subscriber.key)) {
-                bag.set(subscriber.key, process);
-            }
-
-            if (!nextProcessess.has(subscriber.namespace)) {
-                nextProcessess.set(subscriber.namespace, bag);
-            }
-        }
-
-        for (const [ namespace, bag ] of this.processes) {
-            const nextBag = nextProcessess.get(namespace);
-
-            if (nextBag) {
-                for (const [ key, process ] of bag) {
-                    const nextProcess = nextBag.get(key);
-
-                    if (nextProcess) {
-                        process.mailbox = nextProcess.mailbox;
-                        nextBag.delete(key);
-                    } else {
-                        process.kill();
-                        bag.delete(key);
-                    }
-                }
-
+            if (typeof bag === 'undefined') {
+                bags.set(effect.router, [ effect ]);
             } else {
-                for (const [ key, process ] of bag) {
-                    process.kill();
-                    bag.delete(key);
-                }
-
-                this.processes.delete(namespace);
+                bag.push(effect);
             }
         }
 
-        for (const [ namespace, newBag ] of nextProcessess) {
-            const bag = this.processes.get(namespace) || new Map();
+        const routers: Array<[ Router<Msg, unknown, unknown>, Task<never, unknown>, Array<Effect<Msg>> ]> = [];
 
-            for (const [ key, processCreator ] of newBag) {
-                const newProcess = {
-                    mailbox: processCreator.mailbox,
-                    kill: processCreator.executor(
-                        (config: T): void => {
-                            const msgs: Array<Msg> = [];
-
-                            for (const letter of newProcess.mailbox) {
-                                msgs.push(letter(config));
-                            }
-
-                            this.sequence(msgs);
-                        }
-                    )
-                };
-
-                bag.set(key, newProcess);
-            }
-
-            if (!this.processes.has(namespace)) {
-                this.processes.set(namespace, bag);
-            }
+        for (const [ router, state ] of this.routers) {
+            routers.push([ router, Task.succeed(state), bags.get(router) || [] ]);
+            bags.delete(router);
         }
+
+        for (const [ router, effects ] of bags) {
+            routers.push([ router, router.init(), effects ]);
+        }
+
+        const result: Array<Task<never, void>> = [];
+
+        for (const [ router, state, effects ] of routers) {
+            const task = router.onEffects(
+                (selfMsg: unknown): Task<never, void> => {
+                    return router.onSelfMsg(
+                        (msg: Msg): Task<never, void> => this.applyMsg(msg).map(() => undefined),
+                        selfMsg,
+                        state
+                    ).chain((nextState: unknown): Task<never, void> => {
+                        this.routers.set(router, nextState);
+
+                        return Task.succeed(undefined);
+                    });
+                },
+                effects,
+                state
+            ).chain((nextState: unknown): Task<never, void> => {
+                this.routers.set(router, nextState);
+
+                return Task.succeed(undefined);
+            });
+
+            result.push(task);
+        }
+
+        return Task.sequence(result);
+    }
+}
+
+abstract class InternalRuntime<Msg, Model> extends Runtime<Msg, Model> {
+    public static create<Model, Msg>(
+        initials: [ Model, Cmd<Msg> ],
+        update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
+        subscriptions: (model: Model) => Sub<Msg>
+    ): Runtime<Model, Msg> {
+        return super.create(initials, update, subscriptions);
     }
 }
