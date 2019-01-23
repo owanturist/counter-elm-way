@@ -697,31 +697,33 @@ class WokrerRuntime<Model, Msg> extends Runtime<Model, Msg> {
 
         const result: Array<Task<never, void>> = [];
 
-        for (const [ router, state, effects ] of routers) {
-            const task = router.onEffects(
-                (selfMsg: unknown): Task<never, void> => {
-                    return router.onSelfMsg(
-                        (msg: Msg): Task<never, void> => {
-                            return TaskInternal.of((done: (task: Task<never, void>) => void): Process => {
-                                this.applyMsg(msg).then(() => done(Task.succeed(undefined)));
+        for (const [ router, stateTask, effects ] of routers) {
+            const task = stateTask.chain((state: unknown): Task<never, void> => {
+                return router.onEffects(
+                    (selfMsg: unknown): Task<never, void> => {
+                        return router.onSelfMsg(
+                            (msg: Msg): Task<never, void> => {
+                                return TaskInternal.of((done: (task: Task<never, void>) => void): Process => {
+                                    this.applyMsg(msg).then(() => done(Task.succeed(undefined)));
 
-                                return ProcessInternal.none;
-                            });
-                        },
-                        selfMsg,
-                        state
-                    ).chain((nextState: unknown): Task<never, void> => {
-                        this.routers.set(router, nextState);
+                                    return ProcessInternal.none;
+                                });
+                            },
+                            selfMsg,
+                            stateTask
+                        ).chain((nextState: unknown): Task<never, void> => {
+                            this.routers.set(router, nextState);
 
-                        return Task.succeed(undefined);
-                    });
-                },
-                effects,
-                state
-            ).chain((nextState: unknown): Task<never, void> => {
-                this.routers.set(router, nextState);
+                            return Task.succeed(undefined);
+                        });
+                    },
+                    effects,
+                    state
+                ).chain((nextState: unknown): Task<never, void> => {
+                    this.routers.set(router, nextState);
 
-                return Task.succeed(undefined);
+                    return Task.succeed(undefined);
+                });
             });
 
             result.push(task);
