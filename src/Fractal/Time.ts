@@ -11,25 +11,12 @@ import {
 import {
     Sub
 } from './Platform/Sub';
-
+import {
+    TaskInternal,
+    ProcessInternal
+} from './__Internal__';
 
 /* I N T E R N A L */
-
-abstract class InternalTask<E, T> extends Task<E, T> {
-    public static of<E, T>(create: (done: (task: Task<E, T>) => void) => Process): Task<E, T> {
-        return super.of(create);
-    }
-}
-
-abstract class InternalProcess extends Process {
-    public static of(abort: () => void): Process {
-        return super.of(abort);
-    }
-
-    public static get none(): Process {
-        return super.none;
-    }
-}
 
 type Processes = Map<number, Process>;
 
@@ -110,17 +97,17 @@ class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
 }
 
 const setEvery = (timeout: number, task: Task<never, void>): Task<never, void> => {
-    return InternalTask.of((done: (task: Task<never, void>) => void): Process => {
+    return TaskInternal.of((done: (task: Task<never, void>) => void): Process => {
         const intervalId = setInterval(() => done(task), timeout);
 
-        return InternalProcess.of(() => clearInterval(intervalId));
+        return ProcessInternal.of(() => clearInterval(intervalId));
     });
 };
 
-export const now: Task<never, number> = InternalTask.of((done: (task: Task<never, number>) => void): Process => {
+export const now: Task<never, number> = TaskInternal.of((done: (task: Task<never, number>) => void): Process => {
     done(Task.succeed(Date.now()));
 
-    return InternalProcess.none;
+    return ProcessInternal.none;
 });
 
 

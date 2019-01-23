@@ -21,6 +21,10 @@ import {
 } from './Platform/Cmd';
 import * as Decode from './Json/Decode';
 import * as Encode from './Json/Encode';
+import {
+    TaskInternal,
+    ProcessInternal
+} from './__Internal__';
 
 /* H E L P E R S */
 
@@ -59,24 +63,6 @@ const parseHeaders = (rawHeaders: string): {[ name: string ]: string } => {
 
     return headers;
 };
-
-/* I N T E R N A L */
-
-abstract class InternalTask<E, T> extends Task<E, T> {
-    public static of<E, T>(create: (done: (task: Task<E, T>) => void) => Process): Task<E, T> {
-        return super.of(create);
-    }
-}
-
-abstract class InternalProcess extends Process {
-    public static of(abort: () => void): Process {
-        return super.of(abort);
-    }
-
-    public static get none(): Process {
-        return super.none;
-    }
-}
 
 /* E R R O R */
 
@@ -389,7 +375,7 @@ export class Request<T> {
     }
 
     public toTask(): Task<Error, T> {
-        return InternalTask.of((done: (task: Task<Error, T>) => void): Process => {
+        return TaskInternal.of((done: (task: Task<Error, T>) => void): Process => {
             const xhr = new XMLHttpRequest();
 
             xhr.addEventListener('error', () => {
@@ -446,7 +432,7 @@ export class Request<T> {
                     Task.fail(Error.BadUrl(this.config.url))
                 );
 
-                return InternalProcess.none;
+                return ProcessInternal.none;
             }
 
             for (const requestHeader of this.config.headers) {
@@ -480,7 +466,7 @@ export class Request<T> {
                 }
             });
 
-            return InternalProcess.of(() => {
+            return ProcessInternal.of(() => {
                 if (xhr.readyState > 0 && xhr.readyState < 4) {
                     xhr.abort();
                 }
