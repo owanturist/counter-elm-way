@@ -1,9 +1,6 @@
 import React from 'react';
 
 import {
-    Dispatch
-} from 'Fractal/Platform';
-import {
     Cmd
 } from 'Fractal/Platform/Cmd';
 import {
@@ -78,8 +75,8 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
 };
 
 export const View = ({ dispatch, model }: {
-    dispatch: Dispatch<Msg>;
     model: Model;
+    dispatch(msg: Msg): void;
 }): JSX.Element => (
     <div>
         {model.person.cata({

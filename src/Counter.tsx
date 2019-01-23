@@ -2,16 +2,15 @@ import React from 'react';
 import styled from 'styled-components';
 
 import {
-    Dispatch
-} from 'Fractal/Platform';
-import {
     Cmd
 } from 'Fractal/Platform/Cmd';
 import {
     Sub
 } from 'Fractal/Platform/Sub';
 import * as Time from 'Fractal/Time';
-import * as Process from 'Fractal/Process';
+import {
+    Process
+} from 'Fractal/Process';
 
 export type Msg
     = { $: 'DECREMENT' }
@@ -79,9 +78,9 @@ const Button = styled.button`
 `;
 
 export const View = ({ dispatch, model, ...props }: {
-    dispatch: Dispatch<Msg>;
     model: Model;
     disabled?: boolean;
+    dispatch(msg: Msg): void;
 }): JSX.Element => (
     <div>
         <Button

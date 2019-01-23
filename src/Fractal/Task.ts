@@ -21,10 +21,6 @@ abstract class InternalCmd<M> extends Cmd<M> {
 }
 
 abstract class InternalProcess extends Process {
-    public static of(abort: () => void): Process {
-        return super.of(abort);
-    }
-
     public static get none(): Process {
         return super.none;
     }

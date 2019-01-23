@@ -2,6 +2,9 @@ import {
     Task
 } from './Task';
 import {
+    Process
+} from './Process';
+import {
     Router,
     Effect
 } from './Router';
@@ -12,14 +15,20 @@ import {
     Sub
 } from './Platform/Sub';
 
+abstract class InternalProcess extends Process {
+    public static get none(): Process {
+        return super.none;
+    }
+}
+
 abstract class InternalTask<E, T> extends Task<E, T> {
-    public static execute<E, T>(task: Task<E, T>): Promise<T> {
-        return super.execute(task);
+    public static of<E, T>(create: (done: (task: Task<E, T>) => void) => Process): Task<E, T> {
+        return super.of(create);
     }
 }
 
 abstract class InternalCmd<Msg> extends Cmd<Msg> {
-    public static execute<Msg>(cmd: Cmd<Msg>): Array<Task<never, Msg>> {
+    public static execute<Msg>(cmd: Cmd<Msg>): Array<Promise<Msg>> {
         return super.execute(cmd);
     }
 }
@@ -44,7 +53,7 @@ export class Program<Flags, Model, Msg> {
     }
 }
 
-class Runtime<Model, Msg> {
+export class Runtime<Model, Msg> {
     protected static create<Model, Msg>(
         initials: [ Model, Cmd<Msg> ],
         update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
@@ -66,11 +75,10 @@ class Runtime<Model, Msg> {
     ) {
         this.model = initialModel;
 
-        Promise.all([
-            InternalTask.execute(this.executeCmd(initialCmd)),
-            InternalTask.execute(this.executeSub(subscriptions(initialModel)))
-        ]).then(() => {
-            console.log('Initial Cmd and Sub have been done'); // tslint:disable-line:no-console
+        this.executeSub(subscriptions(initialModel));
+
+        this.executeCmd(initialCmd).then(() => {
+            console.log('Initial Cmd has been done'); // tslint:disable-line:no-console
         });
     }
 
@@ -90,10 +98,10 @@ class Runtime<Model, Msg> {
         };
     }
 
-    private applyMsg(msg: Msg): Task<never, Array<Msg>> {
+    private applyMsg(msg: Msg): Promise<Array<Msg>> {
         const [ nextModel, cmd ] = this.update(msg, this.model);
 
-        InternalTask.execute(this.executeSub(this.subscriptions(nextModel)));
+        this.executeSub(this.subscriptions(nextModel));
 
         if (this.model !== nextModel) {
             this.model = nextModel;
@@ -106,19 +114,19 @@ class Runtime<Model, Msg> {
         return this.executeCmd(cmd);
     }
 
-    private executeCmd(cmd: Cmd<Msg>): Task<never, Array<Msg>> {
-        const result: Array<Task<never, Array<Msg>>> = [];
+    private executeCmd(cmd: Cmd<Msg>): Promise<Array<Msg>> {
+        const result: Array<Promise<Array<Msg>>> = [];
 
-        for (const task of InternalCmd.execute(cmd)) {
-            result.push(task.chain((msg: Msg): Task<never, Array<Msg>> => this.applyMsg(msg)));
+        for (const promise of InternalCmd.execute(cmd)) {
+            result.push(promise.then((msg: Msg) => this.applyMsg(msg)));
         }
 
-        return Task.sequence(result).map(
-            (arrayOfArrays: Array<Array<Msg>>): Array<Msg> => ([] as Array<Msg>).concat(...arrayOfArrays)
-        );
+        return Promise.all(result).then((arrayOfArrays: Array<Array<Msg>>): Array<Msg> => {
+            return ([] as Array<Msg>).concat(...arrayOfArrays);
+        });
     }
 
-    private executeSub(sub: Sub<Msg>): Task<never, Array<void>> {
+    private executeSub(sub: Sub<Msg>): void {
         const bags: Map<Router<Msg, unknown, unknown>, Array<Effect<Msg>>> = new Map();
 
         for (const effect of Effect.fromSub(sub)) {
@@ -148,7 +156,13 @@ class Runtime<Model, Msg> {
             const task = router.onEffects(
                 (selfMsg: unknown): Task<never, void> => {
                     return router.onSelfMsg(
-                        (msg: Msg): Task<never, void> => this.applyMsg(msg).map(() => undefined),
+                        (msg: Msg): Task<never, void> => {
+                            return InternalTask.of((done: (task: Task<never, void>) => void): Process => {
+                                this.applyMsg(msg).then(() => done(Task.succeed(undefined)));
+
+                                return InternalProcess.none;
+                            });
+                        },
                         selfMsg,
                         state
                     ).chain((nextState: unknown): Task<never, void> => {
@@ -167,8 +181,6 @@ class Runtime<Model, Msg> {
 
             result.push(task);
         }
-
-        return Task.sequence(result);
     }
 }
 

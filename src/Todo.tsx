@@ -1,9 +1,6 @@
 import React from 'react';
 
 import {
-    Dispatch
-} from 'Fractal/Platform';
-import {
     Cmd
 } from 'Fractal/Platform/Cmd';
 import {
@@ -287,9 +284,9 @@ const filterTodos = (filter: Filter) => (todo: Todo): boolean => {
 };
 
 const FilterView = ({ dispatch, filters, current }: {
-    dispatch: Dispatch<Msg>;
     filters: Array<Filter>;
     current: Filter;
+    dispatch(msg: Msg): void;
 }): JSX.Element => (
     <div>
         {filters.map(filter => (
@@ -306,8 +303,8 @@ const FilterView = ({ dispatch, filters, current }: {
 );
 
 const TodoView = ({ dispatch, todo }: {
-    dispatch: Dispatch<Msg>;
     todo: Todo;
+    dispatch(msg: Msg): void;
 }): JSX.Element => (
     <li>
         <input
@@ -338,7 +335,7 @@ const TodoView = ({ dispatch, todo }: {
         <View
             initialCount={todo.counter.count}
             model={todo.todos}
-            dispatch={msg => dispatch({ $: 'TODO_MSG', _0: todo.id, _1: msg })}
+            dispatch={(todoMsg: Msg) => dispatch({ $: 'TODO_MSG', _0: todo.id, _1: todoMsg })}
         />
     </li>
 );
@@ -353,9 +350,9 @@ export const subscriptions = (model: Model): Sub<Msg> => Sub.batch(
 );
 
 export const View = ({ dispatch, model, ...props }: {
-    dispatch: Dispatch<Msg>;
     model: Model;
     initialCount: number;
+    dispatch(msg: Msg): void;
 }): JSX.Element => (
     <div>
         <div>Todo List:</div>

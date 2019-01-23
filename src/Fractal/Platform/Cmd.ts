@@ -7,6 +7,12 @@ import {
     Task
 } from '../Task';
 
+abstract class InternalTask<E, T> extends Task<E, T> {
+    public static execute<E, T>(task: Task<E, T>): Promise<T> {
+        return super.execute(task);
+    }
+}
+
 export abstract class Cmd<Msg> {
     public static batch<Msg>(cmds: Array<Cmd<Msg>>): Cmd<Msg> {
         const nonEmptyCmds = cmds.filter((cmd: Cmd<Msg>): boolean => !Cmd.isEmpty(cmd));
@@ -34,7 +40,7 @@ export abstract class Cmd<Msg> {
         return new Single(tagger, task);
     }
 
-    protected static execute<Msg>(cmd: Cmd<Msg>): Array<Task<never, Msg>> {
+    protected static execute<Msg>(cmd: Cmd<Msg>): Array<Promise<Msg>> {
         return cmd.execute();
     }
 
@@ -44,7 +50,7 @@ export abstract class Cmd<Msg> {
 
     public abstract map<R>(fn: (msg: Msg) => R): Cmd<R>;
 
-    protected abstract execute(): Array<Task<never, Msg>>;
+    protected abstract execute(): Array<Promise<Msg>>;
 
     protected abstract isEmpty(): boolean;
 }
@@ -64,11 +70,11 @@ class Single<E, T, Msg> extends Cmd<Msg> {
         );
     }
 
-    protected execute(): Array<Task<never, Msg>> {
+    protected execute(): Array<Promise<Msg>> {
         return [
-            this.task
-                .map((value: T): Msg => this.tagger(Right(value)))
-                .onError((error: E): Task<never, Msg> => Task.succeed(this.tagger(Left(error))))
+            InternalTask.execute(this.task)
+                .then((value: T): Msg => this.tagger(Right(value)))
+                .catch((error: E): Msg => this.tagger(Left(error)))
         ];
     }
 
@@ -82,7 +88,7 @@ const none: Cmd<never> = new class None<Msg> extends Cmd<Msg> {
         return this as any as Cmd<R>;
     }
 
-    protected execute(): Array<Task<never, Msg>> {
+    protected execute(): Array<Promise<Msg>> {
         return [];
     }
 
@@ -106,8 +112,8 @@ class Batch<Msg> extends Cmd<Msg> {
         return new Batch(result);
     }
 
-    protected execute(): Array<Task<never, Msg>> {
-        const result: Array<Task<never, Msg>> = [];
+    protected execute(): Array<Promise<Msg>> {
+        const result: Array<Promise<Msg>> = [];
 
         for (const cmd of this.cmds) {
             result.push(...Cmd.execute(cmd));

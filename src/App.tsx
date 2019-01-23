@@ -1,9 +1,6 @@
 import React from 'react';
 
 import {
-    Dispatch
-} from 'Fractal/Platform';
-import {
     Cmd
 } from 'Fractal/Platform/Cmd';
 import {
@@ -117,26 +114,26 @@ export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
 ]);
 
 export const View = ({ dispatch, model }: {
-    dispatch: Dispatch<Msg>;
     model: Model;
+    dispatch(msg: Msg): void;
 }): JSX.Element => (
     <div>
         <Swapi.View
             model={model.swapi}
-            dispatch={msg => dispatch({ $: 'SWAPI_MSG', _0: msg })}
+            dispatch={(swapiMsg: Swapi.Msg) => dispatch({ $: 'SWAPI_MSG', _0: swapiMsg })}
         />
         <Counter.View
             model={model.firstCounter}
-            dispatch={msg => dispatch({ $: 'FIRST_COUNTER_MSG', _0: msg })}
+            dispatch={(firstCounterMsg: Counter.Msg) => dispatch({ $: 'FIRST_COUNTER_MSG', _0: firstCounterMsg })}
         />
         <Counter.View
             model={model.secondCounter}
-            dispatch={msg => dispatch({ $: 'SECOND_COUNTER_MSG', _0: msg })}
+            dispatch={(secondCounterMsg: Counter.Msg) => dispatch({ $: 'SECOND_COUNTER_MSG', _0: secondCounterMsg })}
         />
         <Todo.View
             initialCount={0}
             model={model.todo}
-            dispatch={msg => dispatch({ $: 'TODO_MSG', _0: msg })}
+            dispatch={(todoMsg: Todo.Msg) => dispatch({ $: 'TODO_MSG', _0: todoMsg })}
         />
     </div>
 );
