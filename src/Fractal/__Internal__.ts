@@ -719,21 +719,17 @@ class WokrerRuntime<Model, AppMsg> extends Runtime<Model, AppMsg> {
         }
 
         for (const [ router, stateTask, effects ] of routers) {
-            const task = stateTask
-                .chain(<M, S>(state: S) => router.onEffects(
+            const task = stateTask.chain(
+                <M, S>(state: S) => router.onEffects(
                     (selfMsg: M): Task<never, void> => TaskInternal.of(
                         (done: (task: Task<never, void>) => void): Process => {
                             done(
                                 router.onSelfMsg(
-                                    (appMsgs: Array<AppMsg>): Task<never, void> => TaskInternal.of(
-                                        (f: (task: Task<never, void>) => void): Process => {
-                                            this.applyBatchOfMsgs(appMsgs);
+                                    (appMsgs: Array<AppMsg>): Task<never, void> => {
+                                        this.applyBatchOfMsgs(appMsgs);
 
-                                            f(Task.succeed(undefined));
-
-                                            return ProcessInternal.none;
-                                        }
-                                    ),
+                                        return Task.succeed(undefined);
+                                    },
                                     selfMsg,
                                     this.routers.get(router)
                                 ).chain((nextState: S): Task<never, void> => {
