@@ -65,7 +65,7 @@ export abstract class Router<AppMsg, SelfMsg, State> {
     ): Task<never, State>;
 
     public abstract onSelfMsg(
-        sendToApp: (appMsg: AppMsg) => Task<never, void>,
+        sendToApp: (appMsgs: Array<AppMsg>) => Task<never, void>,
         interval: SelfMsg,
         state: State
     ): Task<never, State>;
@@ -604,17 +604,17 @@ export abstract class Runtime<Model, Msg> {
     public abstract subscribe(listener: () => void): () => void;
 }
 
-class WokrerRuntime<Model, Msg> extends Runtime<Model, Msg> {
-    private routers: Map<Router<Msg, unknown, unknown>, unknown> = new Map();
+class WokrerRuntime<Model, AppMsg> extends Runtime<Model, AppMsg> {
+    private readonly routers: Map<Router<AppMsg, unknown, unknown>, unknown> = new Map();
 
     private model: Model;
 
     private readonly subscribers: Array<(model: Model) => void> = [];
 
     public constructor(
-        [ initialModel, initialCmd ]: [ Model, Cmd<Msg> ],
-        private readonly update: (msg: Msg, model: Model) => [ Model, Cmd<Msg> ],
-        private readonly subscriptions: (model: Model) => Sub<Msg>
+        [ initialModel, initialCmd ]: [ Model, Cmd<AppMsg> ],
+        private readonly update: (msg: AppMsg, model: Model) => [ Model, Cmd<AppMsg> ],
+        private readonly subscriptions: (model: Model) => Sub<AppMsg>
     ) {
         super();
 
@@ -631,7 +631,7 @@ class WokrerRuntime<Model, Msg> extends Runtime<Model, Msg> {
         return this.model;
     }
 
-    public dispatch(msg: Msg): void {
+    public dispatch(msg: AppMsg): void {
         this.applyMsg(msg);
     }
 
@@ -643,9 +643,7 @@ class WokrerRuntime<Model, Msg> extends Runtime<Model, Msg> {
         };
     }
 
-    private applyMsg(msg: Msg): Promise<Array<Msg>> {
-        const [ nextModel, cmd ] = this.update(msg, this.model);
-
+    private applyChanges(nextModel: Model, cmd: Cmd<AppMsg>): Promise<Array<AppMsg>> {
         this.executeSub(this.subscriptions(nextModel));
 
         if (this.model !== nextModel) {
@@ -659,20 +657,45 @@ class WokrerRuntime<Model, Msg> extends Runtime<Model, Msg> {
         return this.executeCmd(cmd);
     }
 
-    private executeCmd(cmd: Cmd<Msg>): Promise<Array<Msg>> {
-        const result: Array<Promise<Array<Msg>>> = [];
+    private applyMsg(msg: AppMsg): Promise<Array<AppMsg>> {
+        const [ nextModel, cmd ] = this.update(msg, this.model);
+
+        return this.applyChanges(nextModel, cmd);
+    }
+
+    private applyBatchOfMsgs(msgs: Array<AppMsg>): Promise<Array<AppMsg>> {
+        const result = msgs.reduce(
+            (acc: { model: Model; cmds: Array<Cmd<AppMsg>> }, msg: AppMsg) => {
+                const [ nextModel, cmd ] = this.update(msg, acc.model);
+
+                return {
+                    model: nextModel,
+                    cmds: [ ...acc.cmds, cmd ]
+                };
+            },
+            {
+                model: this.model,
+                cmds: []
+            }
+        );
+
+        return this.applyChanges(result.model, Cmd.batch(result.cmds));
+    }
+
+    private executeCmd(cmd: Cmd<AppMsg>): Promise<Array<AppMsg>> {
+        const result: Array<Promise<Array<AppMsg>>> = [];
 
         for (const promise of CmdInternal.execute(cmd)) {
-            result.push(promise.then((msg: Msg) => this.applyMsg(msg)));
+            result.push(promise.then((msg: AppMsg) => this.applyMsg(msg)));
         }
 
-        return Promise.all(result).then((arrayOfArrays: Array<Array<Msg>>): Array<Msg> => {
-            return ([] as Array<Msg>).concat(...arrayOfArrays);
+        return Promise.all(result).then((arrayOfArrays: Array<Array<AppMsg>>): Array<AppMsg> => {
+            return ([] as Array<AppMsg>).concat(...arrayOfArrays);
         });
     }
 
-    private executeSub(sub: Sub<Msg>): void {
-        const bags: Map<Router<Msg, unknown, unknown>, Array<Effect<Msg>>> = new Map();
+    private executeSub(sub: Sub<AppMsg>): void {
+        const bags: Map<Router<AppMsg, unknown, unknown>, Array<Effect<AppMsg>>> = new Map();
 
         for (const effect of SubInternal.toEffects(sub)) {
             const bag = bags.get(effect.router);
@@ -684,7 +707,7 @@ class WokrerRuntime<Model, Msg> extends Runtime<Model, Msg> {
             }
         }
 
-        const routers: Array<[ Router<Msg, unknown, unknown>, Task<never, unknown>, Array<Effect<Msg>> ]> = [];
+        const routers: Array<[ Router<AppMsg, unknown, unknown>, Task<never, unknown>, Array<Effect<AppMsg>> ]> = [];
 
         for (const [ router, state ] of this.routers) {
             routers.push([ router, Task.succeed(state), bags.get(router) || [] ]);
@@ -695,38 +718,43 @@ class WokrerRuntime<Model, Msg> extends Runtime<Model, Msg> {
             routers.push([ router, router.init(), effects ]);
         }
 
-        const result: Array<Task<never, void>> = [];
-
         for (const [ router, stateTask, effects ] of routers) {
-            const task = stateTask.chain((state: unknown): Task<never, void> => {
-                return router.onEffects(
-                    (selfMsg: unknown): Task<never, void> => {
-                        return router.onSelfMsg(
-                            (msg: Msg): Task<never, void> => {
-                                return TaskInternal.of((done: (task: Task<never, void>) => void): Process => {
-                                    this.applyMsg(msg).then(() => done(Task.succeed(undefined)));
+            const task = stateTask
+                .chain(<M, S>(state: S) => router.onEffects(
+                    (selfMsg: M): Task<never, void> => TaskInternal.of(
+                        (done: (task: Task<never, void>) => void): Process => {
+                            done(
+                                router.onSelfMsg(
+                                    (appMsgs: Array<AppMsg>): Task<never, void> => TaskInternal.of(
+                                        (f: (task: Task<never, void>) => void): Process => {
+                                            this.applyBatchOfMsgs(appMsgs);
 
-                                    return ProcessInternal.none;
-                                });
-                            },
-                            selfMsg,
-                            stateTask
-                        ).chain((nextState: unknown): Task<never, void> => {
-                            this.routers.set(router, nextState);
+                                            f(Task.succeed(undefined));
 
-                            return Task.succeed(undefined);
-                        });
-                    },
+                                            return ProcessInternal.none;
+                                        }
+                                    ),
+                                    selfMsg,
+                                    this.routers.get(router)
+                                ).chain((nextState: S): Task<never, void> => {
+                                    this.routers.set(router, nextState);
+
+                                    return Task.succeed(undefined);
+                                })
+                            );
+
+                            return ProcessInternal.none;
+                        }
+                    ),
                     effects,
                     state
-                ).chain((nextState: unknown): Task<never, void> => {
+                )).chain(<S>(nextState: S): Task<never, void> => {
                     this.routers.set(router, nextState);
 
                     return Task.succeed(undefined);
                 });
-            });
 
-            result.push(task);
+            TaskInternal.execute(task);
         }
     }
 }

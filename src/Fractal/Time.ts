@@ -16,8 +16,6 @@ import {
     ProcessInternal
 } from './__Internal__';
 
-/* I N T E R N A L */
-
 type Processes = Map<number, Process>;
 
 type Taggers<Msg> = Map<number, Array<(posix: number) => Msg>>;
@@ -27,7 +25,7 @@ interface State<Msg> {
     processes: Processes;
 }
 
-class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
+const timeRouter = new class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
     public init(): Task<never, State<Msg>> {
         return Task.succeed({
             taggers: new Map(),
@@ -44,7 +42,7 @@ class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
         const newIntervals: Array<number> = [];
         const existingProcesses: Processes = new Map();
         const newTaggers: Taggers<Msg> = effects.reduce(
-            (acc: Taggers<Msg>, effect: Time<Msg>): Taggers<Msg> => Time.register(acc, effect),
+            (acc: Taggers<Msg>, effect: Time<Msg>): Taggers<Msg> => effect.register(acc),
             new Map()
         );
 
@@ -78,7 +76,7 @@ class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
     }
 
     public onSelfMsg(
-        sendToApp: (msg: Msg) => Task<never, void>,
+        sendToApp: (msgs: Array<Msg>) => Task<never, void>,
         interval: number,
         state: State<Msg>
     ): Task<never, State<Msg>> {
@@ -90,11 +88,11 @@ class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
 
         const now = Date.now();
 
-        return Task.sequence(taggers.map(
-            (tagger: (posix: number) => Msg): Task<never, void> => sendToApp(tagger(now))
-        )).chain(() => Task.succeed(state));
+        return sendToApp(
+            taggers.map((tagger: (posix: number) => Msg): Msg => tagger(now))
+        ).chain(() => Task.succeed(state));
     }
-}
+}();
 
 const setEvery = (timeout: number, task: Task<never, void>): Task<never, void> => {
     return TaskInternal.of((done: (task: Task<never, void>) => void): Process => {
@@ -112,13 +110,9 @@ export const now: Task<never, number> = TaskInternal.of((done: (task: Task<never
 
 
 abstract class Time<Msg> extends Effect<Msg> {
-    public static register<Msg>(taggers: Taggers<Msg>, effect: Time<Msg>) {
-        return effect.register(taggers);
-    }
+    public router: Router<Msg, number, State<Msg>> = timeRouter as unknown as Router<Msg, number, State<Msg>>;
 
-    public router: Router<Msg, number, State<Msg>> = new TimeRouter();
-
-    protected abstract register(taggers: Taggers<Msg>): Taggers<Msg>;
+    public abstract register(taggers: Taggers<Msg>): Taggers<Msg>;
 }
 
 class Every<Msg> extends Time<Msg> {
@@ -136,7 +130,7 @@ class Every<Msg> extends Time<Msg> {
         );
     }
 
-    protected register(taggers: Taggers<Msg>): Taggers<Msg> {
+    public register(taggers: Taggers<Msg>): Taggers<Msg> {
         const bag = taggers.get(this.interval);
 
         if (typeof bag === 'undefined') {
