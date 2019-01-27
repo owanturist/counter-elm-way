@@ -314,7 +314,7 @@ const TodoView = ({ dispatch, todo }: {
         />
 
         <Counter.View
-            disabled={todo.swapi.person.isNothing()}
+            disabled={todo.swapi.person.isLoading()}
             model={todo.counter}
             dispatch={msg => dispatch({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })}
         />

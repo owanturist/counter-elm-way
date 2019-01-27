@@ -1,13 +1,19 @@
 import React from 'react';
 
 import {
+    Process
+} from 'Fractal/Process';
+import {
+    Task
+} from 'Fractal/Task';
+import {
     Cmd
 } from 'Fractal/Platform/Cmd';
 import {
-    Maybe,
-    Nothing,
-    Just
-} from 'Fractal/Maybe';
+    RemoteData,
+    NotAsked,
+    Loading,
+} from 'Fractal/RemoteData';
 import {
     Either
 } from 'Fractal/Either';
@@ -29,23 +35,28 @@ const peopleDecoder: Decode.Decoder<Person> = Decode.props({
 export type Msg
     = { $: 'FETCH' }
     | { $: 'FETCH_DONE'; _0: Either<Http.Error, Person> }
+    | { $: 'FETCH_CANCEL' }
     ;
 
 export interface Model {
     id: string;
-    person: Maybe<Either<Http.Error, Person>>;
+    person: RemoteData<Http.Error, Person>;
 }
 
 const fetchPeopleById = (peopleId: string): Cmd<Msg> => {
     return Http.get('https://swapi.co/api/people/' + peopleId)
         .withExpectJson(peopleDecoder)
-        .send((response: Either<Http.Error, Person>): Msg => ({ $: 'FETCH_DONE', _0: response }));
+        .toTask()
+        .spawn()
+        .chain((process: Process): Task<never, void> => process.kill())
+        .perform((): Msg => ({ $: 'FETCH_CANCEL' }));
+        // .send((response: Either<Http.Error, Person>): Msg => ({ $: 'FETCH_DONE', _0: response }));
 };
 
 export const init = (peopleId: string): [ Model, Cmd<Msg> ] => [
     {
         id: peopleId,
-        person: Nothing
+        person: Loading
     },
     fetchPeopleById(peopleId)
 ];
@@ -56,7 +67,7 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             return [
                 {
                     ...model,
-                    person: Nothing
+                    person: Loading
                 },
                 fetchPeopleById(model.id)
             ];
@@ -66,7 +77,17 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
             return [
                 {
                     ...model,
-                    person: Just(msg._0)
+                    person: RemoteData.fromEither(msg._0)
+                },
+                Cmd.none
+            ];
+        }
+
+        case 'FETCH_CANCEL': {
+            return [
+                {
+                    ...model,
+                    person: NotAsked
                 },
                 Cmd.none
             ];
@@ -80,49 +101,52 @@ export const View = ({ dispatch, model }: {
 }): JSX.Element => (
     <div>
         {model.person.cata({
-            Nothing: () => (
+            NotAsked: () => (
+                <h1>Not Asked. <button onClick={() => dispatch({ $: 'FETCH' })}>Click for ask</button></h1>
+            ),
+
+            Loading: () => (
                 <h1>Loading...</h1>
             ),
 
-            Just: (response: Either<Http.Error, Person>) => response.cata({
-                Left: (error: Http.Error) => error.cata({
-                    BadUrl: (url: string) => (
-                        <h1>Url is bad <code>{url}</code></h1>
-                    ),
+            Failure: (error: Http.Error) => error.cata({
+                BadUrl: (url: string) => (
+                    <h1>Url is bad <code>{url}</code></h1>
+                ),
 
-                    Timeout: () => (
-                        <h1>Response fail by timeout</h1>
-                    ),
+                Timeout: () => (
+                    <h1>Response fail by timeout</h1>
+                ),
 
-                    NetworkError: () => (
-                        <h1>Network error, check your connection</h1>
-                    ),
+                NetworkError: () => (
+                    <h1>Network error, check your connection</h1>
+                ),
 
-                    BadStatus: () => (
-                        <div>
-                            <h1>Error at server side</h1>
-                            <button
-                                onClick={() => dispatch({ $: 'FETCH' })}
-                            >Fetch again</button>
-                        </div>
-                    ),
-
-                    BadBody: (decodeError: Decode.Error) => (
-                        <div>
-                            <h1>Error with data</h1>
-                            <code>{decodeError.stringify(4)}</code>
-                        </div>
-                    )
-                }),
-
-                Right: (person: Person) => (
+                BadStatus: () => (
                     <div>
-                        <h1>{person.name}</h1>
-                        <div>Height: <code>{person.height}</code></div>
-                        <div>Mass: <code>{person.mass}</code></div>
+                        <h1>Error at server side</h1>
+                        <button
+                            onClick={() => dispatch({ $: 'FETCH' })}
+                        >Fetch again</button>
+                    </div>
+                ),
+
+                BadBody: (decodeError: Decode.Error) => (
+                    <div>
+                        <h1>Error with data</h1>
+                        <code>{decodeError.stringify(4)}</code>
                     </div>
                 )
-            })
-        })}
+            }),
+
+            Succeed: (person: Person) => (
+                <div>
+                    <h1>{person.name}</h1>
+                    <div>Height: <code>{person.height}</code></div>
+                    <div>Mass: <code>{person.mass}</code></div>
+                </div>
+            )
+        }
+    )}
     </div>
 );
