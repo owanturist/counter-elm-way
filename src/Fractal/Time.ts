@@ -5,13 +5,13 @@ import {
     Process
 } from './Process';
 import {
-    Router,
-    Effect
+    Router
 } from './Router';
 import {
     Sub
 } from './Platform/Sub';
 import {
+    Effect,
     TaskInternal,
     ProcessInternal
 } from './__Internal__';
@@ -25,7 +25,7 @@ interface State<Msg> {
     processes: Processes;
 }
 
-const timeRouter = new class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
+class TimeRouter<Msg> extends Router<Msg, number, State<Msg>> {
     public init(): Task<never, State<Msg>> {
         return Task.succeed({
             taggers: new Map(),
@@ -82,7 +82,7 @@ const timeRouter = new class TimeRouter<Msg> extends Router<Msg, number, State<M
     ): Task<never, State<Msg>> {
         const taggers = state.taggers.get(interval);
 
-        if (typeof taggers === 'undefined') {
+        if (taggers == null) {
             return Task.succeed(state);
         }
 
@@ -92,7 +92,7 @@ const timeRouter = new class TimeRouter<Msg> extends Router<Msg, number, State<M
             taggers.map((tagger: (posix: number) => Msg): Msg => tagger(now))
         ).chain(() => Task.succeed(state));
     }
-}();
+}
 
 const setEvery = (timeout: number, task: Task<never, void>): Task<never, void> => {
     return TaskInternal.of((done: (task: Task<never, void>) => void): Process => {
@@ -108,11 +108,12 @@ export const now: Task<never, number> = TaskInternal.of((done: (task: Task<never
     return ProcessInternal.none;
 });
 
-
-abstract class Time<Msg> extends Effect<Msg> {
-    public router: Router<Msg, number, State<Msg>> = timeRouter as unknown as Router<Msg, number, State<Msg>>;
-
+abstract class Time<Msg> extends Effect<Msg, number, State<Msg>> {
     public abstract register(taggers: Taggers<Msg>): Taggers<Msg>;
+
+    public createRouter(): Router<Msg, number, State<Msg>> {
+        return new TimeRouter();
+    }
 }
 
 class Every<Msg> extends Time<Msg> {
@@ -133,7 +134,7 @@ class Every<Msg> extends Time<Msg> {
     public register(taggers: Taggers<Msg>): Taggers<Msg> {
         const bag = taggers.get(this.interval);
 
-        if (typeof bag === 'undefined') {
+        if (bag == null) {
             taggers.set(this.interval, [ this.tagger ]);
         } else {
             bag.push(this.tagger);
@@ -144,5 +145,5 @@ class Every<Msg> extends Time<Msg> {
 }
 
 export const every = <Msg>(interval: number, tagger: (posix: number) => Msg): Sub<Msg> => {
-    return new Every(interval, tagger).toSub();
+    return new Every(interval, tagger);
 };

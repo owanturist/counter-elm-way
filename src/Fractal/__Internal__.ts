@@ -55,112 +55,105 @@ const processNone: Process = new class ProcessNone extends Process {
 
 /* R O U T E R */
 
+type RouteBuilder<AppMsg, SelfMsg, State> = () => Router<AppMsg, SelfMsg, State>;
+
 export abstract class Router<AppMsg, SelfMsg, State> {
-    public abstract init(): Task<never, State>;
+    private state: Maybe<State> = Nothing;
 
-    public abstract onEffects(
+    public foo(
         sendToSelf: (selfMsg: SelfMsg) => Task<never, void>,
-        effects: Array<unknown>,
-        state: State
-    ): Task<never, State>;
+        effects: Array<Effect<AppMsg, SelfMsg, State>>
+    ): Task<never, void> {
+        return this.getState()
+            .chain((state: State): Task<never, State> => this.onEffects(sendToSelf, effects, state))
+            .chain((nextState: State): Task<never, void> => this.setState(nextState));
+    }
 
-    public abstract onSelfMsg(
+    public bar(
         sendToApp: (appMsgs: Array<AppMsg>) => Task<never, void>,
-        interval: SelfMsg,
+        msg: SelfMsg
+    ): Task<never, void> {
+        return this.getState()
+            .chain((state: State): Task<never, State> => this.onSelfMsg(sendToApp, msg, state))
+            .chain((nextState: State): Task<never, void> => this.setState(nextState));
+    }
+
+    protected abstract init(): Task<never, State>;
+
+    protected abstract onEffects(
+        sendToSelf: (selfMsg: SelfMsg) => Task<never, void>,
+        effects: Array<Effect<AppMsg, SelfMsg, State>>,
         state: State
     ): Task<never, State>;
-}
 
-/* E F F E C T */
+    protected abstract onSelfMsg(
+        sendToApp: (appMsgs: Array<AppMsg>) => Task<never, void>,
+        msg: SelfMsg,
+        state: State
+    ): Task<never, State>;
 
-export abstract class Effect<Msg> {
-    public abstract router: Router<Msg, unknown, unknown>;
+    private getState(): Task<never, State> {
+        return this.state.fold(
+            (): Task<never, State> => this.init(),
+            (state: State): Task<never, State> => Task.succeed(state)
+        );
+    }
 
-    public abstract map<R>(fn: (msg: Msg) => R): Effect<R>;
+    private setState(nextState: State): Task<never, void> {
+        this.state = Just(nextState);
 
-    public toSub(): Sub<Msg> {
-        return new SubSingle(this);
+        return Task.succeed(undefined);
     }
 }
 
 /* S U B */
 
 export abstract class Sub<Msg> {
-    public static batch<Msg>(subs: Array<Sub<Msg>>): Sub<Msg> {
-        const nonEmptySubs = subs.filter((sub: Sub<Msg>): boolean => !sub.isEmpty());
-
-        switch (nonEmptySubs.length) {
-            case 0: {
-                return subNone;
-            }
-
-            case 1: {
-                return nonEmptySubs[ 0 ];
-            }
-
-            default: {
-                return new SubBatch(nonEmptySubs);
-            }
-        }
-    }
-
     public static get none(): Sub<never> {
-        return subNone;
+        return new SubNone();
     }
 
-    protected static toEffects<Msg>(sub: Sub<Msg>): Array<Effect<Msg>> {
-        return sub.toEffects();
+    public static batch<Msg>(subs: Array<Sub<Msg>>): Sub<Msg> {
+        return new SubBatch(subs);
+    }
+
+    protected static groupEffects<Msg>(
+        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>,
+        sub: Sub<Msg>
+    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>> {
+        return sub.groupEffects(acc);
     }
 
     public abstract map<R>(fn: (msg: Msg) => R): Sub<R>;
 
-    protected abstract toEffects(): Array<Effect<Msg>>;
-
-    protected abstract isEmpty(): boolean;
+    protected abstract groupEffects(
+        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>
+    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>;
 }
 
-export abstract class SubInternal<Msg> extends Sub<Msg> {
-    public static toEffects<Msg>(sub: Sub<Msg>): Array<Effect<Msg>> {
-        return super.toEffects(sub);
-    }
-}
-
-class SubSingle<Msg> extends Sub<Msg> {
-    constructor(private readonly effect: Effect<Msg>) {
-        super();
-    }
-
-    public map<R>(fn: (msg: Msg) => R): Sub<R> {
-        return new SubSingle(
-            this.effect.map(fn)
-        );
-    }
-
-    protected toEffects(): Array<Effect<Msg>> {
-        return [ this.effect ];
-    }
-
-    protected isEmpty(): boolean {
-        return false;
+abstract class SubInternal<Msg> extends Sub<Msg> {
+    public static groupEffects<Msg>(
+        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>,
+        sub: Sub<Msg>
+    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>> {
+        return super.groupEffects(acc, sub);
     }
 }
 
-const subNone: Sub<never> = new class SubNone<Msg> extends Sub<Msg> {
+class SubNone<Msg> extends Sub<Msg> {
     public map<R>(): Sub<R> {
-        return this as any as Sub<R>;
+        return this as unknown as Sub<R>;
     }
 
-    protected toEffects(): Array<Effect<Msg>> {
-        return [];
+    protected groupEffects(
+        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>
+    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>> {
+        return acc;
     }
-
-    protected isEmpty(): boolean {
-        return true;
-    }
-}();
+}
 
 class SubBatch<Msg> extends Sub<Msg> {
-    constructor(private readonly subs: Array<Sub<Msg>>) {
+    public constructor(private readonly subs: Array<Sub<Msg>>) {
         super();
     }
 
@@ -174,18 +167,28 @@ class SubBatch<Msg> extends Sub<Msg> {
         return new SubBatch(result);
     }
 
-    protected toEffects(): Array<Effect<Msg>> {
-        const result: Array<Effect<Msg>> = [];
+    protected groupEffects(
+        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>
+    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>> {
+        return this.subs.reduce(SubInternal.groupEffects, acc);
+    }
+}
 
-        for (const sub of this.subs) {
-            result.push(...Sub.toEffects(sub));
+export abstract class Effect<AppMsg, SelfMsg, State> extends Sub<AppMsg> {
+    public abstract createRouter(): Router<AppMsg, SelfMsg, State>;
+
+    protected groupEffects(
+        acc: Map<RouteBuilder<AppMsg, SelfMsg, State>, Array<Effect<AppMsg, SelfMsg, State>>>
+    ): Map<RouteBuilder<AppMsg, SelfMsg, State>, Array<Effect<AppMsg, SelfMsg, State>>> {
+        const bag = acc.get(this.createRouter);
+
+        if (bag == null) {
+            return acc.set(this.createRouter, [ this ]);
         }
 
-        return result;
-    }
+        bag.push(this);
 
-    protected isEmpty(): boolean {
-        return this.subs.length === 0;
+        return acc;
     }
 }
 
@@ -695,19 +698,9 @@ class WokrerRuntime<Model, AppMsg> extends Runtime<Model, AppMsg> {
     }
 
     private executeSub(sub: Sub<AppMsg>): void {
-        const bags: Map<Router<AppMsg, unknown, unknown>, Array<Effect<AppMsg>>> = new Map();
+        const bags: Map<Router<AppMsg, unknown, unknown>, Array<Sub<AppMsg>>> = SubInternal.pack(new Map(), sub);
 
-        for (const effect of SubInternal.toEffects(sub)) {
-            const bag = bags.get(effect.router);
-
-            if (typeof bag === 'undefined') {
-                bags.set(effect.router, [ effect ]);
-            } else {
-                bag.push(effect);
-            }
-        }
-
-        const routers: Array<[ Router<AppMsg, unknown, unknown>, Task<never, unknown>, Array<Effect<AppMsg>> ]> = [];
+        const routers: Array<[ Router<AppMsg, unknown, unknown>, Task<never, unknown>, Array<Sub<AppMsg>> ]> = [];
 
         for (const [ router, state ] of this.routers) {
             routers.push([ router, Task.succeed(state), bags.get(router) || [] ]);
