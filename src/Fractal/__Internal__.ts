@@ -55,12 +55,10 @@ const processNone: Process = new class ProcessNone extends Process {
 
 /* R O U T E R */
 
-type RouteBuilder<AppMsg, SelfMsg, State> = () => Router<AppMsg, SelfMsg, State>;
-
-export abstract class Router<AppMsg, SelfMsg, State> {
+export abstract class Router<AppMsg, SelfMsg = unknown, State = unknown> {
     private state: Maybe<State> = Nothing;
 
-    public foo(
+    public runEffects(
         sendToSelf: (selfMsg: SelfMsg) => Task<never, void>,
         effects: Array<Effect<AppMsg, SelfMsg, State>>
     ): Task<never, void> {
@@ -69,7 +67,7 @@ export abstract class Router<AppMsg, SelfMsg, State> {
             .chain((nextState: State): Task<never, void> => this.setState(nextState));
     }
 
-    public bar(
+    public executeMsg(
         sendToApp: (appMsgs: Array<AppMsg>) => Task<never, void>,
         msg: SelfMsg
     ): Task<never, void> {
@@ -118,24 +116,24 @@ export abstract class Sub<Msg> {
     }
 
     protected static groupEffects<Msg>(
-        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>,
+        acc: Map<() => Router<Msg>, Array<Effect<Msg>>>,
         sub: Sub<Msg>
-    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>> {
+    ): Map<() => Router<Msg>, Array<Effect<Msg>>> {
         return sub.groupEffects(acc);
     }
 
     public abstract map<R>(fn: (msg: Msg) => R): Sub<R>;
 
     protected abstract groupEffects(
-        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>
-    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>;
+        acc: Map<() => Router<Msg>, Array<Effect<Msg>>>
+    ): Map<() => Router<Msg>, Array<Effect<Msg>>>;
 }
 
 abstract class SubInternal<Msg> extends Sub<Msg> {
     public static groupEffects<Msg>(
-        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>,
+        acc: Map<() => Router<Msg>, Array<Effect<Msg>>>,
         sub: Sub<Msg>
-    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>> {
+    ): Map<() => Router<Msg>, Array<Effect<Msg>>> {
         return super.groupEffects(acc, sub);
     }
 }
@@ -146,8 +144,8 @@ class SubNone<Msg> extends Sub<Msg> {
     }
 
     protected groupEffects(
-        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>
-    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>> {
+        acc: Map<() => Router<Msg>, Array<Effect<Msg>>>
+    ): Map<() => Router<Msg>, Array<Effect<Msg>>> {
         return acc;
     }
 }
@@ -168,18 +166,18 @@ class SubBatch<Msg> extends Sub<Msg> {
     }
 
     protected groupEffects(
-        acc: Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>>
-    ): Map<RouteBuilder<Msg, unknown, unknown>, Array<Effect<Msg, unknown, unknown>>> {
+        acc: Map<() => Router<Msg>, Array<Effect<Msg>>>
+    ): Map<() => Router<Msg>, Array<Effect<Msg>>> {
         return this.subs.reduce(SubInternal.groupEffects, acc);
     }
 }
 
-export abstract class Effect<AppMsg, SelfMsg, State> extends Sub<AppMsg> {
+export abstract class Effect<AppMsg, SelfMsg = unknown, State = unknown> extends Sub<AppMsg> {
     public abstract createRouter(): Router<AppMsg, SelfMsg, State>;
 
     protected groupEffects(
-        acc: Map<RouteBuilder<AppMsg, SelfMsg, State>, Array<Effect<AppMsg, SelfMsg, State>>>
-    ): Map<RouteBuilder<AppMsg, SelfMsg, State>, Array<Effect<AppMsg, SelfMsg, State>>> {
+        acc: Map<() => Router<AppMsg, SelfMsg, State>, Array<Effect<AppMsg, SelfMsg, State>>>
+    ): Map<() => Router<AppMsg, SelfMsg, State>, Array<Effect<AppMsg, SelfMsg, State>>> {
         const bag = acc.get(this.createRouter);
 
         if (bag == null) {
@@ -608,7 +606,7 @@ export abstract class Runtime<Model, Msg> {
 }
 
 class WokrerRuntime<Model, AppMsg> extends Runtime<Model, AppMsg> {
-    private readonly routers: Map<Router<AppMsg, unknown, unknown>, unknown> = new Map();
+    private readonly routers: Map<() => Router<AppMsg>, Router<AppMsg>> = new Map();
 
     private model: Model;
 
@@ -698,50 +696,41 @@ class WokrerRuntime<Model, AppMsg> extends Runtime<Model, AppMsg> {
     }
 
     private executeSub(sub: Sub<AppMsg>): void {
-        const bags: Map<Router<AppMsg, unknown, unknown>, Array<Sub<AppMsg>>> = SubInternal.pack(new Map(), sub);
+        const bags: Map<() => Router<AppMsg>, Array<Effect<AppMsg>>> = SubInternal.groupEffects(new Map(), sub);
+        const groups: Array<[ Router<AppMsg>, Array<Effect<AppMsg>> ]> = [];
 
-        const routers: Array<[ Router<AppMsg, unknown, unknown>, Task<never, unknown>, Array<Sub<AppMsg>> ]> = [];
-
-        for (const [ router, state ] of this.routers) {
-            routers.push([ router, Task.succeed(state), bags.get(router) || [] ]);
-            bags.delete(router);
+        for (const [ createRouter, oldRouter ] of this.routers) {
+            groups.push([ oldRouter, bags.get(createRouter) || [] ]);
+            bags.delete(createRouter);
         }
 
-        for (const [ router, effects ] of bags) {
-            routers.push([ router, router.init(), effects ]);
+        for (const [ createRouter, effects ] of bags) {
+            const newRouter = createRouter();
+
+            groups.push([ newRouter, effects ]);
+            this.routers.set(createRouter, newRouter);
         }
 
-        for (const [ router, stateTask, effects ] of routers) {
-            const task = stateTask.chain(
-                <M, S>(state: S) => router.onEffects(
-                    (selfMsg: M): Task<never, void> => TaskInternal.of(
-                        (done: (task: Task<never, void>) => void): Process => {
-                            done(
-                                router.onSelfMsg(
-                                    (appMsgs: Array<AppMsg>): Task<never, void> => {
-                                        this.applyBatchOfMsgs(appMsgs);
-
-                                        return Task.succeed(undefined);
-                                    },
-                                    selfMsg,
-                                    this.routers.get(router)
-                                ).chain((nextState: S): Task<never, void> => {
-                                    this.routers.set(router, nextState);
+        for (const [ router, effects ] of groups) {
+            const task = router.runEffects(
+                <SelfMsg>(selfMsg: SelfMsg): Task<never, void> => TaskInternal.of(
+                    (done: (task: Task<never, void>) => void): Process => {
+                        done(
+                            router.executeMsg(
+                                (appMsgs: Array<AppMsg>): Task<never, void> => {
+                                    this.applyBatchOfMsgs(appMsgs);
 
                                     return Task.succeed(undefined);
-                                })
-                            );
+                                },
+                                selfMsg
+                            )
+                        );
 
-                            return ProcessInternal.none;
-                        }
-                    ),
-                    effects,
-                    state
-                )).chain(<S>(nextState: S): Task<never, void> => {
-                    this.routers.set(router, nextState);
-
-                    return Task.succeed(undefined);
-                });
+                        return ProcessInternal.none;
+                    }
+                ),
+                effects
+            );
 
             TaskInternal.execute(task);
         }
