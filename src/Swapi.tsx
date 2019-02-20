@@ -1,12 +1,6 @@
 import React from 'react';
 
 import {
-    Process
-} from 'Fractal/Process';
-import {
-    Task
-} from 'Fractal/Task';
-import {
     Cmd
 } from 'Fractal/Platform/Cmd';
 import {
@@ -46,11 +40,11 @@ export interface Model {
 const fetchPeopleById = (peopleId: string): Cmd<Msg> => {
     return Http.get('https://swapi.co/api/people/' + peopleId)
         .withExpectJson(peopleDecoder)
-        .toTask()
-        .spawn()
-        .chain((process: Process): Task<never, void> => process.kill())
-        .perform((): Msg => ({ $: 'FETCH_CANCEL' }));
-        // .send((response: Either<Http.Error, Person>): Msg => ({ $: 'FETCH_DONE', _0: response }));
+        // .toTask()
+        // .spawn()
+        // .chain((process: Process): Task<never, void> => process.kill())
+        // .perform((): Msg => ({ $: 'FETCH_CANCEL' }));
+        .send((response: Either<Http.Error, Person>): Msg => ({ $: 'FETCH_DONE', _0: response }));
 };
 
 export const init = (peopleId: string): [ Model, Cmd<Msg> ] => [
