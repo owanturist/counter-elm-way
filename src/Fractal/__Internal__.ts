@@ -67,7 +67,7 @@ export abstract class Router<AppMsg, SelfMsg = unknown, State = unknown> {
             .chain((nextState: State): Task<never, void> => this.setState(nextState));
     }
 
-    public executeMsg(
+    public applySelfMsg(
         sendToApp: (appMsgs: Array<AppMsg>) => Task<never, void>,
         msg: SelfMsg
     ): Task<never, void> {
@@ -605,6 +605,8 @@ export abstract class Runtime<Model, Msg> {
     public abstract subscribe(listener: () => void): () => void;
 }
 
+const flatten = <T>(arr: Array<Array<T>>): Array<T> => ([] as Array<T>).concat(...arr);
+
 class WokrerRuntime<Model, AppMsg> extends Runtime<Model, AppMsg> {
     private readonly routers: Map<() => Router<AppMsg>, Router<AppMsg>> = new Map();
 
@@ -690,9 +692,7 @@ class WokrerRuntime<Model, AppMsg> extends Runtime<Model, AppMsg> {
             result.push(promise.then((msg: AppMsg) => this.applyMsg(msg)));
         }
 
-        return Promise.all(result).then((arrayOfArrays: Array<Array<AppMsg>>): Array<AppMsg> => {
-            return ([] as Array<AppMsg>).concat(...arrayOfArrays);
-        });
+        return Promise.all(result).then(flatten);
     }
 
     private executeSub(sub: Sub<AppMsg>): void {
@@ -716,7 +716,7 @@ class WokrerRuntime<Model, AppMsg> extends Runtime<Model, AppMsg> {
                 <SelfMsg>(selfMsg: SelfMsg): Task<never, void> => TaskInternal.of(
                     (done: (task: Task<never, void>) => void): Process => {
                         done(
-                            router.executeMsg(
+                            router.applySelfMsg(
                                 (appMsgs: Array<AppMsg>): Task<never, void> => {
                                     this.applyBatchOfMsgs(appMsgs);
 
