@@ -2,17 +2,17 @@ import React from 'react';
 
 import {
     Cmd
-} from 'Fractal/Platform/Cmd';
+} from 'frctl/src/Platform/Cmd';
 import {
     RemoteData,
     NotAsked,
     Loading,
-} from 'Fractal/RemoteData';
+} from 'frctl/src/RemoteData';
 import {
     Either
-} from 'Fractal/Either';
-import * as Http from 'Fractal/Http';
-import * as Decode from 'Fractal/Json/Decode';
+} from 'frctl/src/Either';
+import * as Http from 'frctl/src/Http';
+import * as Decode from 'frctl/src/Json/Decode';
 
 interface Person {
     name: string;

@@ -5,7 +5,7 @@ import {
     Runtime,
     Cmd,
     Sub
-} from 'Fractal/__Internal__';
+} from 'frctl/src/__Internal__';
 
 
 export interface Props<Flags, Model, Msg> {

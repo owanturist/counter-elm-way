@@ -2,10 +2,10 @@ import React from 'react';
 
 import {
     Cmd
-} from 'Fractal/Platform/Cmd';
+} from 'frctl/src/Platform/Cmd';
 import {
     Sub
-} from 'Fractal/Platform/Sub';
+} from 'frctl/src/Platform/Sub';
 
 import * as Counter from './Counter';
 import * as Swapi from './Swapi';

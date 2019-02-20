@@ -5,7 +5,7 @@ import {
 
 import {
     ReactProvider
-} from 'Fractal/ReactProvider';
+} from './ReactProvider';
 import * as App from './App';
 
 render(
