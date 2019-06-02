@@ -11,7 +11,6 @@ import * as App from './App';
 render(
     (
         <ReactProvider
-            flags={null}
             init={App.init}
             update={App.update}
             subscriptions={App.subscriptions}
