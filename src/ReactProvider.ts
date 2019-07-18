@@ -1,13 +1,15 @@
 import React from 'react';
 
 import {
+    Worker,
     Program,
     Cmd,
     Sub
 } from 'frctl/src/Core';
 
 
-export interface Props<Model, Msg> {
+export interface Props<Flags, Model, Msg> {
+    flags?: Flags;
     view: React.SFC<{
         model: Model;
         dispatch(msg: Msg): void;
@@ -21,25 +23,25 @@ interface State<Model> {
     model: Model;
 }
 
-export class ReactProvider<Model, Msg> extends React.Component<Props<Model, Msg>, State<Model>> {
+export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<Flags, Model, Msg>, State<Model>> {
     private mounted = false;
-    private program: Program<Model, Msg>;
+    private worker: Worker<Model, Msg>;
     private unsubscribe?: () => void;
     private dispatch: (msg: Msg) => void;
 
-    protected constructor(props: Props<Model, Msg>) {
+    protected constructor(props: Props<Flags, Model, Msg>) {
         super(props);
 
-        this.program = Program.worker({
+        this.worker = Program.worker<Flags | undefined, Model, Msg>({
             init: props.init,
             update: props.update,
             subscriptions: props.subscriptions
-        });
+        }).init(props.flags);
 
-        this.dispatch = (msg: Msg): void => this.program.dispatch(msg);
+        this.dispatch = (msg: Msg): void => this.worker.dispatch(msg);
 
         this.state = {
-            model: this.program.getModel()
+            model: this.worker.getModel()
         };
     }
 
@@ -59,24 +61,24 @@ export class ReactProvider<Model, Msg> extends React.Component<Props<Model, Msg>
     public render(): React.ReactNode {
         return React.createElement(this.props.view, {
             dispatch: this.dispatch,
-            model: this.program.getModel()
+            model: this.worker.getModel()
         });
     }
 
     private subscribe(): void {
-        this.unsubscribe = this.program.subscribe(() => {
+        this.unsubscribe = this.worker.subscribe(() => {
             if (!this.mounted) {
                 return;
             }
 
-            const nextModel = this.program.getModel();
+            const nextModel = this.worker.getModel();
 
             this.setState((state: State<Model>): null | State<Model> => {
                 return state.model === nextModel ? null : { model: nextModel };
             });
         });
 
-        const postMountModel = this.program.getModel();
+        const postMountModel = this.worker.getModel();
 
         if (postMountModel !== this.state.model) {
             this.setState({ model: postMountModel });
