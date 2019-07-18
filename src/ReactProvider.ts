@@ -19,11 +19,7 @@ export interface Props<Flags, Model, Msg> {
     subscriptions(model: Model): Sub<Msg>;
 }
 
-interface State<Model> {
-    model: Model;
-}
-
-export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<Flags, Model, Msg>, State<Model>> {
+export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<Flags, Model, Msg>, Model> {
     private mounted = false;
     private worker: Worker<Model, Msg>;
     private unsubscribe?: () => void;
@@ -40,9 +36,7 @@ export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<
 
         this.dispatch = (msg: Msg): void => this.worker.dispatch(msg);
 
-        this.state = {
-            model: this.worker.getModel()
-        };
+        this.state = this.worker.getModel();
     }
 
     public componentDidMount() {
@@ -71,17 +65,9 @@ export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<
                 return;
             }
 
-            const nextModel = this.worker.getModel();
-
-            this.setState((state: State<Model>): null | State<Model> => {
-                return state.model === nextModel ? null : { model: nextModel };
-            });
+            this.setState(this.worker.getModel());
         });
 
-        const postMountModel = this.worker.getModel();
-
-        if (postMountModel !== this.state.model) {
-            this.setState({ model: postMountModel });
-        }
+        this.setState(this.worker.getModel());
     }
 }
