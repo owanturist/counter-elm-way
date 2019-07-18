@@ -113,10 +113,10 @@ export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
     Counter.subscription(model.secondCounter).map((msg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: msg }))
 ]);
 
-export const View = ({ dispatch, model }: {
+export const View: React.StatelessComponent<{
     model: Model;
     dispatch(msg: Msg): void;
-}): JSX.Element => (
+}> = ({ dispatch, model }) => (
     <div>
         <Swapi.View
             model={model.swapi}

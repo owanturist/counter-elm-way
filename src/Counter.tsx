@@ -77,11 +77,11 @@ const Button = styled.button`
     font-size: 20px;
 `;
 
-export const View = ({ dispatch, model, ...props }: {
+export const View: React.StatelessComponent<{
     model: Model;
     disabled?: boolean;
     dispatch(msg: Msg): void;
-}): JSX.Element => (
+}> = ({ dispatch, model, ...props }) => (
     <div>
         <Button
             disabled={props.disabled}

@@ -89,10 +89,10 @@ export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
     }
 };
 
-export const View = ({ dispatch, model }: {
+export const View: React.StatelessComponent<{
     model: Model;
     dispatch(msg: Msg): void;
-}): JSX.Element => (
+}> = ({ dispatch, model }) => (
     <div>
         {model.person.cata({
             NotAsked: () => (

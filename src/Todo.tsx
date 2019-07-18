@@ -283,11 +283,11 @@ const filterTodos = (filter: Filter) => (todo: Todo): boolean => {
     }
 };
 
-const FilterView = ({ dispatch, filters, current }: {
+const FilterView: React.StatelessComponent<{
     filters: Array<Filter>;
     current: Filter;
     dispatch(msg: Msg): void;
-}): JSX.Element => (
+}> = ({ dispatch, filters, current }) => (
     <div>
         {filters.map(filter => (
             <label key={filter}>
@@ -302,10 +302,10 @@ const FilterView = ({ dispatch, filters, current }: {
     </div>
 );
 
-const TodoView = ({ dispatch, todo }: {
+const TodoView: React.StatelessComponent<{
     todo: Todo;
     dispatch(msg: Msg): void;
-}): JSX.Element => (
+}> = ({ dispatch, todo }) => (
     <li>
         <input
             type="checkbox"
@@ -349,11 +349,11 @@ export const subscriptions = (model: Model): Sub<Msg> => Sub.batch(
     model.todos.map(subscriptionsTodo)
 );
 
-export const View = ({ dispatch, model, ...props }: {
+export const View: React.StatelessComponent<{
     model: Model;
     initialCount: number;
     dispatch(msg: Msg): void;
-}): JSX.Element => (
+}> = ({ dispatch, model, ...props }) => (
     <div>
         <div>Todo List:</div>
 
