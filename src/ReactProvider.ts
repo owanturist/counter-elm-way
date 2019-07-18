@@ -7,17 +7,17 @@ import {
     Sub
 } from 'frctl/src/Core';
 
-
 export interface Props<Flags, Model, Msg> {
-    flags?: Flags;
+    flags: Flags;
     view: React.SFC<{
         model: Model;
         dispatch(msg: Msg): void;
     }>;
-    init(): [ Model, Cmd<Msg> ];
+    init(flags: Flags): [ Model, Cmd<Msg> ];
     update(msg: Msg, model: Model): [ Model, Cmd<Msg> ];
     subscriptions(model: Model): Sub<Msg>;
 }
+
 
 export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<Flags, Model, Msg>, Model> {
     private mounted = false;
@@ -28,7 +28,7 @@ export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<
     protected constructor(props: Props<Flags, Model, Msg>) {
         super(props);
 
-        this.worker = Program.worker<Flags | undefined, Model, Msg>({
+        this.worker = Program.worker({
             init: props.init,
             update: props.update,
             subscriptions: props.subscriptions
