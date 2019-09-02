@@ -11,14 +11,7 @@ import * as Counter from './Counter';
 import * as Todo from './Todo';
 import * as Swapi from './Swapi';
 
-export type Msg
-    = { $: 'SWAPI_MSG'; _0: Swapi.Msg }
-    | { $: 'FIRST_COUNTER_MSG'; _0: Counter.Msg }
-    | { $: 'SECOND_COUNTER_MSG'; _0: Counter.Msg }
-    | { $: 'TODO_MSG'; _0: Todo.Msg }
-    ;
-
-interface Model {
+export interface Model {
     swapi: Swapi.Model;
     firstCounter: Counter.Model;
     secondCounter: Counter.Model;
@@ -26,9 +19,9 @@ interface Model {
 }
 
 export const init = (): [ Model, Cmd<Msg> ] => {
-    const [ initialCounterModel, initialCounterCmd ] = Counter.init(0);
+    const initialCounterModel = Counter.init(0);
     const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init('1');
-    const [ initialTodoModel, initialTodoCmd ] = Todo.initial;
+    const initialTodoModel = Todo.init;
 
     return [
         {
@@ -37,80 +30,82 @@ export const init = (): [ Model, Cmd<Msg> ] => {
             secondCounter: initialCounterModel,
             todo: initialTodoModel
         },
-        Cmd.batch([
-            initialSwapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: swapiMsg })),
-            initialCounterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: counterMsg })),
-            initialCounterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: counterMsg })),
-            initialTodoCmd.map((todoMsg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: todoMsg }))
-        ])
+        initialSwapiCmd.map(swapiMsg => new SwapMsg(swapiMsg))
     ];
 };
 
-export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg>]  => {
-    switch (msg.$) {
-        case 'SWAPI_MSG': {
-            const [ nextSwapiModel, swapiCmd ] = Swapi.update(msg._0, model.swapi);
+export interface Msg {
+    update(model: Model): [ Model, Cmd<Msg> ];
+}
 
-            return [
-                {
-                    ...model,
-                    swapi: nextSwapiModel
-                },
-                swapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: swapiMsg }))
-            ];
-        }
+class SwapMsg implements Msg {
+    public constructor(private readonly swapiMsg: Swapi.Msg) {}
 
-        case 'FIRST_COUNTER_MSG': {
-            const [
-                nextFirstCounter,
-                counterCmd
-            ] = Counter.update(msg._0, model.firstCounter);
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const [ nextSwapiModel, swapiCmd ] = this.swapiMsg.update(model.swapi);
 
-            return [
-                {
-                    ...model,
-                    firstCounter: nextFirstCounter
-                },
-                counterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: counterMsg }))
-            ];
-        }
-
-        case 'SECOND_COUNTER_MSG': {
-            const [
-                nextSecondCounter,
-                counterCmd
-            ] = Counter.update(msg._0, model.secondCounter);
-
-            return [
-                {
-                    ...model,
-                    secondCounter: nextSecondCounter
-                },
-                counterCmd.map((counterMsg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: counterMsg }))
-            ];
-        }
-
-        case 'TODO_MSG': {
-            const [
-                nextTodo,
-                todoListCmd
-            ] = Todo.update(msg._0, model.todo);
-
-            return [
-                {
-                    ...model,
-                    todo: nextTodo
-                },
-                todoListCmd.map((todoMsg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: todoMsg }))
-            ];
-        }
+        return [
+            {
+                ...model,
+                swapi: nextSwapiModel
+            },
+            swapiCmd.map(swapiMsg => new SwapMsg(swapiMsg))
+        ];
     }
-};
+}
 
-export const subscriptions = (model: Model): Sub<Msg> => Sub.batch([
-    Todo.subscriptions(model.todo).map((msg: Todo.Msg): Msg => ({ $: 'TODO_MSG', _0: msg })),
-    Counter.subscription(model.firstCounter).map((msg: Counter.Msg): Msg => ({ $: 'FIRST_COUNTER_MSG', _0: msg })),
-    Counter.subscription(model.secondCounter).map((msg: Counter.Msg): Msg => ({ $: 'SECOND_COUNTER_MSG', _0: msg }))
+class FirstCounterMsg implements Msg {
+    public constructor(private readonly counterMsg: Counter.Msg) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const [ nextFirstCounter, counterCmd ] = this.counterMsg.update(model.firstCounter);
+
+        return [
+            {
+                ...model,
+                firstCounter: nextFirstCounter
+            },
+            counterCmd.map(counterMsg => new FirstCounterMsg(counterMsg))
+        ];
+    }
+}
+
+class SecondCounterMsg implements Msg {
+    public constructor(private readonly counterMsg: Counter.Msg) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const [ nextSecondCounter, counterCmd ] = this.counterMsg.update(model.secondCounter);
+
+        return [
+            {
+                ...model,
+                secondCounter: nextSecondCounter
+            },
+            counterCmd.map(counterMsg => new SecondCounterMsg(counterMsg))
+        ];
+    }
+}
+
+class TodoMsg implements Msg {
+    public constructor(private readonly todoMsg: Todo.Msg) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const [ nextTodo, todoListCmd ] = this.todoMsg.update(model.todo);
+
+        return [
+            {
+                ...model,
+                todo: nextTodo
+            },
+            todoListCmd.map(todoMsg => new TodoMsg(todoMsg))
+        ];
+    }
+}
+
+export const subscriptions = (model: Model): Sub<Msg> => Sub.batch<Msg>([
+    Counter.subscription(model.firstCounter).map(firstCounterMsg => new FirstCounterMsg(firstCounterMsg)),
+    Counter.subscription(model.secondCounter).map(secondCounterMsg => new SecondCounterMsg(secondCounterMsg)),
+    Todo.subscriptions(model.todo).map(todoMsg => new TodoMsg(todoMsg))
 ]);
 
 export const View: React.StatelessComponent<{
@@ -120,20 +115,20 @@ export const View: React.StatelessComponent<{
     <div>
         <Swapi.View
             model={model.swapi}
-            dispatch={(swapiMsg: Swapi.Msg) => dispatch({ $: 'SWAPI_MSG', _0: swapiMsg })}
+            dispatch={swapiMsg => dispatch(new SwapMsg(swapiMsg))}
         />
         <Counter.View
             model={model.firstCounter}
-            dispatch={(firstCounterMsg: Counter.Msg) => dispatch({ $: 'FIRST_COUNTER_MSG', _0: firstCounterMsg })}
+            dispatch={firstCounterMsg => dispatch(new FirstCounterMsg(firstCounterMsg))}
         />
         <Counter.View
             model={model.secondCounter}
-            dispatch={(secondCounterMsg: Counter.Msg) => dispatch({ $: 'SECOND_COUNTER_MSG', _0: secondCounterMsg })}
+            dispatch={secondCounterMsg => dispatch(new SecondCounterMsg(secondCounterMsg))}
         />
         <Todo.View
             initialCount={0}
             model={model.todo}
-            dispatch={(todoMsg: Todo.Msg) => dispatch({ $: 'TODO_MSG', _0: todoMsg })}
+            dispatch={todoMsg => dispatch(new TodoMsg(todoMsg))}
         />
     </div>
 );

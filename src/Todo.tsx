@@ -16,17 +16,6 @@ type Filter
     | 'UNCOMPLETED'
     ;
 
-export type Msg
-    = { $: 'CHANGE_FILTER'; _0: Filter }
-    | { $: 'CHANGE_INPUT'; _0: string }
-    | { $: 'CREATE_TODO'; _0: number }
-    | { $: 'COMPLETE_TODO'; _0: number; _1: boolean }
-    | { $: 'DELETE_TODO'; _0: number }
-    | { $: 'COUNTER_MSG'; _0: number; _1: Counter.Msg }
-    | { $: 'TODO_MSG'; _0: number; _1: Msg }
-    | { $: 'SWAPI_MSG'; _0: number; _1: Swapi.Msg }
-    ;
-
 interface Todo {
     id: number;
     message: string;
@@ -43,227 +32,263 @@ export interface Model {
     todos: Array<Todo>;
 }
 
-export const initial: [ Model, Cmd<Msg> ] = [
-    {
-        nextId: 0,
-        filter: 'ALL',
-        input: '',
-        todos: []
-    },
-    Cmd.none
-];
+export const init: Model = {
+    nextId: 0,
+    filter: 'ALL',
+    input: '',
+    todos: []
+};
 
-export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
-    switch (msg.$) {
-        case 'CHANGE_FILTER': {
-            return [
-                { ...model, filter: msg._0 },
-                Cmd.none
-            ];
-        }
+export interface Msg {
+    update(model: Model): [ Model, Cmd<Msg> ];
+}
 
-        case 'CHANGE_INPUT': {
-            return [
-                { ...model, input: msg._0 },
-                Cmd.none
-            ];
-        }
+class ChangeFilter implements Msg {
+    public constructor(private readonly filter: Filter) {}
 
-        case 'CREATE_TODO': {
-            const [ initialCounterModel, initialCounterCmd ] = Counter.init(msg._0);
-            const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init(initialCounterModel.count.toString());
-            const [ initialModel, initialCmd ] = initial;
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            { ...model, filter: this.filter },
+            Cmd.none
+        ];
+    }
+}
 
-            const newTodo: Todo = {
-                id: model.nextId,
-                message: model.input,
-                completed: false,
-                counter: initialCounterModel,
-                swapi: initialSwapiModel,
-                todos: initialModel
+class ChangeInput implements Msg {
+    public constructor(private readonly input: string) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            { ...model, input: this.input },
+            Cmd.none
+        ];
+    }
+}
+
+class CreateTodo implements Msg {
+    public constructor(private readonly initialCount: number) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const initialCounterModel = Counter.init(this.initialCount);
+        const [
+            initialSwapiModel,
+            initialSwapiCmd
+        ] = Swapi.init(initialCounterModel.count.toString());
+
+        const newTodo: Todo = {
+            id: model.nextId,
+            message: model.input,
+            completed: false,
+            counter: initialCounterModel,
+            swapi: initialSwapiModel,
+            todos: init
+        };
+
+        return [
+            {
+                ...model,
+                nextId: model.nextId + 1,
+                input: '',
+                todos: [ newTodo, ...model.todos ]
+            },
+            initialSwapiCmd.map(swapiMsg => new SwapiMsg(newTodo.id, swapiMsg))
+        ];
+    }
+}
+
+class CompleteTodo implements Msg {
+    public constructor(
+        private readonly todoID: number,
+        private readonly completed: boolean
+    ) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const nextTodos: Array<Todo> = model.todos.map(todo => {
+            if (todo.id !== this.todoID) {
+                return todo;
+            }
+
+            return {
+                ...todo,
+                completed: this.completed
             };
+        });
 
-            return [
-                {
-                    ...model,
-                    nextId: model.nextId + 1,
-                    input: '',
-                    todos: [ newTodo, ...model.todos ]
-                },
-                Cmd.batch([
-                    initialCounterCmd.map((msg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: newTodo.id, _1: msg })),
-                    initialSwapiCmd.map((msg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: newTodo.id, _1: msg })),
-                    initialCmd.map((msg: Msg): Msg => ({ $: 'TODO_MSG', _0: newTodo.id, _1: msg }))
-                ])
-            ];
+        return [
+            { ...model, todos: nextTodos },
+            Cmd.none
+        ];
+    }
+}
+
+class DeleteTodo implements Msg {
+    public constructor(private readonly todoID: number) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        const nextTodos: Array<Todo> = model.todos.filter(
+            todo => todo.id !== this.todoID
+        );
+
+        return [
+            { ...model, todos: nextTodos },
+            Cmd.none
+        ];
+    }
+}
+
+class CounterMsg implements Msg {
+    public constructor(
+        private readonly todoID: number,
+        private readonly counterMsg: Counter.Msg
+    ) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        interface Acc {
+            todos: Array<Todo>;
+            cmd: Cmd<Msg>;
         }
 
-        case 'COMPLETE_TODO': {
-            const nextTodos: Array<Todo> = model.todos.map(todo => {
-                if (todo.id !== msg._0) {
-                    return todo;
+        const { todos, cmd }: Acc = model.todos.reduce(
+            (acc: Acc, todo: Todo) => {
+                if (todo.id !== this.todoID) {
+                    return {
+                        ...acc,
+                        todos: [ ...acc.todos, todo ]
+                    };
                 }
+
+                const [
+                    nextCounterModel,
+                    counterCmd
+                ] = this.counterMsg.update(todo.counter);
+
+                const [
+                    nextSwapiModel,
+                    swapiCmd
+                ]: [ Swapi.Model, Cmd<Swapi.Msg> ] = nextCounterModel.auto
+                    || nextCounterModel.count === todo.counter.count
+                    ? [ todo.swapi, Cmd.none ]
+                    : Swapi.init(nextCounterModel.count.toString())
+                    ;
+
+                const nextTodoModel: Todo = {
+                    ...todo,
+                    counter: nextCounterModel,
+                    swapi: nextSwapiModel
+                };
 
                 return {
-                    ...todo,
-                    completed: msg._1
+                    todos: [ ...acc.todos, nextTodoModel ],
+                    cmd: Cmd.batch<Msg>([
+                        counterCmd.map(counterMsg => new CounterMsg(todo.id, counterMsg)),
+                        swapiCmd.map(swapiMsg => new SwapiMsg(todo.id, swapiMsg))
+                    ])
                 };
-            });
-
-            return [
-                { ...model, todos: nextTodos },
-                Cmd.none
-            ];
-        }
-
-        case 'DELETE_TODO': {
-            const nextTodos: Array<Todo> = model.todos.filter(
-                todo => todo.id !== msg._0
-            );
-
-            return [
-                { ...model, todos: nextTodos },
-                Cmd.none
-            ];
-        }
-
-        case 'COUNTER_MSG': {
-            interface Acc {
-                todos: Array<Todo>;
-                cmd: Cmd<Msg>;
+            },
+            {
+                todos: [],
+                cmd: Cmd.none
             }
+        );
 
-            const { todos, cmd }: Acc = model.todos.reduce(
-                (acc: Acc, todo: Todo) => {
-                    if (todo.id !== msg._0) {
-                        return {
-                            ...acc,
-                            todos: [ ...acc.todos, todo ]
-                        };
-                    }
-
-                    const [
-                        nextCounterModel,
-                        counterCmd
-                    ] = Counter.update(msg._1, todo.counter);
-
-                    const [
-                        nextSwapiModel,
-                        swapiCmd
-                    ]: [ Swapi.Model, Cmd<Swapi.Msg> ] = nextCounterModel.auto
-                        || nextCounterModel.count === todo.counter.count
-                        ? [ todo.swapi, Cmd.none ]
-                        : Swapi.init(nextCounterModel.count.toString())
-                        ;
-
-                    const nextTodoModel: Todo = {
-                        ...todo,
-                        counter: nextCounterModel,
-                        swapi: nextSwapiModel
-                    };
-
-                    return {
-                        todos: [ ...acc.todos, nextTodoModel ],
-                        cmd: Cmd.batch([
-                            counterCmd.map((msg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })),
-                            swapiCmd.map((msg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: todo.id, _1: msg }))
-                        ])
-                    };
-                },
-                {
-                    todos: [],
-                    cmd: Cmd.none
-                }
-            );
-
-            return [
-                { ...model, todos },
-                cmd
-            ];
-        }
-
-        case 'SWAPI_MSG': {
-            interface Acc {
-                todos: Array<Todo>;
-                cmd: Cmd<Msg>;
-            }
-
-            const { todos, cmd }: Acc = model.todos.reduce(
-                (acc: Acc, todo: Todo) => {
-                    if (todo.id !== msg._0) {
-                        return {
-                            ...acc,
-                            todos: [ ...acc.todos, todo ]
-                        };
-                    }
-
-                    const [ nextSwapiModel, swapiCmd ] = Swapi.update(msg._1, todo.swapi);
-
-                    const nextTodoModel: Todo = {
-                        ...todo,
-                        swapi: nextSwapiModel
-                    };
-
-                    return {
-                        todos: [ ...acc.todos, nextTodoModel ],
-                        cmd: swapiCmd.map((swapiMsg: Swapi.Msg): Msg => ({ $: 'SWAPI_MSG', _0: todo.id, _1: swapiMsg }))
-                    };
-                },
-                {
-                    todos: [],
-                    cmd: Cmd.none
-                }
-            );
-
-            return [
-                { ...model, todos },
-                cmd
-            ];
-        }
-
-        case 'TODO_MSG': {
-            interface Acc {
-                todos: Array<Todo>;
-                cmd: Cmd<Msg>;
-            }
-
-            const { todos, cmd }: Acc = model.todos.reduce(
-                (acc: Acc, todo: Todo) => {
-                    if (todo.id !== msg._0) {
-                        return {
-                            ...acc,
-                            todos: [ ...acc.todos, todo ]
-                        };
-                    }
-
-                    const [
-                        nextTodosModel,
-                        todoCmd
-                    ] = update(msg._1, todo.todos);
-
-                    const nextTodoModel: Todo = {
-                        ...todo,
-                        todos: nextTodosModel
-                    };
-
-                    return {
-                        todos: [ ...acc.todos, nextTodoModel ],
-                        cmd: todoCmd.map((todoMsg: Msg): Msg => ({ $: 'TODO_MSG', _0: todo.id, _1: todoMsg }))
-                    };
-                },
-                {
-                    todos: [],
-                    cmd: Cmd.none
-                }
-            );
-
-            return [
-                { ...model, todos },
-                cmd
-            ];
-        }
+        return [
+            { ...model, todos },
+            cmd
+        ];
     }
-};
+}
+
+class SwapiMsg implements Msg {
+    public constructor(
+        private readonly todoID: number,
+        private readonly swapiMsg: Swapi.Msg
+    ) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        interface Acc {
+            todos: Array<Todo>;
+            cmd: Cmd<Msg>;
+        }
+
+        const { todos, cmd }: Acc = model.todos.reduce(
+            (acc: Acc, todo: Todo) => {
+                if (todo.id !== this.todoID) {
+                    return {
+                        ...acc,
+                        todos: [ ...acc.todos, todo ]
+                    };
+                }
+
+                const [ nextSwapiModel, swapiCmd ] = this.swapiMsg.update(todo.swapi);
+
+                const nextTodoModel: Todo = {
+                    ...todo,
+                    swapi: nextSwapiModel
+                };
+
+                return {
+                    todos: [ ...acc.todos, nextTodoModel ],
+                    cmd: swapiCmd.map(swapiMsg => new SwapiMsg(todo.id, swapiMsg))
+                };
+            },
+            {
+                todos: [],
+                cmd: Cmd.none
+            }
+        );
+
+        return [
+            { ...model, todos },
+            cmd
+        ];
+    }
+}
+
+class TodoMsg implements Msg {
+    public constructor(
+        private readonly todoID: number,
+        private readonly todoMsg: Msg
+    ) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        interface Acc {
+            todos: Array<Todo>;
+            cmd: Cmd<Msg>;
+        }
+
+        const { todos, cmd }: Acc = model.todos.reduce(
+            (acc: Acc, todo: Todo) => {
+                if (todo.id !== this.todoID) {
+                    return {
+                        ...acc,
+                        todos: [ ...acc.todos, todo ]
+                    };
+                }
+
+                const [ nextTodosModel, todoCmd ] = this.todoMsg.update(todo.todos);
+
+                const nextTodoModel: Todo = {
+                    ...todo,
+                    todos: nextTodosModel
+                };
+
+                return {
+                    todos: [ ...acc.todos, nextTodoModel ],
+                    cmd: todoCmd.map(todoMsg => new TodoMsg(todo.id, todoMsg))
+                };
+            },
+            {
+                todos: [],
+                cmd: Cmd.none
+            }
+        );
+
+        return [
+            { ...model, todos },
+            cmd
+        ];
+    }
+}
 
 const filtersList: Array<Filter> = [ 'ALL', 'COMPLETED', 'UNCOMPLETED' ];
 
@@ -294,7 +319,7 @@ const FilterView: React.StatelessComponent<{
                 <input
                     type="radio"
                     checked={filter === current}
-                    onChange={() => dispatch({ $: 'CHANGE_FILTER', _0: filter })}
+                    onChange={() => dispatch(new ChangeFilter(filter))}
                 />
                 {filter}
             </label>
@@ -310,24 +335,24 @@ const TodoView: React.StatelessComponent<{
         <input
             type="checkbox"
             checked={todo.completed}
-            onChange={event => dispatch({ $: 'COMPLETE_TODO', _0: todo.id, _1: event.target.checked })}
+            onChange={event => dispatch(new CompleteTodo(todo.id, event.target.checked))}
         />
 
         <Counter.View
             disabled={todo.swapi.person.isLoading()}
             model={todo.counter}
-            dispatch={msg => dispatch({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })}
+            dispatch={counterMsg => dispatch(new CounterMsg(todo.id, counterMsg))}
         />
 
         <Swapi.View
             model={todo.swapi}
-            dispatch={msg => dispatch({ $: 'SWAPI_MSG', _0: todo.id, _1: msg })}
+            dispatch={swapiMsg => dispatch(new SwapiMsg(todo.id, swapiMsg))}
         />
 
         {todo.message}
 
         <button
-            onClick={() => dispatch({ $: 'DELETE_TODO', _0: todo.id })}
+            onClick={() => dispatch(new DeleteTodo(todo.id))}
         >
             &times;
         </button>
@@ -335,14 +360,14 @@ const TodoView: React.StatelessComponent<{
         <View
             initialCount={todo.counter.count}
             model={todo.todos}
-            dispatch={(todoMsg: Msg) => dispatch({ $: 'TODO_MSG', _0: todo.id, _1: todoMsg })}
+            dispatch={todoMsg => dispatch(new TodoMsg(todo.id, todoMsg))}
         />
     </li>
 );
 
-const subscriptionsTodo = (todo: Todo): Sub<Msg> => Sub.batch([
-    Counter.subscription(todo.counter).map((msg: Counter.Msg): Msg => ({ $: 'COUNTER_MSG', _0: todo.id, _1: msg })),
-    subscriptions(todo.todos).map((msg: Msg): Msg => ({ $: 'TODO_MSG', _0: todo.id, _1: msg }))
+const subscriptionsTodo = (todo: Todo): Sub<Msg> => Sub.batch<Msg>([
+    Counter.subscription(todo.counter).map(counterMsg => new CounterMsg(todo.id, counterMsg)),
+    subscriptions(todo.todos).map(todoMsg => new TodoMsg(todo.id, todoMsg))
 ]);
 
 export const subscriptions = (model: Model): Sub<Msg> => Sub.batch(
@@ -360,7 +385,7 @@ export const View: React.StatelessComponent<{
         <form
             action="todo"
             onSubmit={event => {
-                dispatch({ $: 'CREATE_TODO', _0: props.initialCount });
+                dispatch(new CreateTodo(props.initialCount));
 
                 event.preventDefault();
             }}
@@ -374,7 +399,7 @@ export const View: React.StatelessComponent<{
             <input
                 type="text"
                 value={model.input}
-                onChange={event => dispatch({ $: 'CHANGE_INPUT', _0: event.target.value })}
+                onChange={event => dispatch(new ChangeInput(event.target.value))}
             />
             <button type="submit">
                 Create

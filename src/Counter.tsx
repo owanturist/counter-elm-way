@@ -12,61 +12,63 @@ import {
     Process
 } from 'frctl/dist/Process';
 
-export type Msg
-    = { $: 'DECREMENT' }
-    | { $: 'INCREMENT' }
-    | { $: 'DELAYED'; _0: Msg }
-    | { $: 'SET_AUTO'; _0: boolean }
-    ;
-
 export interface Model {
     count: number;
     auto: boolean;
 }
 
-export const init = (count: number): [ Model, Cmd<Msg> ] => [
-    {
-        count,
-        auto: false
-    },
-    Cmd.none
-];
+export const init = (count: number): Model => ({
+    count,
+    auto: false
+});
 
-export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
-    switch (msg.$) {
-        case 'DECREMENT': {
-            return [
-                { ...model, count: model.count - 1 },
-                Cmd.none
-            ];
-        }
+export interface Msg {
+    update(model: Model): [ Model, Cmd<Msg> ];
+}
 
-        case 'INCREMENT': {
-            return [
-                { ...model, count: model.count + 1 },
-                Cmd.none
-            ];
-        }
-
-        case 'DELAYED': {
-            return [
-                model,
-                Process.sleep(1000).perform(() => msg._0)
-            ];
-        }
-
-        case 'SET_AUTO': {
-            return [
-                { ...model, auto: msg._0 },
-                Cmd.none
-            ];
-        }
+class Decrement implements Msg {
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            { ...model, count: model.count - 1 },
+            Cmd.none
+        ];
     }
-};
+}
+
+class Increment implements Msg {
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            { ...model, count: model.count + 1 },
+            Cmd.none
+        ];
+    }
+}
+
+class Delayed implements Msg {
+    public constructor(private readonly msg: Msg) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            model,
+            Process.sleep(1000).perform(() => this.msg)
+        ];
+    }
+}
+
+class SetAuto implements Msg {
+    public constructor(private readonly auto: boolean) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            { ...model, auto: this.auto },
+            Cmd.none
+        ];
+    }
+}
 
 export const subscription = (model: Model): Sub<Msg> => {
     if (model.auto) {
-        return Time.every(100, (): Msg => ({ $: 'INCREMENT' }));
+        return Time.every(100, () => new Increment());
     }
 
     return Sub.none;
@@ -81,21 +83,21 @@ export const View: React.StatelessComponent<{
     model: Model;
     disabled?: boolean;
     dispatch(msg: Msg): void;
-}> = ({ dispatch, model, ...props }) => (
+}> = ({ model, disabled, dispatch }) => (
     <div>
         <Button
-            disabled={props.disabled}
-            onClick={() => dispatch({ $: 'DELAYED', _0: { $: 'DECREMENT' }})}
+            disabled={disabled}
+            onClick={() => dispatch(new Delayed(new Decrement()))}
         >-</Button>
         {model.count}
         <Button
-            disabled={props.disabled}
-            onClick={() => dispatch({ $: 'INCREMENT' })}
+            disabled={disabled}
+            onClick={() => dispatch(new Increment())}
         >+</Button>
         <input
             type="checkbox"
             checked={model.auto}
-            onChange={event => dispatch({ $: 'SET_AUTO', _0: event.target.checked })}
+            onChange={event => dispatch(new SetAuto(event.target.checked))}
         />
     </div>
 );

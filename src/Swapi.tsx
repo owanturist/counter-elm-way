@@ -5,7 +5,6 @@ import {
 } from 'frctl/Dist/Platform/Cmd';
 import {
     RemoteData,
-    NotAsked,
     Loading,
 } from 'frctl/Dist/RemoteData';
 import {
@@ -26,17 +25,6 @@ const peopleDecoder: Decode.Decoder<Person> = Decode.props({
     mass: Decode.field('mass', Decode.string)
 });
 
-export type Msg
-    = { $: 'FETCH' }
-    | { $: 'FETCH_DONE'; _0: Either<Http.Error, Person> }
-    | { $: 'FETCH_CANCEL' }
-    ;
-
-export interface Model {
-    id: string;
-    person: RemoteData<Http.Error, Person>;
-}
-
 const fetchPeopleById = (peopleId: string): Cmd<Msg> => {
     return Http.get('https://swapi.co/api/people/' + peopleId)
         .withExpectJson(peopleDecoder)
@@ -44,8 +32,13 @@ const fetchPeopleById = (peopleId: string): Cmd<Msg> => {
         // .spawn()
         // .chain((process: Process): Task<never, void> => process.kill())
         // .perform((): Msg => ({ $: 'FETCH_CANCEL' }));
-        .send((response: Either<Http.Error, Person>): Msg => ({ $: 'FETCH_DONE', _0: response }));
+        .send(response => new FetchDone(response));
 };
+
+export interface Model {
+    id: string;
+    person: RemoteData<Http.Error, Person>;
+}
 
 export const init = (peopleId: string): [ Model, Cmd<Msg> ] => [
     {
@@ -55,39 +48,35 @@ export const init = (peopleId: string): [ Model, Cmd<Msg> ] => [
     fetchPeopleById(peopleId)
 ];
 
-export const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => {
-    switch (msg.$) {
-        case 'FETCH': {
-            return [
-                {
-                    ...model,
-                    person: Loading
-                },
-                fetchPeopleById(model.id)
-            ];
-        }
+export interface Msg {
+    update(model: Model): [ Model, Cmd<Msg> ];
+}
 
-        case 'FETCH_DONE': {
-            return [
-                {
-                    ...model,
-                    person: RemoteData.fromEither(msg._0)
-                },
-                Cmd.none
-            ];
-        }
-
-        case 'FETCH_CANCEL': {
-            return [
-                {
-                    ...model,
-                    person: NotAsked
-                },
-                Cmd.none
-            ];
-        }
+class Fetch {
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            {
+                ...model,
+                person: Loading
+            },
+            fetchPeopleById(model.id)
+        ];
     }
-};
+}
+
+class FetchDone {
+    public constructor(private readonly result: Either<Http.Error, Person>) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            {
+                ...model,
+                person: RemoteData.fromEither(this.result)
+            },
+            Cmd.none
+        ];
+    }
+}
 
 export const View: React.StatelessComponent<{
     model: Model;
@@ -96,7 +85,7 @@ export const View: React.StatelessComponent<{
     <div>
         {model.person.cata({
             NotAsked: () => (
-                <h1>Not Asked. <button onClick={() => dispatch({ $: 'FETCH' })}>Click for ask</button></h1>
+                <h1>Not Asked. <button onClick={() => dispatch(new Fetch())}>Click for ask</button></h1>
             ),
 
             Loading: () => (
@@ -120,7 +109,7 @@ export const View: React.StatelessComponent<{
                     <div>
                         <h1>Error at server side</h1>
                         <button
-                            onClick={() => dispatch({ $: 'FETCH' })}
+                            onClick={() => dispatch(new Fetch())}
                         >Fetch again</button>
                     </div>
                 ),
