@@ -3,14 +3,14 @@ import styled from 'styled-components';
 
 import {
     Cmd
-} from 'frctl/src/Platform/Cmd';
+} from 'frctl/dist/Platform/Cmd';
 import {
     Sub
-} from 'frctl/src/Platform/Sub';
-import * as Time from 'frctl/src/Time';
+} from 'frctl/dist/Platform/Sub';
+import * as Time from 'frctl/dist/Time';
 import {
     Process
-} from 'frctl/src/Process';
+} from 'frctl/dist/Process';
 
 export type Msg
     = { $: 'DECREMENT' }

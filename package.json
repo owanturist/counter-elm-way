@@ -33,10 +33,10 @@
     "webpack-dev-server": "^3.1.9"
   },
   "dependencies": {
+    "frctl": "^0.1.7",
     "normalize.css": "^8.0.0",
     "react": "^16.5.2",
     "react-dom": "^16.5.2",
-    "redux": "^4.0.0",
     "styled-components": "^4.0.2"
   }
 }

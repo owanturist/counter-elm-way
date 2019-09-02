@@ -1,38 +1,36 @@
 import React from 'react';
 
 import {
-    Worker,
     Program,
     Cmd,
     Sub
-} from 'frctl/src/Core';
+} from 'frctl/dist/Core';
 
-export interface Props<Flags, Model, Msg> {
-    flags: Flags;
+export interface Props<Model, Msg> {
     view: React.SFC<{
         model: Model;
         dispatch(msg: Msg): void;
     }>;
-    init(flags: Flags): [ Model, Cmd<Msg> ];
+    init(): [ Model, Cmd<Msg> ];
     update(msg: Msg, model: Model): [ Model, Cmd<Msg> ];
     subscriptions(model: Model): Sub<Msg>;
 }
 
 
-export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<Flags, Model, Msg>, Model> {
+export class ReactProvider<Model, Msg> extends React.PureComponent<Props<Model, Msg>, Model> {
     private mounted = false;
-    private worker: Worker<Model, Msg>;
+    private worker: Program<Model, Msg>;
     private unsubscribe?: () => void;
     private dispatch: (msg: Msg) => void;
 
-    protected constructor(props: Props<Flags, Model, Msg>) {
+    protected constructor(props: Props<Model, Msg>) {
         super(props);
 
         this.worker = Program.worker({
             init: props.init,
             update: props.update,
             subscriptions: props.subscriptions
-        }).init(props.flags);
+        });
 
         this.dispatch = (msg: Msg): void => this.worker.dispatch(msg);
 

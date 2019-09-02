@@ -2,10 +2,10 @@ import React from 'react';
 
 import {
     Cmd
-} from 'frctl/src/Platform/Cmd';
+} from 'frctl/dist/Platform/Cmd';
 import {
     Sub
-} from 'frctl/src/Platform/Sub';
+} from 'frctl/dist/Platform/Sub';
 
 import * as Counter from './Counter';
 import * as Todo from './Todo';
