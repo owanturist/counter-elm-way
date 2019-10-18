@@ -2,9 +2,10 @@ import React from 'react';
 
 import {
     Program,
+    Worker,
     Cmd,
     Sub
-} from 'frctl/dist/Core';
+} from 'frctl/Core';
 
 export interface Props<Model, Msg> {
     view: React.SFC<{
@@ -19,7 +20,7 @@ export interface Props<Model, Msg> {
 
 export class ReactProvider<Model, Msg> extends React.PureComponent<Props<Model, Msg>, Model> {
     private mounted = false;
-    private worker: Program<Model, Msg>;
+    private worker: Worker<Model, Msg>;
     private unsubscribe?: () => void;
     private dispatch: (msg: Msg) => void;
 
@@ -30,7 +31,7 @@ export class ReactProvider<Model, Msg> extends React.PureComponent<Props<Model, 
             init: props.init,
             update: props.update,
             subscriptions: props.subscriptions
-        });
+        }).init({});
 
         this.dispatch = (msg: Msg): void => this.worker.dispatch(msg);
 

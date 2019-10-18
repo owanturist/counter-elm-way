@@ -2,16 +2,11 @@ import React from 'react';
 
 import {
     Cmd
-} from 'frctl/Dist/Platform/Cmd';
-import {
-    RemoteData,
-    Loading,
-} from 'frctl/Dist/RemoteData';
-import {
-    Either
-} from 'frctl/Dist/Either';
-import * as Http from 'frctl/Dist/Http';
-import * as Decode from 'frctl/Dist/Json/Decode';
+} from 'frctl/Platform/Cmd';
+import RemoteData, { Loading } from 'frctl/RemoteData/Optional';
+import Either from 'frctl/Either';
+import * as Http from 'frctl/Http';
+import Decode from 'frctl/Json/Decode';
 
 interface Person {
     name: string;
@@ -19,10 +14,10 @@ interface Person {
     mass: string;
 }
 
-const peopleDecoder: Decode.Decoder<Person> = Decode.props({
-    name: Decode.field('name', Decode.string),
-    height: Decode.field('height', Decode.string),
-    mass: Decode.field('mass', Decode.string)
+const peopleDecoder: Decode.Decoder<Person> = Decode.shape({
+    name: Decode.field('name').string,
+    height: Decode.field('height').string,
+    mass: Decode.field('mass').string
 });
 
 const fetchPeopleById = (peopleId: string): Cmd<Msg> => {

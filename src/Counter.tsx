@@ -3,14 +3,14 @@ import styled from 'styled-components';
 
 import {
     Cmd
-} from 'frctl/dist/Platform/Cmd';
+} from 'frctl/Platform/Cmd';
 import {
     Sub
-} from 'frctl/dist/Platform/Sub';
-import * as Time from 'frctl/dist/Time';
+} from 'frctl/Platform/Sub';
+import * as Time from 'frctl/Time';
 import {
     Process
-} from 'frctl/dist/Process';
+} from 'frctl/Process';
 
 export interface Model {
     count: number;

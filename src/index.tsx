@@ -6,7 +6,7 @@ import {
 import {
     ReactProvider
 } from './ReactProvider';
-import { Cmd } from 'frctl/dist/Core';
+import { Cmd } from 'frctl/Core';
 import * as App from './App';
 
 const update = (msg: App.Msg, model: App.Model): [ App.Model, Cmd<App.Msg> ] => msg.update(model);
