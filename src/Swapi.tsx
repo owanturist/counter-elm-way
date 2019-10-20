@@ -1,8 +1,6 @@
 import React from 'react';
 
-import {
-    Cmd
-} from 'frctl/Platform/Cmd';
+import { Cmd } from 'frctl';
 import RemoteData, { Loading } from 'frctl/RemoteData/Optional';
 import Either from 'frctl/Either';
 import * as Http from 'frctl/Http';

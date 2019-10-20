@@ -1,11 +1,6 @@
 import React from 'react';
 
-import {
-    Cmd
-} from 'frctl/Platform/Cmd';
-import {
-    Sub
-} from 'frctl/Platform/Sub';
+import { Cmd, Sub } from 'frctl';
 
 import * as Counter from './Counter';
 import * as Todo from './Todo';

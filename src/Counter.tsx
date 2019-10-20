@@ -1,16 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
 
-import {
-    Cmd
-} from 'frctl/Platform/Cmd';
-import {
-    Sub
-} from 'frctl/Platform/Sub';
+import { Process, Cmd, Sub } from 'frctl';
 import * as Time from 'frctl/Time';
-import {
-    Process
-} from 'frctl/Process';
 
 export interface Model {
     count: number;
