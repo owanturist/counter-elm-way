@@ -1,25 +1,34 @@
 import React from 'react';
 
 import { Cmd, Sub } from 'frctl';
+import { Url } from 'frctl/Url';
+import { cons } from 'frctl/Basics';
+import { UrlRequest, Key, Link } from './ReactProvider';
 
 import * as Counter from './Counter';
 import * as Todo from './Todo';
 import * as Swapi from './Swapi';
 
 export interface Model {
+    key: Key;
+    location: string;
     swapi: Swapi.Model;
     firstCounter: Counter.Model;
     secondCounter: Counter.Model;
     todo: Todo.Model;
 }
 
-export const init = (): [ Model, Cmd<Msg> ] => {
+const urlToLocation = (url: Url): string => url.toString();
+
+export const init = (_flags: any, url: Url, key: Key): [ Model, Cmd<Msg> ] => {
     const initialCounterModel = Counter.init(0);
     const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init('1');
     const initialTodoModel = Todo.init;
 
     return [
         {
+            key,
+            location: urlToLocation(url),
             swapi: initialSwapiModel,
             firstCounter: initialCounterModel,
             secondCounter: initialCounterModel,
@@ -32,6 +41,35 @@ export const init = (): [ Model, Cmd<Msg> ] => {
 export interface Msg {
     update(model: Model): [ Model, Cmd<Msg> ];
 }
+
+export const onUrlRequest = cons<[ UrlRequest ], Msg>(class RequestUrl implements Msg {
+    public constructor(private readonly request: UrlRequest) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            model,
+            this.request.cata({
+                Internal: url => model.key.push(url.toString()),
+
+                External: () => Cmd.none
+            })
+        ];
+    }
+});
+
+export const onUrlChange = cons<[ Url ], Msg>(class ChangeUrl implements Msg {
+    public constructor(private readonly url: Url) {}
+
+    public update(model: Model): [ Model, Cmd<Msg> ] {
+        return [
+            {
+                ...model,
+                location: urlToLocation(this.url)
+            },
+            Cmd.none
+        ];
+    }
+});
 
 class SwapMsg implements Msg {
     public constructor(private readonly swapiMsg: Swapi.Msg) {}
@@ -108,6 +146,16 @@ export const View: React.StatelessComponent<{
     dispatch(msg: Msg): void;
 }> = ({ dispatch, model }) => (
     <div>
+        {model.location}
+
+        <br />
+
+        <Link href="/test1">Go 1</Link>
+
+        <br />
+
+        <Link href="/test2">Go 2</Link>
+
         <Swapi.View
             model={model.swapi}
             dispatch={swapiMsg => dispatch(new SwapMsg(swapiMsg))}

@@ -14,7 +14,10 @@ const update = (msg: App.Msg, model: App.Model): [ App.Model, Cmd<App.Msg> ] => 
 render(
     (
         <ReactProvider
+            flags={{}}
             init={App.init}
+            onUrlChange={App.onUrlChange}
+            onUrlRequest={App.onUrlRequest}
             update={update}
             subscriptions={App.subscriptions}
             view={App.View}
