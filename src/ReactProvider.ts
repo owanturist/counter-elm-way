@@ -15,9 +15,9 @@ export interface Props<Model, Msg> {
 
 export class ReactProvider<Model, Msg> extends React.PureComponent<Props<Model, Msg>, Model> {
     private mounted = false;
-    private worker: Worker<Model, Msg>;
+    private readonly worker: Worker<Model, Msg>;
     private unsubscribe?: () => void;
-    private dispatch: (msg: Msg) => void;
+    private readonly dispatch: (msg: Msg) => void;
 
     protected constructor(props: Props<Model, Msg>) {
         super(props);
