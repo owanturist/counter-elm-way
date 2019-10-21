@@ -3,6 +3,7 @@ import styled from 'styled-components';
 
 import { Process, Cmd, Sub } from 'frctl';
 import * as Time from 'frctl/Time';
+import { Link } from './ReactProvider';
 
 export interface Model {
     count: number;
@@ -91,5 +92,6 @@ export const View: React.StatelessComponent<{
             checked={model.auto}
             onChange={event => dispatch(new SetAuto(event.target.checked))}
         />
+        <Link href={`/counter/${model.count}`}>Go to /counter/{model.count}</Link>
     </div>
 );

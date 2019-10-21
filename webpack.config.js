@@ -8,7 +8,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
     entry: [
         'normalize.css',
-        path.resolve('./src/index.tsx')
+        path.resolve('./src/App.tsx')
     ],
 
     output: {

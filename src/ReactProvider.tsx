@@ -1,27 +1,53 @@
 import React from 'react';
 
-import { Cata, cons, identity } from 'frctl/Basics';
+import { Cata, cons } from 'frctl/Basics';
 import { Program, Worker, Cmd, Sub, Task } from 'frctl';
 import { Url } from 'frctl/Url';
 import { Nothing, Just } from 'frctl/Maybe';
 
-export class Key {
-    public constructor(private readonly fire: () => void) {}
+export interface Navigation {
+    replaceUrl(url: string): Cmd<never>;
 
-    public replace(path: string): Cmd<never> {
-        return Task.binding((done: (task: Task<never, void>) => void) => {
-            history.replaceState({}, '', path);
-            this.fire();
-            done(Task.succeed(undefined));
-        }).perform(identity as never);
+    pushUrl(url: string): Cmd<never>;
+
+    back(steps: number): Cmd<never>;
+
+    forward(steps: number): Cmd<never>;
+}
+
+class NavigationImpl implements Navigation {
+    public constructor(private readonly onChange: () => void) {}
+
+    public replaceUrl(url: string): Cmd<never> {
+        return Task.binding(() => {
+            history.replaceState({}, '', url);
+            this.onChange();
+        }).perform(null as never);
     }
 
-    public push(path: string): Cmd<never> {
-        return Task.binding((done: (task: Task<never, void>) => void) => {
-            history.pushState({}, '', path);
-            this.fire();
-            done(Task.succeed(undefined));
-        }).perform(identity as never);
+    public pushUrl(url: string): Cmd<never> {
+        return Task.binding(() => {
+            history.pushState({}, '', url);
+            this.onChange();
+        }).perform(null as never);
+    }
+
+    public back(steps: number): Cmd<never> {
+        return steps > 0 ? this.go(-steps) : Cmd.none;
+    }
+
+    public forward(steps: number): Cmd<never> {
+        return steps > 0 ? this.go(steps) : Cmd.none;
+    }
+
+    private go(steps: number): Cmd<never> {
+        return Task.binding(() => {
+            if (steps !== 0) {
+                history.go(steps);
+            }
+
+            this.onChange();
+        }).perform(null as never);
     }
 }
 
@@ -58,7 +84,7 @@ export interface Props<Flags, Model, Msg> {
         model: Model;
         dispatch(msg: Msg): void;
     }>;
-    init(flags: Flags, url: Url, key: Key): [ Model, Cmd<Msg> ];
+    init(flags: Flags, url: Url, key: Navigation): [ Model, Cmd<Msg> ];
     update(msg: Msg, model: Model): [ Model, Cmd<Msg> ];
     subscriptions(model: Model): Sub<Msg>;
     onUrlRequest(request: UrlRequest): Msg;
@@ -76,23 +102,23 @@ export class ReactProvider<Flags, Model, Msg> extends React.PureComponent<Props<
     private readonly worker: Worker<Model, Msg>;
     private unsubscribe?: () => void;
     private readonly dispatch: (msg: Msg) => void;
-    private readonly key: Key;
+    private readonly navigation: Navigation;
 
     protected constructor(props: Props<Flags, Model, Msg>) {
         super(props);
 
-        const fire = () => this.dispatch(props.onUrlChange(getURL()));
+        const onUrlChange = () => this.dispatch(props.onUrlChange(getURL()));
 
-        this.key = new Key(fire);
+        this.navigation = new NavigationImpl(onUrlChange);
 
         if (window.navigator.userAgent.indexOf('Trident') < 0) {
-            window.addEventListener('hashchange', fire);
+            window.addEventListener('hashchange', onUrlChange);
         }
 
-        window.addEventListener('popstate', fire);
+        window.addEventListener('popstate', onUrlChange);
 
         this.worker = Program.worker({
-            init: (flags: Flags) => props.init(flags, getURL(), this.key),
+            init: (flags: Flags) => props.init(flags, getURL(), this.navigation),
             update: props.update,
             subscriptions: props.subscriptions
         }).init(props.flags);

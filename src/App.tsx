@@ -1,16 +1,19 @@
 import React from 'react';
+import {
+    render
+} from 'react-dom';
 
 import { Cmd, Sub } from 'frctl';
 import { Url } from 'frctl/Url';
 import { cons } from 'frctl/Basics';
-import { UrlRequest, Key, Link } from './ReactProvider';
 
+import { UrlRequest, ReactProvider, Navigation } from './ReactProvider';
 import * as Counter from './Counter';
 import * as Todo from './Todo';
 import * as Swapi from './Swapi';
 
-export interface Model {
-    key: Key;
+interface Model {
+    navigation: Navigation;
     location: string;
     swapi: Swapi.Model;
     firstCounter: Counter.Model;
@@ -20,14 +23,14 @@ export interface Model {
 
 const urlToLocation = (url: Url): string => url.toString();
 
-export const init = (_flags: any, url: Url, key: Key): [ Model, Cmd<Msg> ] => {
+const init = (_flags: never, url: Url, key: Navigation): [ Model, Cmd<Msg> ] => {
     const initialCounterModel = Counter.init(0);
     const [ initialSwapiModel, initialSwapiCmd ] = Swapi.init('1');
     const initialTodoModel = Todo.init;
 
     return [
         {
-            key,
+            navigation: key,
             location: urlToLocation(url),
             swapi: initialSwapiModel,
             firstCounter: initialCounterModel,
@@ -38,18 +41,18 @@ export const init = (_flags: any, url: Url, key: Key): [ Model, Cmd<Msg> ] => {
     ];
 };
 
-export interface Msg {
+interface Msg {
     update(model: Model): [ Model, Cmd<Msg> ];
 }
 
-export const onUrlRequest = cons<[ UrlRequest ], Msg>(class RequestUrl implements Msg {
+const RequestUrl = cons<[ UrlRequest ], Msg>(class RequestUrl implements Msg {
     public constructor(private readonly request: UrlRequest) {}
 
     public update(model: Model): [ Model, Cmd<Msg> ] {
         return [
             model,
             this.request.cata({
-                Internal: url => model.key.push(url.toString()),
+                Internal: url => model.navigation.pushUrl(url.toString()),
 
                 External: () => Cmd.none
             })
@@ -57,7 +60,7 @@ export const onUrlRequest = cons<[ UrlRequest ], Msg>(class RequestUrl implement
     }
 });
 
-export const onUrlChange = cons<[ Url ], Msg>(class ChangeUrl implements Msg {
+const ChangeUrl = cons<[ Url ], Msg>(class ChangeUrl implements Msg {
     public constructor(private readonly url: Url) {}
 
     public update(model: Model): [ Model, Cmd<Msg> ] {
@@ -135,26 +138,18 @@ class TodoMsg implements Msg {
     }
 }
 
-export const subscriptions = (model: Model): Sub<Msg> => Sub.batch<Msg>([
+const subscriptions = (model: Model): Sub<Msg> => Sub.batch<Msg>([
     Counter.subscription(model.firstCounter).map(firstCounterMsg => new FirstCounterMsg(firstCounterMsg)),
     Counter.subscription(model.secondCounter).map(secondCounterMsg => new SecondCounterMsg(secondCounterMsg)),
     Todo.subscriptions(model.todo).map(todoMsg => new TodoMsg(todoMsg))
 ]);
 
-export const View: React.StatelessComponent<{
+const View: React.StatelessComponent<{
     model: Model;
     dispatch(msg: Msg): void;
 }> = ({ dispatch, model }) => (
     <div>
         {model.location}
-
-        <br />
-
-        <Link href="/test1">Go 1</Link>
-
-        <br />
-
-        <Link href="/test2">Go 2</Link>
 
         <Swapi.View
             model={model.swapi}
@@ -174,4 +169,22 @@ export const View: React.StatelessComponent<{
             dispatch={todoMsg => dispatch(new TodoMsg(todoMsg))}
         />
     </div>
+);
+
+// M A I N
+
+
+const update = (msg: Msg, model: Model): [ Model, Cmd<Msg> ] => msg.update(model);
+
+render(
+    <ReactProvider
+        flags={{}}
+        init={init}
+        onUrlChange={ChangeUrl}
+        onUrlRequest={RequestUrl}
+        update={update}
+        subscriptions={subscriptions}
+        view={View}
+    />,
+    document.getElementById('app')
 );
